@@ -6,6 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="300"
         x:Class="PentaGrammata.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
+        Width="560" Height="400"
         Icon="/Assets/avalonia-logo.ico"
         Title="PentaGrammata">
 
@@ -17,7 +18,9 @@
 
     <DockPanel>
 
-        <Menu DockPanel.Dock="Top" Background="#080808" BorderBrush="#101010" BorderThickness="0,0,0,1">
+        <Menu DockPanel.Dock="Top"
+            Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
+
             <MenuItem Header="_File">
                 <MenuItem Header="_New"/>
                 <MenuItem Header="_Open"/>
@@ -28,17 +31,26 @@
                 <MenuItem Header="_Copy"/>
                 <MenuItem Header="_Paste"/>
             </MenuItem>
+            <MenuItem Header="_Settings">
+                <MenuItem Header="_Morse settings..."/>
+                <MenuItem Header="_UI settings..."/>
+            </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About"/>
             </MenuItem>
         </Menu>
 
-        <Border DockPanel.Dock="Bottom" Background="#080808" BorderBrush="#101010" BorderThickness="0,1,0,0" Padding="10,5">
+        <Border DockPanel.Dock="Bottom"
+            Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,1,0,0"
+            Padding="10,5">
+
             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"/>
         </Border>
         
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -50,20 +62,44 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Label Grid.Column="0" Grid.Row="0" Content="Character palette:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,10,10,10"/>
-               
-            <ComboBox Grid.Column="1" Grid.Row="0" Margin="0,10,10,10" HorizontalAlignment="Stretch" VerticalAlignment="Center" >
-                <ComboBoxItem Content="Item 1"/>
-                <ComboBoxItem Content="Item 2"/>
-                <ComboBoxItem Content="Item 3"/>
-            </ComboBox>
+            <!-- First row: Character palette selection -->
 
-            <Button Grid.Column="2" Grid.Row="0" Content="Practice" Margin="0,10,10,10" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            <Label Grid.Column="0" Grid.Row="0" Content="Character palette:"
+                HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,10,10,10"/>
             
-            <TextBox Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding Greeting}"
+            <ComboBox Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="2" Margin="0,10,10,10"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                ItemsSource="{Binding CharacterPalettes}"/>
+
+            <!-- Second row: Practice button -->
+
+            <Label Grid.Column="0" Grid.Row="1" Content="Practice duration:"
+                HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,10,10"/>
+
+            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal"
+                Margin="0,0,10,10" VerticalAlignment="Center">
+
+                <NumericUpDown Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
+                    Value="{Binding PracticeDuration}" Minimum="1" Maximum="999" FormatString="0"/>
+
+                <Label Content="mins" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <Button Grid.Column="2" Grid.Row="1" Content="Practice" Margin="0,0,10,10"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            
+            <!-- Third row: Received message -->
+
+            <Label Grid.Column="0" Grid.Row="2" Content="You received:"
+                HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
+
+            <TextBox Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="3" Text="{Binding Greeting}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"/>
 
-            <Button Grid.Column="2" Grid.Row="2" Content="Check" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,10"/>
+            <!-- Fourth row: Verify button -->
+
+            <Button Grid.Column="2" Grid.Row="4" Content="Verify"
+                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,10"/>
         </Grid>
     </DockPanel>
 
