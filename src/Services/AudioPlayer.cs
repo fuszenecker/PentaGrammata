@@ -4,7 +4,7 @@ using Silk.NET.OpenAL;
 
 namespace PentaGrammata.Services;
 
-public class AudioPlayer : IDisposable
+public class AudioPlayer : IAudioPlayer, IDisposable
 {
     private AL _al;
     private ALContext _alc;

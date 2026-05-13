@@ -20,15 +20,9 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         var audioPlayer = new Services.AudioPlayer();
+        var morsePlayer = new Services.MorsePlayer(audioPlayer);
 
-        const int sampleRate = 44100;
-        const int frequency = 1000;
-
-        var sampleData = Enumerable.Range(0, sampleRate)
-            .Select(i => (short)(Math.Sin(2 * Math.PI * frequency * i / sampleRate) * short.MaxValue))
-            .ToArray();
-
-        audioPlayer.PlayAudio(sampleData, sampleRate);
+        morsePlayer.PlayMorseCode("hello", 20, 20, 44100);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
