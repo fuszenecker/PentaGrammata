@@ -82,7 +82,14 @@
             
             <ComboBox Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="2" Margin="0,10,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                ItemsSource="{Binding CharacterPalettes}"/>
+                ItemsSource="{Binding CharacterPalettes}"
+                SelectedItem="{Binding SelectedCharacterPalette}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Key}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <!-- Second row: Practice button -->
 
