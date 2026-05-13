@@ -1,6 +1,10 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace PentaGrammata.Services;
 
 public interface IMorsePlayer
 {
-    void PlayMorseCode(string morseCode, int charWpm, int textWpm, int sampleRate);
+    Task PlayMorseCodeAsync(string morseCode, int charWpm, int textWpm, int sampleRate, CancellationToken cancellationToken);
 }

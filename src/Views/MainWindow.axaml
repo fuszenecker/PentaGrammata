@@ -100,7 +100,8 @@
             </StackPanel>
 
             <Button Grid.Column="2" Grid.Row="1" Content="Practice" Margin="0,0,10,10"
-                HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                Command="{Binding StartPracticeCommand}"/>
             
             <!-- Third row: Received message -->
 

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
 using Silk.NET.OpenAL;
 
 namespace PentaGrammata.Services;
@@ -27,45 +30,72 @@ public class AudioPlayer : IAudioPlayer, IDisposable
         _alc.MakeContextCurrent(_context);
     }
 
-    public unsafe void PlayAudio(short[] audioData, int sampleRate)
+    public async Task PlayAudioAsync(short[] audioData, int sampleRate, CancellationToken cancellationToken)
     {
         try
         {
             if (audioData == null || audioData.Length == 0)
                 return;
 
-            // Create audio buffer
-            uint buffer = _al.GenBuffer();
+            uint buffer = 0;
+            uint source = 0;
             
-            // Upload audio data to buffer
-            fixed (short* ptr = audioData)
+            // Setup buffer and source (unsafe operations)
+            unsafe
             {
-                _al.BufferData(buffer, BufferFormat.Mono16, ptr, audioData.Length * sizeof(short), sampleRate);
+                buffer = _al.GenBuffer();
+                
+                // Upload audio data to buffer
+                fixed (short* ptr = audioData)
+                {
+                    _al.BufferData(buffer, BufferFormat.Mono16, ptr, audioData.Length * sizeof(short), sampleRate);
+                }
+
+                // Create source and attach buffer
+                source = _al.GenSource();
+                _al.SetSourceProperty(source, SourceInteger.Buffer, (int)buffer);
+
+                // Play the audio
+                _al.SourcePlay(source);
             }
 
-            // Create source and attach buffer
-            uint source = _al.GenSource();
-            _al.SetSourceProperty(source, SourceInteger.Buffer, (int)buffer);
-
-            // Play the audio
-            _al.SourcePlay(source);
-
-            // Wait for playback to finish
-            SourceState state = SourceState.Playing;
-            while (state != SourceState.Stopped)
+            // Wait for playback to finish (outside unsafe context so we can await)
+            while (true)
             {
-                _al.GetSourceProperty(source, GetSourceInteger.SourceState, (int*)&state);
-                System.Threading.Thread.Sleep(10);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    unsafe
+                    {
+                        _al.SourceStop(source);
+                    }
+                    break;
+                }
+
+                bool isPlaying = GetSourceState(source);
+                if (!isPlaying)
+                    break;
+
+                await Task.Delay(10, cancellationToken);
             }
 
             // Cleanup
-            _al.DeleteSource(source);
-            _al.DeleteBuffer(buffer);
+            unsafe
+            {
+                _al.DeleteSource(source);
+                _al.DeleteBuffer(buffer);
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error playing audio: {ex.Message}");
         }
+    }
+
+    private unsafe bool GetSourceState(uint source)
+    {
+        int state = (int)SourceState.Stopped;
+        _al.GetSourceProperty(source, GetSourceInteger.SourceState, &state);
+        return state == (int)SourceState.Playing;
     }
 
     public unsafe void Dispose()

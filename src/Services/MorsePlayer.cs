@@ -1,25 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PentaGrammata.Services;
 
-public class MorsePlayer : IMorsePlayer
+public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 {
-    private readonly IAudioPlayer _audioPlayer;
+    private readonly IAudioPlayer _audioPlayer = audioPlayer;
 
-    public MorsePlayer(IAudioPlayer audioPlayer)
+    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int textWpm, int sampleRate, CancellationToken cancellationToken)
     {
-        _audioPlayer = audioPlayer;
+        var audioData = GenerateAudioData(morseCode.ToLower(), charWpm, textWpm, sampleRate);
+        await _audioPlayer.PlayAudioAsync(audioData, sampleRate, cancellationToken);
     }
 
-    public void PlayMorseCode(string morseCode, int charWpm, int textWpm, int sampleRate)
-    {
-        var audioData = GenerateAudioData(morseCode, charWpm, textWpm, sampleRate);
-        _audioPlayer.PlayAudio(audioData, sampleRate);
-    }
-
-    private short[] GenerateBeep(int sampleRate, int durationMs)
+    private static short[] GenerateBeep(int sampleRate, int durationMs)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
         var audioData = new short[sampleCount]; // 16-bit audio
@@ -31,13 +28,13 @@ public class MorsePlayer : IMorsePlayer
         return audioData;
     }
 
-    private short[] GenerateSilence(int sampleRate, int durationMs)
+    private static short[] GenerateSilence(int sampleRate, int durationMs)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
         return new short[sampleCount]; // 16-bit audio silence
     }
 
-    public short[] GenerateAudioData(string morseCode, int charWpm, int textWpm, int sampleRate)
+    private static short[] GenerateAudioData(string morseCode, int charWpm, int textWpm, int sampleRate)
     {        
         // Placeholder implementation: generate a simple beep for each dot and dash
         var audioData = new List<short>();
@@ -88,7 +85,7 @@ public class MorsePlayer : IMorsePlayer
         return audioData.ToArray();
     }
 
-    private string CharToMorse(string morseChar)
+    private static string CharToMorse(string morseChar)
     {
         return morseChar switch
         {
