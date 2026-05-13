@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly int _textWpm;
 
     private CancellationTokenSource? _practiceCancellationTokenSource;
+    private CancellationTokenSource? _practiceTimerCancellationTokenSource;
     private bool _isPracticing;
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
@@ -77,7 +79,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string greeting = "Welcome to Avalonia!";
 
     [ObservableProperty]
-    private string statusText = "Ready";
+    private string timeCounterText = "00:00";
 
     [ObservableProperty]
     private List<KeyValuePair<string, string>> characterPalettes;
@@ -90,15 +92,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task StartPracticeAsync()
     {
-        StatusText = "Practice started!";
         string paletteCharacters = string.IsNullOrWhiteSpace(SelectedCharacterPalette.Value)
             ? CharacterPalettes[0].Value
             : SelectedCharacterPalette.Value;
         string morseCode = _morseGenerator.GenerateGroupsOf5(paletteCharacters, 3);
         _practiceCancellationTokenSource = new CancellationTokenSource();
+        _practiceTimerCancellationTokenSource = new CancellationTokenSource();
         _isPracticing = true;
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
+
+        var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
 
         try
         {
@@ -106,6 +110,17 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
+                _practiceTimerCancellationTokenSource.Cancel();
+
+            try
+            {
+                await timerTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
             _isPracticing = false;
             StartPracticeCommand.NotifyCanExecuteChanged();
             StopPracticeCommand.NotifyCanExecuteChanged();
@@ -115,13 +130,26 @@ public partial class MainWindowViewModel : ViewModelBase
     public void StopPractice()
     {
         if (_practiceCancellationTokenSource != null && !_practiceCancellationTokenSource.IsCancellationRequested)
-        {
             _practiceCancellationTokenSource.Cancel();
-            StatusText = "Practice stopped.";
-        }
+
+        if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
+            _practiceTimerCancellationTokenSource.Cancel();
 
         _isPracticing = false;
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
+    {
+        var startedAt = DateTime.UtcNow;
+        TimeCounterText = "00:00";
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var elapsed = DateTime.UtcNow - startedAt;
+            TimeCounterText = $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            await Task.Delay(1000, cancellationToken);
+        }
     }
 }

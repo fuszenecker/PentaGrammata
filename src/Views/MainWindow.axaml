@@ -57,7 +57,7 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,1,0,0"
             Padding="10,5">
 
-            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding TimeCounterText}" VerticalAlignment="Center"/>
         </Border>
         
         <Grid>
@@ -110,10 +110,12 @@
 
             <Button Grid.Column="2" Grid.Row="1" Content="Practice" Margin="0,0,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Command="{Binding StartPracticeCommand}"/>
             
             <Button Grid.Column="3" Grid.Row="1" Content="Stop" Margin="0,0,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Command="{Binding StopPracticeCommand}"/>
 
             <!-- Third row: Received message -->
@@ -126,8 +128,10 @@
 
             <!-- Fourth row: Check result button -->
 
-            <Button Grid.Column="2" Grid.Row="4" Content="Check result"
-                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,10"/>
+            <Button Grid.Column="2" Grid.Row="4" Grid.ColumnSpan="2" Content="Check result"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center" 
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Margin="0,0,10,10"/>
         </Grid>
     </DockPanel>
 
