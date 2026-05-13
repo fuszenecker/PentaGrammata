@@ -32,13 +32,13 @@ public class AudioPlayer : IAudioPlayer, IDisposable
 
     public async Task PlayAudioAsync(short[] audioData, int sampleRate, CancellationToken cancellationToken)
     {
+        uint buffer = 0;
+        uint source = 0;
+
         try
         {
             if (audioData == null || audioData.Length == 0)
                 return;
-
-            uint buffer = 0;
-            uint source = 0;
             
             // Setup buffer and source (unsafe operations)
             unsafe
@@ -77,17 +77,28 @@ public class AudioPlayer : IAudioPlayer, IDisposable
 
                 await Task.Delay(10, cancellationToken);
             }
-
-            // Cleanup
-            unsafe
-            {
-                _al.DeleteSource(source);
-                _al.DeleteBuffer(buffer);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is expected when the user stops playback.
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error playing audio: {ex.Message}");
+        }
+        finally
+        {
+            unsafe
+            {
+                if (source != 0)
+                {
+                    _al.SourceStop(source);
+                    _al.DeleteSource(source);
+                }
+
+                if (buffer != 0)
+                    _al.DeleteBuffer(buffer);
+            }
         }
     }
 

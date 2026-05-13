@@ -21,8 +21,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly int _textWpm;
 
     private CancellationTokenSource? _practiceCancellationTokenSource;
+    private bool _isPracticing;
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
+    public IRelayCommand StopPracticeCommand { get; }
 
     public MainWindowViewModel(IMorseGenerator morseGenerator, IMorsePlayer morsePlayer, IConfiguration configuration)
     {
@@ -37,7 +39,8 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _configuration.GetValue("Practice:DefaultDuration", 5);
 
         _practiceCancellationTokenSource = null;
-        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync);
+        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_isPracticing);
+        StopPracticeCommand = new RelayCommand(StopPractice, () => _isPracticing);
 
         // Load character palettes from configuration
         var palettesSection = _configuration.GetSection("CharacterPalettes");
@@ -93,6 +96,32 @@ public partial class MainWindowViewModel : ViewModelBase
             : SelectedCharacterPalette.Value;
         string morseCode = _morseGenerator.GenerateGroupsOf5(paletteCharacters, 3);
         _practiceCancellationTokenSource = new CancellationTokenSource();
-        await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: _charWpm, textWpm: _textWpm, sampleRate: _sampleRate, _practiceCancellationTokenSource.Token);
+        _isPracticing = true;
+        StartPracticeCommand.NotifyCanExecuteChanged();
+        StopPracticeCommand.NotifyCanExecuteChanged();
+
+        try
+        {
+            await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: _charWpm, textWpm: _textWpm, sampleRate: _sampleRate, _practiceCancellationTokenSource.Token);
+        }
+        finally
+        {
+            _isPracticing = false;
+            StartPracticeCommand.NotifyCanExecuteChanged();
+            StopPracticeCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    public void StopPractice()
+    {
+        if (_practiceCancellationTokenSource != null && !_practiceCancellationTokenSource.IsCancellationRequested)
+        {
+            _practiceCancellationTokenSource.Cancel();
+            StatusText = "Practice stopped.";
+        }
+
+        _isPracticing = false;
+        StartPracticeCommand.NotifyCanExecuteChanged();
+        StopPracticeCommand.NotifyCanExecuteChanged();
     }
 }
