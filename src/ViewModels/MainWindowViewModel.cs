@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,18 +19,6 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
 
-    public MainWindowViewModel(PracticeController practiceController)
-    {
-        _practiceController = practiceController;
-
-        PracticeDuration = _practiceController.PracticeDurationMins;
-        CharacterSets = _practiceController.CharacterSets;
-        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
-
-        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_practiceController.IsPracticing);
-        StopPracticeCommand = new RelayCommand(StopPractice, () => _practiceController.IsPracticing);
-    }
-
     [ObservableProperty]
     private string greeting = "Welcome to Avalonia!";
 
@@ -38,19 +26,28 @@ public partial class MainWindowViewModel : ViewModelBase
     private string timeCounterText = "00:00";
 
     [ObservableProperty]
-    private List<KeyValuePair<string, string>> characterSets;
+    private string[] characterSets = [];
 
     [ObservableProperty]
-    private KeyValuePair<string, string> selectedCharacterSet;
+    private string selectedCharacterSet = "Default";
 
     [ObservableProperty]
     private int practiceDuration = 5;
 
-    private async Task StartPracticeAsync()
+    public MainWindowViewModel(PracticeController practiceController)
     {
-        _practiceController.SelectedCharacterSet = SelectedCharacterSet;
-        _practiceController.PracticeDurationMins = PracticeDuration;
+        _practiceController = practiceController;
 
+        PracticeDuration = _practiceController.PracticeDurationMins;
+        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
+        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+
+        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_practiceController.IsPracticing);
+        StopPracticeCommand = new RelayCommand(StopPractice, () => _practiceController.IsPracticing);
+    }
+
+    public async Task StartPracticeAsync()
+    {
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
         var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
@@ -96,6 +93,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedCharacterSetChanged(string value)
+    {
+        _practiceController.SelectedCharacterSet = value;
+    }
+
+    partial void OnPracticeDurationChanged(int value)
+    {
+        _practiceController.PracticeDurationMins = value;
     }
 
     private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
