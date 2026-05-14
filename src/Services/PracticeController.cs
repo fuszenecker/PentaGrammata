@@ -1,8 +1,13 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using AppConfig = PentaGrammata.Configuration.Configuration;
+using PentaGrammata.Configuration;
 
 namespace PentaGrammata.Services;
 
@@ -13,11 +18,36 @@ public class PracticeController
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
     private readonly AppConfig _configuration;
+    private readonly string? _userConfigPath;
     private CancellationTokenSource? _cancellationTokenSource;
 
-    public int PracticeDurationMins { get => _configuration.Practice.DefaultDurationMins; set => _configuration.Practice.DefaultDurationMins = value; }
+    public int PracticeDurationMins
+    {
+        get => _configuration.Practice.DefaultDurationMins;
+        set
+        {
+            if (_configuration.Practice.DefaultDurationMins == value)
+                return;
+
+            _configuration.Practice.DefaultDurationMins = value;
+            SaveUserConfiguration();
+        }
+    }
+
     public List<KeyValuePair<string, string>> CharacterSets { get => _configuration.CharacterSets.Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value)).ToList(); }
-    public string SelectedCharacterSet { get; set; }
+
+    public string SelectedCharacterSet
+    {
+        get => _configuration.Practice.DefaultCharacterSet;
+        set
+        {
+            if (_configuration.Practice.DefaultCharacterSet == value)
+                return;
+
+            _configuration.Practice.DefaultCharacterSet = value;
+            SaveUserConfiguration();
+        }
+    }
 
     public int SampleRate { get => _configuration.Audio.SampleRate; set => _configuration.Audio.SampleRate = value; }
     public int BeepRampMs { get => _configuration.Audio.BeepRampMs; set => _configuration.Audio.BeepRampMs = value; }
@@ -25,18 +55,13 @@ public class PracticeController
     public int AverageWpm { get => _configuration.Practice.AverageWpm; set => _configuration.Practice.AverageWpm = value; }
     public bool IsPracticing { get; private set; }
 
-    public PracticeController(AppConfig configuration)
+    public PracticeController()
     {
         var audioPlayer = AudioPlayerFactory.Create();
         _morsePlayer = new MorsePlayer(audioPlayer);
         _morseGenerator = new MorseGenerator();
-        _configuration = configuration;
-
-        SampleRate = _configuration.Audio.SampleRate;
-        BeepRampMs = _configuration.Audio.BeepRampMs;
-        CharacterWpm = _configuration.Practice.CharacterWpm;
-        AverageWpm = _configuration.Practice.AverageWpm;
-        PracticeDurationMins = _configuration.Practice.DefaultDurationMins;
+        _configuration = LoadConfiguration();
+        _userConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();
 
         var characterSets = new List<KeyValuePair<string, string>>();
 
@@ -86,5 +111,39 @@ public class PracticeController
         {
             _cancellationTokenSource.Cancel();
         }
+    }
+
+    private static AppConfig LoadConfiguration()
+    {
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+        foreach (var userConfigPath in ConfigurationPaths.GetPerUserConfigPaths())
+        {
+            builder.AddJsonFile(userConfigPath, optional: true, reloadOnChange: true);
+        }
+
+        var configRoot = builder.Build();
+        return configRoot.Get<AppConfig>() ?? new AppConfig();
+    }
+
+    private void SaveUserConfiguration()
+    {
+        if (string.IsNullOrWhiteSpace(_userConfigPath))
+            return;
+
+        var directory = Path.GetDirectoryName(_userConfigPath);
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        Directory.CreateDirectory(directory);
+
+        var json = JsonSerializer.Serialize(_configuration, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+
+        File.WriteAllText(_userConfigPath, json);
     }
 }
