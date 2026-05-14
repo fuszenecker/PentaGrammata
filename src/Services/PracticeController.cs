@@ -26,7 +26,7 @@ public class PracticeController
         BeepRampMs = _configuration.GetValue("Audio:BeepRampMs", 4);
         CharacterWpm = _configuration.GetValue("Practice:CharacterWpm", 20);
         AverageWpm = _configuration.GetValue("Practice:AverageWpm", 15);
-        PracticeDuration = _configuration.GetValue("Practice:DefaultDuration", 5);
+        PracticeDurationMins = _configuration.GetValue("Practice:DefaultDurationMins", 5);
 
         // Load character sets from configuration
         var characterSetsSection = _configuration.GetSection("CharacterSets");
@@ -64,7 +64,7 @@ public class PracticeController
             : CharacterSets[0];
     }
 
-    public int PracticeDuration { get; set; }
+    public int PracticeDurationMins { get; set; }
     public List<KeyValuePair<string, string>> CharacterSets { get; }
     public KeyValuePair<string, string> SelectedCharacterSet { get; set; }
     public int SampleRate { get; }
@@ -83,7 +83,7 @@ public class PracticeController
             string characterSetCharacters = string.IsNullOrWhiteSpace(SelectedCharacterSet.Value)
                 ? CharacterSets[0].Value : SelectedCharacterSet.Value;
 
-            int numberOfGroups = (int)(PracticeDuration * AverageWpm * LengthCorrector);
+            int numberOfGroups = (int)(PracticeDurationMins * AverageWpm * LengthCorrector);
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
 
             await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);

@@ -23,7 +23,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _practiceController = practiceController;
 
-        PracticeDuration = _practiceController.PracticeDuration;
+        PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = _practiceController.CharacterSets;
         SelectedCharacterSet = _practiceController.SelectedCharacterSet;
 
@@ -49,7 +49,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task StartPracticeAsync()
     {
         _practiceController.SelectedCharacterSet = SelectedCharacterSet;
-        _practiceController.PracticeDuration = PracticeDuration;
+        _practiceController.PracticeDurationMins = PracticeDuration;
 
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
