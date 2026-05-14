@@ -7,6 +7,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using PentaGrammata.Services;
+using PentaGrammata.Views;
+using Avalonia.Controls;
 
 namespace PentaGrammata.ViewModels;
 
@@ -93,6 +95,32 @@ public partial class MainWindowViewModel : ViewModelBase
 
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
+    }
+
+    public async Task OpenSettingsDialogAsync(Window owner)
+    {
+        var settingsDialogViewModel = new SettingsDialogViewModel(_practiceController.CreateSettingsSnapshot());
+        var settingsDialog = new SettingsDialog
+        {
+            DataContext = settingsDialogViewModel
+        };
+
+        var result = await settingsDialog.ShowDialog<bool>(owner);
+        if (!result)
+            return;
+
+        if (!settingsDialogViewModel.TryBuildSettings(out var newSettings))
+            return;
+
+        if (!_practiceController.TryApplySettings(newSettings, out var error))
+        {
+            TimeCounterText = error;
+            return;
+        }
+
+        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
+        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        PracticeDuration = _practiceController.PracticeDurationMins;
     }
 
     partial void OnSelectedCharacterSetChanged(string value)

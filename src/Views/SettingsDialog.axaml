@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+        x:Class="PentaGrammata.Views.SettingsDialog"
+        x:DataType="vm:SettingsDialogViewModel"
+        Width="760" Height="620"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Title="Morse Practice and Audio Settings">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,*" Margin="10">
+
+        <GroupBox Grid.Row="0" Grid.Column="0" Header="Practice" Margin="0,0,10,10">
+            <StackPanel Margin="10" Spacing="8">
+                <TextBlock Text="Character WPM"/>
+                <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
+                <TextBlock Text="Average WPM"/>
+                <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding AverageWpm}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Grid.Row="0" Grid.Column="1" Header="Audio" Margin="0,0,0,10">
+            <StackPanel Margin="10" Spacing="8">
+                <TextBlock Text="Sample Rate"/>
+                <ComboBox ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SelectedSampleRate}"/>
+                <TextBlock Text="Beep Ramp (ms)"/>
+                <NumericUpDown Minimum="0" Maximum="200" Increment="1" FormatString="0" Value="{Binding BeepRampMs}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,15,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Character Sets" FontWeight="Bold" Grid.Row="0" Margin="0,0,0,5"/>
+
+            <TextBlock Grid.Row="1" Margin="0,0,0,10" Foreground="#9aa0a6"
+                    Text="Character sets format: Name=Characters (one per line). Lines starting with # are ignored."/>
+
+            <ScrollViewer Grid.Row="2" Margin="0,0,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding CharacterSetsText}" TextWrapping="Wrap" FontFamily="Consolas, monospace"
+                            AcceptsReturn="True" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+            </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#ff6b6b"
+                       Text="{Binding ErrorMessage}"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+                <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnSaveClick"/>
+                <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnCancelClick"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
