@@ -28,7 +28,7 @@ public partial class App : Application
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
-        var audioPlayer = new AudioPlayer();
+        var audioPlayer = AudioPlayerFactory.Create();
         var morsePlayer = new MorsePlayer(audioPlayer);
         var morseGenerator = new MorseGenerator();
 
