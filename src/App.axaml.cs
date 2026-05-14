@@ -28,15 +28,11 @@ public partial class App : Application
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
-        var audioPlayer = AudioPlayerFactory.Create();
-        var morsePlayer = new MorsePlayer(audioPlayer);
-        var morseGenerator = new MorseGenerator();
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(morseGenerator, morsePlayer, config),
+                DataContext = new MainWindowViewModel(new PracticeController(config)),
             };
         }
 
