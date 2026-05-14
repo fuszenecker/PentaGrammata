@@ -23,7 +23,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand StopPracticeCommand { get; }
 
     [ObservableProperty]
-    private string greeting = "Welcome to Avalonia!";
+    private string greeting = string.Empty;
 
     [ObservableProperty]
     private string timeCounterText = "00:00";

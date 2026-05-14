@@ -48,78 +48,68 @@ public partial class SettingsDialogViewModel : ViewModelBase
             SelectedSampleRate = 44100;
         }
 
-        CharacterSetsText = string.Join(Environment.NewLine,
-            settings.CharacterSets
-                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(kv => $"{kv.Key}={kv.Value}"));
+        CharacterSetsText = CharacterSetTextCodec.FormatForEditor(settings.CharacterSets);
     }
 
     public bool TryBuildSettings(out PracticeSettings settings)
     {
         settings = new PracticeSettings();
 
+        if (!TryValidateScalarSettings(out var scalarError))
+        {
+            ErrorMessage = scalarError;
+            return false;
+        }
+
+        if (!CharacterSetTextCodec.TryParse(CharacterSetsText, out var parsedSets, out var parserError))
+        {
+            ErrorMessage = parserError;
+            return false;
+        }
+
+        settings = BuildSettings(parsedSets);
+
+        ErrorMessage = string.Empty;
+        return true;
+    }
+
+    private bool TryValidateScalarSettings(out string error)
+    {
         if (CharacterWpm < 1 || AverageWpm < 1)
         {
-            ErrorMessage = "Character and average WPM must be positive values.";
+            error = "Character and average WPM must be positive values.";
             return false;
         }
 
         if (AverageWpm > CharacterWpm)
         {
-            ErrorMessage = "Average WPM cannot exceed character WPM.";
+            error = "Average WPM cannot exceed character WPM.";
             return false;
         }
 
         if (SelectedSampleRate < 8000)
         {
-            ErrorMessage = "Sample rate must be at least 8000.";
+            error = "Sample rate must be at least 8000.";
             return false;
         }
 
         if (BeepRampMs < 0)
         {
-            ErrorMessage = "Beep ramp must be 0 or greater.";
+            error = "Beep ramp must be 0 or greater.";
             return false;
         }
 
-        var parsedSets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var lines = CharacterSetsText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        error = string.Empty;
+        return true;
+    }
 
-        foreach (var rawLine in lines)
-        {
-            var line = rawLine.Trim();
-            if (line.Length == 0 || line.StartsWith('#'))
-                continue;
-
-            var separatorIndex = line.IndexOf('=');
-            if (separatorIndex <= 0 || separatorIndex >= line.Length - 1)
-            {
-                ErrorMessage = "Character set lines must use Name=Value format.";
-                return false;
-            }
-
-            var name = line[..separatorIndex].Trim();
-            var value = line[(separatorIndex + 1)..].Trim();
-            if (name.Length == 0 || value.Length == 0)
-            {
-                ErrorMessage = "Character set name and value cannot be empty.";
-                return false;
-            }
-
-            parsedSets[name] = value;
-        }
-
-        if (parsedSets.Count == 0)
-        {
-            ErrorMessage = "At least one character set is required.";
-            return false;
-        }
-
+    private PracticeSettings BuildSettings(IReadOnlyDictionary<string, string> parsedSets)
+    {
         var defaultSet = parsedSets.ContainsKey(_defaultCharacterSet)
             ? _defaultCharacterSet
             : parsedSets.Keys.First();
 
-        settings = new PracticeSettings
+        return new PracticeSettings
         {
             DefaultDurationMins = _defaultDurationMins,
             CharacterWpm = CharacterWpm,
@@ -129,8 +119,5 @@ public partial class SettingsDialogViewModel : ViewModelBase
             DefaultCharacterSet = defaultSet,
             CharacterSets = parsedSets.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal)
         };
-
-        ErrorMessage = string.Empty;
-        return true;
     }
 }

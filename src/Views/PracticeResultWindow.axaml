@@ -24,7 +24,18 @@
                                 <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,1" Background="#111">
                                     <TextBlock Grid.Column="0" Margin="10,6" Text="{Binding SentGroup}" TextWrapping="Wrap"/>
                                     <TextBlock Grid.Column="1" Margin="10,6" Text="{Binding ReceivedGroup}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="2" Margin="10,6" Text="{Binding Difference}" TextWrapping="Wrap"/>
+                                    <ItemsControl Grid.Column="2" Margin="10,6" ItemsSource="{Binding DifferenceSegments}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Text}" Foreground="{Binding Foreground}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
