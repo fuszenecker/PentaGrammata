@@ -7,6 +7,7 @@
         x:Class="PentaGrammata.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="560" Height="400"
+        MinWidth="500" MinHeight="300"
         Icon="/Assets/avalonia-logo.ico"
         Title="PentaGrammata">
 
@@ -45,7 +46,7 @@
                 <MenuItem Header="_Paste"/>
             </MenuItem>
             <MenuItem Header="_Settings">
-                <MenuItem Header="_Morse settings..."/>
+                <MenuItem Header="_Morse settings..." Click="OnMorseSettingsClick"/>
                 <MenuItem Header="_UI settings..."/>
             </MenuItem>
             <MenuItem Header="_Help">
