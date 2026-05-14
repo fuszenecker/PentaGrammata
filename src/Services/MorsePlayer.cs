@@ -36,6 +36,11 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 
     private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate)
     {        
+        if (averageWpm > charWpm)
+        {
+            averageWpm = charWpm;
+        }
+
         // Placeholder implementation: generate a simple beep for each dot and dash
         var audioData = new List<short>();
 

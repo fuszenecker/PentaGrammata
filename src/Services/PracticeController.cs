@@ -7,6 +7,8 @@ namespace PentaGrammata.Services;
 
 public class PracticeController
 {
+    private const double LengthCorrector = 3.0/4.0;
+
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
     private readonly IConfiguration _configuration;
@@ -82,7 +84,7 @@ public class PracticeController
                 ? CharacterSets[0].Value
                 : SelectedCharacterSet.Value;
 
-            int numberOfGroups = PracticeDuration * AverageWpm * 5 / 6;
+            int numberOfGroups = (int)(PracticeDuration * AverageWpm * LengthCorrector);
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
 
             await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, _cancellationTokenSource.Token);
