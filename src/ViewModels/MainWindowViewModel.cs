@@ -15,6 +15,7 @@ namespace PentaGrammata.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly PracticeController _practiceController;
+    private bool _isPracticeRunning;
 
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
 
@@ -22,7 +23,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand StopPracticeCommand { get; }
 
     [ObservableProperty]
-    private string greeting = "Welcome to Avalonia!";
+    private string greeting = string.Empty;
 
     [ObservableProperty]
     private string timeCounterText = "00:00";
@@ -44,25 +45,33 @@ public partial class MainWindowViewModel : ViewModelBase
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
         SelectedCharacterSet = _practiceController.SelectedCharacterSet;
 
-        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_practiceController.IsPracticing);
-        StopPracticeCommand = new RelayCommand(StopPractice, () => _practiceController.IsPracticing);
+        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
+        StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
+        UpdateCommandStates();
     }
 
     public async Task StartPracticeAsync()
     {
+        if (_isPracticeRunning)
+        {
+            return;
+        }
+
+        _isPracticeRunning = true;
+        UpdateCommandStates();
+        TimeCounterText = "Starting practice...";
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
         var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
 
-        // StartAsync synchronously sets IsPracticing = true before its first await,
-        // so we notify after starting it to reflect the correct state.
-        var practiceTask = _practiceController.StartAsync();
-        StartPracticeCommand.NotifyCanExecuteChanged();
-        StopPracticeCommand.NotifyCanExecuteChanged();
-
         try
         {
-            await practiceTask;
+            await _practiceController.StartAsync();
+            TimeCounterText = "Practice completed!";
+        }
+        catch (Exception ex)
+        {
+            TimeCounterText = $"Error: {ex.Message}";
         }
         finally
         {
@@ -79,13 +88,18 @@ public partial class MainWindowViewModel : ViewModelBase
             {
             }
 
-            StartPracticeCommand.NotifyCanExecuteChanged();
-            StopPracticeCommand.NotifyCanExecuteChanged();
+            _isPracticeRunning = false;
+            UpdateCommandStates();
         }
     }
 
     public void StopPractice()
     {
+        if (!_isPracticeRunning)
+        {
+            return;
+        }
+
         _practiceController.Stop();
 
         if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
@@ -93,8 +107,9 @@ public partial class MainWindowViewModel : ViewModelBase
             _practiceTimerCancellationTokenSource.Cancel();
         }
 
-        StartPracticeCommand.NotifyCanExecuteChanged();
-        StopPracticeCommand.NotifyCanExecuteChanged();
+        _isPracticeRunning = false;
+        UpdateCommandStates();
+        TimeCounterText = "Stopped.";
     }
 
     public async Task OpenSettingsDialogAsync(Window owner)
@@ -123,6 +138,17 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
     }
 
+    public void OpenResultWindow(Window owner)
+    {
+        var result = _practiceController.BuildResult(Greeting);
+        var resultWindow = new PracticeResultWindow
+        {
+            DataContext = new PracticeResultWindowViewModel(result)
+        };
+
+        resultWindow.Show(owner);
+    }
+
     partial void OnSelectedCharacterSetChanged(string value)
     {
         _practiceController.SelectedCharacterSet = value;
@@ -138,13 +164,33 @@ public partial class MainWindowViewModel : ViewModelBase
         var startedAt = DateTime.UtcNow;
         TimeCounterText = "Ready.";
 
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            var elapsed = DateTime.UtcNow - startedAt;
-            TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
-            await Task.Delay(1000, cancellationToken);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var elapsed = DateTime.UtcNow - startedAt;
+                TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+                await Task.Delay(1000, cancellationToken);
+            }
         }
+        catch (OperationCanceledException)
+        {
+        }
+    }
 
-        TimeCounterText = "Stopped.";
+    private bool CanStartPractice()
+    {
+        return !_isPracticeRunning;
+    }
+
+    private bool CanStopPractice()
+    {
+        return _isPracticeRunning;
+    }
+
+    private void UpdateCommandStates()
+    {
+        StartPracticeCommand.NotifyCanExecuteChanged();
+        StopPracticeCommand.NotifyCanExecuteChanged();
     }
 }
