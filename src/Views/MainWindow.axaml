@@ -35,19 +35,8 @@
         <Menu DockPanel.Dock="Top"
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
 
-            <MenuItem Header="_File">
-                <MenuItem Header="_New"/>
-                <MenuItem Header="_Open"/>
-                <Separator/>
-                <MenuItem Header="E_xit"/>
-            </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem Header="_Copy"/>
-                <MenuItem Header="_Paste"/>
-            </MenuItem>
             <MenuItem Header="_Settings">
                 <MenuItem Header="_Morse settings..." Click="OnMorseSettingsClick"/>
-                <MenuItem Header="_UI settings..."/>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About"/>
