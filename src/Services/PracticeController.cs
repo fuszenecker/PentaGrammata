@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+using AppConfig = PentaGrammata.Configuration.Configuration;
 
 namespace PentaGrammata.Services;
 
@@ -11,45 +12,38 @@ public class PracticeController
 
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
-    private readonly IConfiguration _configuration;
+    private readonly AppConfig _configuration;
     private CancellationTokenSource? _cancellationTokenSource;
 
-    public PracticeController(IConfiguration configuration)
+    public int PracticeDurationMins { get => _configuration.Practice.DefaultDurationMins; set => _configuration.Practice.DefaultDurationMins = value; }
+    public List<KeyValuePair<string, string>> CharacterSets { get => _configuration.CharacterSets.Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value)).ToList(); }
+    public string SelectedCharacterSet { get; set; }
+
+    public int SampleRate { get => _configuration.Audio.SampleRate; set => _configuration.Audio.SampleRate = value; }
+    public int BeepRampMs { get => _configuration.Audio.BeepRampMs; set => _configuration.Audio.BeepRampMs = value; }
+    public int CharacterWpm { get => _configuration.Practice.CharacterWpm; set => _configuration.Practice.CharacterWpm = value; }
+    public int AverageWpm { get => _configuration.Practice.AverageWpm; set => _configuration.Practice.AverageWpm = value; }
+    public bool IsPracticing { get; private set; }
+
+    public PracticeController(AppConfig configuration)
     {
         var audioPlayer = AudioPlayerFactory.Create();
         _morsePlayer = new MorsePlayer(audioPlayer);
         _morseGenerator = new MorseGenerator();
         _configuration = configuration;
 
-                // Read configuration values with defaults
-        SampleRate = _configuration.GetValue("Audio:SampleRate", 44100);
-        BeepRampMs = _configuration.GetValue("Audio:BeepRampMs", 4);
-        CharacterWpm = _configuration.GetValue("Practice:CharacterWpm", 20);
-        AverageWpm = _configuration.GetValue("Practice:AverageWpm", 15);
-        PracticeDurationMins = _configuration.GetValue("Practice:DefaultDurationMins", 5);
+        SampleRate = _configuration.Audio.SampleRate;
+        BeepRampMs = _configuration.Audio.BeepRampMs;
+        CharacterWpm = _configuration.Practice.CharacterWpm;
+        AverageWpm = _configuration.Practice.AverageWpm;
+        PracticeDurationMins = _configuration.Practice.DefaultDurationMins;
 
-        // Load character sets from configuration
-        var characterSetsSection = _configuration.GetSection("CharacterSets");
         var characterSets = new List<KeyValuePair<string, string>>();
-        
-        if (characterSetsSection.Exists())
-        {
-            foreach (var characterSetSection in characterSetsSection.GetChildren())
-            {
-                if (!string.IsNullOrWhiteSpace(characterSetSection.Value))
-                {
-                    characterSets.Add(new KeyValuePair<string, string>(characterSetSection.Key, characterSetSection.Value));
-                    continue;
-                }
 
-                foreach (var child in characterSetSection.GetChildren())
-                {
-                    if (!string.IsNullOrWhiteSpace(child.Value))
-                    {
-                        characterSets.Add(new KeyValuePair<string, string>(child.Key, child.Value));
-                    }
-                }
-            }
+        foreach (var characterSet in _configuration.CharacterSets)
+        {
+            if (!string.IsNullOrWhiteSpace(characterSet.Value))
+                characterSets.Add(new KeyValuePair<string, string>(characterSet.Key, characterSet.Value));
         }
 
         if (characterSets.Count == 0)
@@ -57,21 +51,8 @@ public class PracticeController
             characterSets.Add(new KeyValuePair<string, string>("Default", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>"));
         }
 
-        CharacterSets = characterSets;
-        var defaultSetName = _configuration.GetValue("Practice:DefaultCharacterSet", "Default");
-        SelectedCharacterSet = characterSets.Find(s => s.Key == defaultSetName) is { Key: not "" } match
-            ? match
-            : CharacterSets[0];
+        SelectedCharacterSet = _configuration.Practice.DefaultCharacterSet ?? characterSets?[0].Key ?? "Default";
     }
-
-    public int PracticeDurationMins { get; set; }
-    public List<KeyValuePair<string, string>> CharacterSets { get; }
-    public KeyValuePair<string, string> SelectedCharacterSet { get; set; }
-    public int SampleRate { get; }
-    public int BeepRampMs { get; }
-    public int CharacterWpm { get; }
-    public int AverageWpm { get; }
-    public bool IsPracticing { get; private set; }
 
     public async Task StartAsync()
     {
@@ -80,8 +61,13 @@ public class PracticeController
 
         try
         {
-            string characterSetCharacters = string.IsNullOrWhiteSpace(SelectedCharacterSet.Value)
-                ? CharacterSets[0].Value : SelectedCharacterSet.Value;
+            string characterSetCharacters = _configuration.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
+                && !string.IsNullOrWhiteSpace(selectedCharacters)
+                    ? selectedCharacters
+                    : CharacterSets.FirstOrDefault().Value;
+
+            if (string.IsNullOrWhiteSpace(characterSetCharacters))
+                characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
 
             int numberOfGroups = (int)(PracticeDurationMins * AverageWpm * LengthCorrector);
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
