@@ -32,4 +32,10 @@ public partial class MainWindow : Window
             vm.OpenResultWindow(this);
         }
     }
+
+    private async void OnAboutClick(object? sender, RoutedEventArgs e)
+    {
+        var aboutWindow = new AboutWindow();
+        await aboutWindow.ShowDialog(this);
+    }
 }
