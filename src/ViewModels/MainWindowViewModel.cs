@@ -101,8 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ? CharacterSets[0].Value
             : SelectedCharacterSet.Value;
         
-        // 6 characters per group (5 + space)
-        int numberOfGroups = PracticeDuration * _averageWpm / 6; 
+        int numberOfGroups = PracticeDuration * _averageWpm;
         string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
         
         _practiceCancellationTokenSource = new CancellationTokenSource();
