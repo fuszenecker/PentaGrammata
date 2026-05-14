@@ -7,7 +7,7 @@ namespace PentaGrammata.Services;
 
 public class PracticeController
 {
-    private const double LengthCorrector = 3.0/4.0;
+    private const double LengthCorrector = 0.7;
 
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
