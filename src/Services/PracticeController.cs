@@ -12,6 +12,7 @@ public class PracticeController
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
     private readonly IConfiguration _configuration;
+    private CancellationTokenSource? _cancellationTokenSource;
 
     public PracticeController(IConfiguration configuration)
     {
@@ -68,9 +69,6 @@ public class PracticeController
     public int SampleRate { get; }
     public int CharacterWpm { get; }
     public int AverageWpm { get; }
-
-    private CancellationTokenSource? _cancellationTokenSource;
-
     public bool IsPracticing { get; private set; }
 
     public async Task StartAsync()
@@ -81,8 +79,7 @@ public class PracticeController
         try
         {
             string characterSetCharacters = string.IsNullOrWhiteSpace(SelectedCharacterSet.Value)
-                ? CharacterSets[0].Value
-                : SelectedCharacterSet.Value;
+                ? CharacterSets[0].Value : SelectedCharacterSet.Value;
 
             int numberOfGroups = (int)(PracticeDuration * AverageWpm * LengthCorrector);
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
