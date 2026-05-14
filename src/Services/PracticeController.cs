@@ -82,7 +82,7 @@ public class PracticeController
                 ? CharacterSets[0].Value
                 : SelectedCharacterSet.Value;
 
-            int numberOfGroups = PracticeDuration * AverageWpm;
+            int numberOfGroups = PracticeDuration * AverageWpm * 5 / 6;
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
 
             await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, _cancellationTokenSource.Token);
