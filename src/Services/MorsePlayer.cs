@@ -8,6 +8,8 @@ namespace PentaGrammata.Services;
 
 public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 {
+    private const int BeepRampMs = 4;
+
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
 
     public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, CancellationToken cancellationToken)
@@ -19,12 +21,25 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
     private static short[] GenerateBeep(int sampleRate, int durationMs)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
-        var audioData = new short[sampleCount]; // 16-bit audio
+        int rampSamples = Math.Min((sampleRate * BeepRampMs) / 1000, sampleCount / 2);
+        var audioData = new short[sampleCount];
+
         for (int i = 0; i < sampleCount; i++)
         {
-            short sampleValue = (short)(Math.Sin(2 * Math.PI * 440 * i / sampleRate) * short.MaxValue);
-            audioData[i] = sampleValue;
+            double envelope = 1.0;
+
+            if (i < rampSamples)
+            {
+                envelope = (double)i / rampSamples;
+            }
+            else if (i >= sampleCount - rampSamples)
+            {
+                envelope = (double)(sampleCount - 1 - i) / rampSamples;
+            }
+
+            audioData[i] = (short)(Math.Sin(2 * Math.PI * 440 * i / sampleRate) * short.MaxValue * envelope);
         }
+
         return audioData;
     }
 
