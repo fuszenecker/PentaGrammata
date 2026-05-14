@@ -159,13 +159,15 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
     {
         var startedAt = DateTime.UtcNow;
-        TimeCounterText = "00:00";
+        TimeCounterText = "Ready.";
 
         while (!cancellationToken.IsCancellationRequested)
         {
             var elapsed = DateTime.UtcNow - startedAt;
-            TimeCounterText = $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
             await Task.Delay(1000, cancellationToken);
         }
+
+        TimeCounterText = "Stopped.";
     }
 }
