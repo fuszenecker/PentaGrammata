@@ -95,7 +95,8 @@
             <Button Grid.Column="2" Grid.Row="1" Content="Practice" Margin="0,0,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                Command="{Binding StartPracticeCommand}"/>
+                Command="{Binding StartPracticeCommand}"
+                Click="OnPracticeClick"/>
             
             <Button Grid.Column="3" Grid.Row="1" Content="Stop" Margin="0,0,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
@@ -107,7 +108,7 @@
             <Label Grid.Column="0" Grid.Row="2" Content="You received:"
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
 
-            <TextBox Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Greeting}"
+            <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Greeting}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"/>
 
             <!-- Fourth row: Check result button -->

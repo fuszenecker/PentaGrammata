@@ -20,6 +20,11 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnPracticeClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Focus();
+    }
+
     private void OnCheckResultClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm)

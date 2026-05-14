@@ -279,61 +279,143 @@ public class PracticeController
 
     private static int CountGroupErrors(string expected, string actual)
     {
-        var maxLength = Math.Max(expected.Length, actual.Length);
-        var errors = 0;
-
-        for (var i = 0; i < maxLength; i++)
-        {
-            var expectedChar = i < expected.Length ? expected[i] : '\0';
-            var actualChar = i < actual.Length ? actual[i] : '\0';
-
-            if (expectedChar != actualChar)
-            {
-                errors++;
-            }
-        }
-
-        return errors;
+        return GetLevenshteinDistance(expected, actual);
     }
 
     private static string BuildDifferenceText(string expected, string actual)
     {
-        if (string.Equals(expected, actual, StringComparison.Ordinal))
+        if (string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
         {
             return string.Concat(Enumerable.Repeat(".", expected.Length));
         }
 
-        var charMarks = new StringBuilder();
+        var matrix = BuildLevenshteinMatrix(expected, actual);
+        var tokensReversed = new List<string>();
 
-        // Compare up to the length of the expected string
-        for (var i = 0; i < expected.Length; i++)
+        var i = expected.Length;
+        var j = actual.Length;
+
+        var insertedReversed = new StringBuilder();
+        var deletedReversed = new StringBuilder();
+
+        void FlushEditBuffers()
         {
-            if (i < actual.Length && expected[i] == actual[i])
+            if (insertedReversed.Length > 0)
             {
-                charMarks.Append('.');
+                var inserted = new string(insertedReversed.ToString().Reverse().ToArray());
+                tokensReversed.Add($"[+{inserted}]");
+                insertedReversed.Clear();
+            }
+
+            if (deletedReversed.Length > 0)
+            {
+                var deleted = new string(deletedReversed.ToString().Reverse().ToArray());
+                tokensReversed.Add($"[-{deleted}]");
+                deletedReversed.Clear();
+            }
+        }
+
+        while (i > 0 || j > 0)
+        {
+            if (i > 0 && j > 0 && AreEqualIgnoreCase(expected[i - 1], actual[j - 1]) && matrix[i, j] == matrix[i - 1, j - 1])
+            {
+                FlushEditBuffers();
+                tokensReversed.Add(".");
+                i--;
+                j--;
+                continue;
+            }
+
+            if (i > 0 && j > 0 && matrix[i, j] == matrix[i - 1, j - 1] + 1)
+            {
+                FlushEditBuffers();
+                tokensReversed.Add(expected[i - 1].ToString());
+                i--;
+                j--;
+                continue;
+            }
+
+            if (i > 0 && matrix[i, j] == matrix[i - 1, j] + 1)
+            {
+                deletedReversed.Append(expected[i - 1]);
+                i--;
+                continue;
+            }
+
+            if (j > 0 && matrix[i, j] == matrix[i, j - 1] + 1)
+            {
+                insertedReversed.Append(actual[j - 1]);
+                j--;
+                continue;
+            }
+
+            // Fallback for unexpected tie/corner cases.
+            if (i > 0 && j > 0)
+            {
+                FlushEditBuffers();
+                tokensReversed.Add(expected[i - 1].ToString());
+                i--;
+                j--;
+            }
+            else if (i > 0)
+            {
+                deletedReversed.Append(expected[i - 1]);
+                i--;
             }
             else
             {
-                charMarks.Append('X');
+                insertedReversed.Append(actual[j - 1]);
+                j--;
             }
         }
 
-        var result = charMarks.ToString();
+        FlushEditBuffers();
+        tokensReversed.Reverse();
+        return string.Concat(tokensReversed);
+    }
 
-        // Handle missing characters
-        if (actual.Length < expected.Length)
+    private static int GetLevenshteinDistance(string expected, string actual)
+    {
+        var matrix = BuildLevenshteinMatrix(expected, actual);
+        return matrix[expected.Length, actual.Length];
+    }
+
+    private static int[,] BuildLevenshteinMatrix(string expected, string actual)
+    {
+        var rows = expected.Length + 1;
+        var columns = actual.Length + 1;
+        var matrix = new int[rows, columns];
+
+        for (var i = 0; i < rows; i++)
         {
-            result += $" [-{expected.Length - actual.Length}]";
+            matrix[i, 0] = i;
         }
 
-        // Handle inserted characters
-        if (actual.Length > expected.Length)
+        for (var j = 0; j < columns; j++)
         {
-            var extras = actual.Substring(expected.Length);
-            result += $" [+{extras}]";
+            matrix[0, j] = j;
         }
 
-        return result;
+        for (var i = 1; i < rows; i++)
+        {
+            for (var j = 1; j < columns; j++)
+            {
+                var substitutionCost = AreEqualIgnoreCase(expected[i - 1], actual[j - 1]) ? 0 : 1;
+
+                matrix[i, j] = Math.Min(
+                    Math.Min(
+                        matrix[i - 1, j] + 1,
+                        matrix[i, j - 1] + 1),
+                    matrix[i - 1, j - 1] + substitutionCost);
+            }
+        }
+
+        return matrix;
+    }
+
+    private static bool AreEqualIgnoreCase(char left, char right)
+    {
+        return char.ToUpperInvariant(left) == char.ToUpperInvariant(right);
     }
 
     private void SaveUserConfiguration()
