@@ -4,6 +4,7 @@
         x:Class="PentaGrammata.Views.SettingsDialog"
         x:DataType="vm:SettingsDialogViewModel"
         Width="760" Height="620"
+        MinWidth="500" MinHeight="300"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">

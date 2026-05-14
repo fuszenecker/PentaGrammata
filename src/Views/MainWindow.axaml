@@ -7,6 +7,7 @@
         x:Class="PentaGrammata.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="560" Height="400"
+        MinWidth="500" MinHeight="300"
         Icon="/Assets/avalonia-logo.ico"
         Title="PentaGrammata">
 
