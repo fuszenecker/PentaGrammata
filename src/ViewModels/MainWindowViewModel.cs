@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Configuration;
 
 using PentaGrammata.Services;
 
@@ -13,66 +12,23 @@ namespace PentaGrammata.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly IMorsePlayer _morsePlayer;
-    private readonly IMorseGenerator _morseGenerator;
-    private readonly IConfiguration _configuration;
+    private readonly PracticeController _practiceController;
 
-    private readonly int _sampleRate;
-    private readonly int _charWpm;
-    private readonly int _textWpm;
-
-    private CancellationTokenSource? _practiceCancellationTokenSource;
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
-    private bool _isPracticing;
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
 
-    public MainWindowViewModel(IMorseGenerator morseGenerator, IMorsePlayer morsePlayer, IConfiguration configuration)
+    public MainWindowViewModel(PracticeController practiceController)
     {
-        _morseGenerator = morseGenerator;
-        _morsePlayer = morsePlayer;
-        _configuration = configuration;
+        _practiceController = practiceController;
 
-        // Read configuration values with defaults
-        _sampleRate = _configuration.GetValue("Audio:SampleRate", 44100);
-        _charWpm = _configuration.GetValue("Practice:CharacterWpm", 20);
-        _textWpm = _configuration.GetValue("Practice:TextWpm", 15);
-        PracticeDuration = _configuration.GetValue("Practice:DefaultDuration", 5);
+        PracticeDuration = _practiceController.PracticeDurationMins;
+        CharacterSets = _practiceController.CharacterSets;
+        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
 
-        _practiceCancellationTokenSource = null;
-        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_isPracticing);
-        StopPracticeCommand = new RelayCommand(StopPractice, () => _isPracticing);
-
-        // Load character palettes from configuration
-        var palettesSection = _configuration.GetSection("CharacterPalettes");
-        var palettes = new List<KeyValuePair<string, string>>();
-        
-        if (palettesSection.Exists())
-        {
-            foreach (var paletteSection in palettesSection.GetChildren())
-            {
-                if (!string.IsNullOrWhiteSpace(paletteSection.Value))
-                {
-                    palettes.Add(new KeyValuePair<string, string>(paletteSection.Key, paletteSection.Value));
-                    continue;
-                }
-
-                foreach (var child in paletteSection.GetChildren())
-                {
-                    if (!string.IsNullOrWhiteSpace(child.Value))
-                        palettes.Add(new KeyValuePair<string, string>(child.Key, child.Value));
-                }
-            }
-        }
-
-        if (palettes.Count == 0)
-        {
-            palettes.Add(new KeyValuePair<string, string>("Default", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>"));
-        }
-
-        CharacterPalettes = palettes;
-        SelectedCharacterPalette = CharacterPalettes[0];
+        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, () => !_practiceController.IsPracticing);
+        StopPracticeCommand = new RelayCommand(StopPractice, () => _practiceController.IsPracticing);
     }
 
     [ObservableProperty]
@@ -82,36 +38,39 @@ public partial class MainWindowViewModel : ViewModelBase
     private string timeCounterText = "00:00";
 
     [ObservableProperty]
-    private List<KeyValuePair<string, string>> characterPalettes;
+    private List<KeyValuePair<string, string>> characterSets;
 
     [ObservableProperty]
-    private KeyValuePair<string, string> selectedCharacterPalette;
+    private KeyValuePair<string, string> selectedCharacterSet;
 
     [ObservableProperty]
     private int practiceDuration = 5;
 
     private async Task StartPracticeAsync()
     {
-        string paletteCharacters = string.IsNullOrWhiteSpace(SelectedCharacterPalette.Value)
-            ? CharacterPalettes[0].Value
-            : SelectedCharacterPalette.Value;
-        string morseCode = _morseGenerator.GenerateGroupsOf5(paletteCharacters, 3);
-        _practiceCancellationTokenSource = new CancellationTokenSource();
+        _practiceController.SelectedCharacterSet = SelectedCharacterSet;
+        _practiceController.PracticeDurationMins = PracticeDuration;
+
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
-        _isPracticing = true;
-        StartPracticeCommand.NotifyCanExecuteChanged();
-        StopPracticeCommand.NotifyCanExecuteChanged();
 
         var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
 
+        // StartAsync synchronously sets IsPracticing = true before its first await,
+        // so we notify after starting it to reflect the correct state.
+        var practiceTask = _practiceController.StartAsync();
+        StartPracticeCommand.NotifyCanExecuteChanged();
+        StopPracticeCommand.NotifyCanExecuteChanged();
+
         try
         {
-            await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: _charWpm, textWpm: _textWpm, sampleRate: _sampleRate, _practiceCancellationTokenSource.Token);
+            await practiceTask;
         }
         finally
         {
             if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
+            {
                 _practiceTimerCancellationTokenSource.Cancel();
+            }
 
             try
             {
@@ -121,7 +80,6 @@ public partial class MainWindowViewModel : ViewModelBase
             {
             }
 
-            _isPracticing = false;
             StartPracticeCommand.NotifyCanExecuteChanged();
             StopPracticeCommand.NotifyCanExecuteChanged();
         }
@@ -129,13 +87,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void StopPractice()
     {
-        if (_practiceCancellationTokenSource != null && !_practiceCancellationTokenSource.IsCancellationRequested)
-            _practiceCancellationTokenSource.Cancel();
+        _practiceController.Stop();
 
         if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
+        {
             _practiceTimerCancellationTokenSource.Cancel();
+        }
 
-        _isPracticing = false;
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
     }
@@ -143,13 +101,15 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
     {
         var startedAt = DateTime.UtcNow;
-        TimeCounterText = "00:00";
+        TimeCounterText = "Ready.";
 
         while (!cancellationToken.IsCancellationRequested)
         {
             var elapsed = DateTime.UtcNow - startedAt;
-            TimeCounterText = $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
             await Task.Delay(1000, cancellationToken);
         }
+
+        TimeCounterText = "Stopped.";
     }
 }

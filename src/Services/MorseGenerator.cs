@@ -6,27 +6,29 @@ namespace PentaGrammata.Services;
 
 public class MorseGenerator : IMorseGenerator
 {
-    public string GenerateGroupsOf5(string characterPalette, int numberOfGroups)
+    public string GenerateGroupsOf5(string characterSet, int numberOfGroups)
     {
         List<string> morseCodeList = [];
 
-        for (int i = 0; i < characterPalette.Length; i++)
+        for (int i = 0; i < characterSet.Length; i++)
         {
-            char c = characterPalette[i];
+            char c = characterSet[i];
 
             if (c == '<')
             {
-                int endIndex = characterPalette.IndexOf('>', i);
+                int endIndex = characterSet.IndexOf('>', i);
                 if (endIndex == -1)
-                    continue; // Invalid format, skip
+                {
+                    continue;
+                }
 
-                string specialSequence = characterPalette.Substring(i, endIndex - i + 1);
-                morseCodeList.Add(specialSequence); // Add the special sequence as is
-                i = endIndex; // Move index to end of special sequence
+                string specialSequence = characterSet.Substring(i, endIndex - i + 1);
+                morseCodeList.Add(specialSequence);
+                i = endIndex;
             }
             else
             {
-                morseCodeList.Add(characterPalette[i].ToString()); // Add the character as is
+                morseCodeList.Add(characterSet[i].ToString());
             }
         }
 
@@ -43,7 +45,9 @@ public class MorseGenerator : IMorseGenerator
             }
 
             if (i < numberOfGroups - 1)
-                result.Append(" "); // Add space between groups
+            {
+                result.Append(' ');
+            }
         }
 
         return result.ToString();
