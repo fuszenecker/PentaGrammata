@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.Services;
 
@@ -20,6 +22,9 @@ public class PracticeController
     private readonly AppConfig _configuration;
     private readonly string? _userConfigPath;
     private CancellationTokenSource? _cancellationTokenSource;
+
+    public string LastGeneratedText { get; private set; } = string.Empty;
+    public string LastReceivedText { get; private set; } = string.Empty;
 
     public int PracticeDurationMins
     {
@@ -81,8 +86,10 @@ public class PracticeController
 
     public async Task StartAsync()
     {
+        System.Diagnostics.Debug.WriteLine($"StartAsync called on thread {System.Threading.Thread.CurrentThread.ManagedThreadId}");
         _cancellationTokenSource = new CancellationTokenSource();
         IsPracticing = true;
+        System.Diagnostics.Debug.WriteLine($"IsPracticing set to true");
 
         try
         {
@@ -95,12 +102,26 @@ public class PracticeController
                 characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
 
             int numberOfGroups = (int)(PracticeDurationMins * AverageWpm * LengthCorrector);
+            System.Diagnostics.Debug.WriteLine($"Generating {numberOfGroups} morse groups");
+            
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
+            LastGeneratedText = morseCode;
+            System.Diagnostics.Debug.WriteLine($"Generated morse code, about to play audio on thread {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
-            await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
+            try
+            {
+                await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
+                System.Diagnostics.Debug.WriteLine("Audio playback completed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Audio playback error: {ex}");
+                throw;
+            }
         }
         finally
         {
+            System.Diagnostics.Debug.WriteLine($"StartAsync finally block: setting IsPracticing to false");
             IsPracticing = false;
         }
     }
@@ -111,6 +132,48 @@ public class PracticeController
         {
             _cancellationTokenSource.Cancel();
         }
+    }
+
+    public PracticeResult BuildResult(string receivedText)
+    {
+        LastReceivedText = receivedText ?? string.Empty;
+
+        var sentGroups = SplitGroups(LastGeneratedText);
+        var receivedGroups = SplitGroups(LastReceivedText);
+
+        var rowCount = Math.Max(sentGroups.Count, receivedGroups.Count);
+        var rows = new List<PracticeResultRow>(rowCount);
+
+        var characterCount = sentGroups.Sum(x => x.Length);
+        var errorCount = 0;
+
+        for (var i = 0; i < rowCount; i++)
+        {
+            var sent = i < sentGroups.Count ? sentGroups[i] : string.Empty;
+            var received = i < receivedGroups.Count ? receivedGroups[i] : string.Empty;
+
+            var groupErrors = CountGroupErrors(sent, received);
+            errorCount += groupErrors;
+
+            rows.Add(new PracticeResultRow
+            {
+                SentGroup = sent,
+                ReceivedGroup = received,
+                Difference = BuildDifferenceText(sent, received)
+            });
+        }
+
+        var errorRatePercent = characterCount > 0
+            ? (double)errorCount / characterCount * 100d
+            : 0d;
+
+        return new PracticeResult
+        {
+            Rows = rows,
+            CharacterCount = characterCount,
+            ErrorCount = errorCount,
+            ErrorRatePercent = errorRatePercent
+        };
     }
 
     public PracticeSettings CreateSettingsSnapshot()
@@ -205,6 +268,72 @@ public class PracticeController
 
         var configRoot = builder.Build();
         return configRoot.Get<AppConfig>() ?? new AppConfig();
+    }
+
+    private static List<string> SplitGroups(string text)
+    {
+        return text
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+    }
+
+    private static int CountGroupErrors(string expected, string actual)
+    {
+        var maxLength = Math.Max(expected.Length, actual.Length);
+        var errors = 0;
+
+        for (var i = 0; i < maxLength; i++)
+        {
+            var expectedChar = i < expected.Length ? expected[i] : '\0';
+            var actualChar = i < actual.Length ? actual[i] : '\0';
+
+            if (expectedChar != actualChar)
+            {
+                errors++;
+            }
+        }
+
+        return errors;
+    }
+
+    private static string BuildDifferenceText(string expected, string actual)
+    {
+        if (string.Equals(expected, actual, StringComparison.Ordinal))
+        {
+            return string.Concat(Enumerable.Repeat(".", expected.Length));
+        }
+
+        var charMarks = new StringBuilder();
+
+        // Compare up to the length of the expected string
+        for (var i = 0; i < expected.Length; i++)
+        {
+            if (i < actual.Length && expected[i] == actual[i])
+            {
+                charMarks.Append('.');
+            }
+            else
+            {
+                charMarks.Append('X');
+            }
+        }
+
+        var result = charMarks.ToString();
+
+        // Handle missing characters
+        if (actual.Length < expected.Length)
+        {
+            result += $" [-{expected.Length - actual.Length}]";
+        }
+
+        // Handle inserted characters
+        if (actual.Length > expected.Length)
+        {
+            var extras = actual.Substring(expected.Length);
+            result += $" [+{extras}]";
+        }
+
+        return result;
     }
 
     private void SaveUserConfiguration()

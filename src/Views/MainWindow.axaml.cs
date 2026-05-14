@@ -19,4 +19,12 @@ public partial class MainWindow : Window
             await vm.OpenSettingsDialogAsync(this);
         }
     }
+
+    private void OnCheckResultClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.OpenResultWindow(this);
+        }
+    }
 }

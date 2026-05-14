@@ -12,7 +12,11 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 
     public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, int beepRampMs, CancellationToken cancellationToken)
     {
-        var audioData = GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, beepRampMs);
+        var audioData = await Task.Run(
+            () => GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, beepRampMs),
+            cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
         await _audioPlayer.PlayAudioAsync(audioData, sampleRate, cancellationToken);
     }
 
