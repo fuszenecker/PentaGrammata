@@ -8,20 +8,18 @@ namespace PentaGrammata.Services;
 
 public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 {
-    private const int BeepRampMs = 4;
-
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
 
-    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, CancellationToken cancellationToken)
+    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, int beepRampMs, CancellationToken cancellationToken)
     {
-        var audioData = GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate);
+        var audioData = GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, beepRampMs);
         await _audioPlayer.PlayAudioAsync(audioData, sampleRate, cancellationToken);
     }
 
-    private static short[] GenerateBeep(int sampleRate, int durationMs)
+    private static short[] GenerateBeep(int sampleRate, int durationMs, int beepRampMs)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
-        int rampSamples = Math.Min((sampleRate * BeepRampMs) / 1000, sampleCount / 2);
+        int rampSamples = Math.Min((sampleRate * beepRampMs) / 1000, sampleCount / 2);
         var audioData = new short[sampleCount];
 
         for (int i = 0; i < sampleCount; i++)
@@ -49,7 +47,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
         return new short[sampleCount]; // 16-bit audio silence
     }
 
-    private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate)
+    private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate, int beepRampMs)
     {        
         if (averageWpm > charWpm)
         {
@@ -97,11 +95,11 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
             {
                 if (symbol == '.')
                 {
-                    audioData.AddRange(GenerateBeep(sampleRate, ditLengthMs)); // Dot: 100ms beep
+                    audioData.AddRange(GenerateBeep(sampleRate, ditLengthMs, beepRampMs));
                 }
                 else if (symbol == '-')
                 {
-                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditLengthMs)); // Dash: 300ms beep
+                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditLengthMs, beepRampMs));
                 }
                 else if (symbol == ' ')
                 {
