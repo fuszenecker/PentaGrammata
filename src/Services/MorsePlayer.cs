@@ -60,10 +60,12 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
             {
                 int endIndex = morseCode.IndexOf('>', i);
                 if (endIndex == -1)
+                {
                     continue; // Invalid format, skip
+                }
                 
                 morseString = morseCode.Substring(i, endIndex - i + 1);
-                i = endIndex; // Move index to end of special sequence
+                i = endIndex;
             }
             else
             {
@@ -95,7 +97,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
             audioData.AddRange(GenerateSilence(sampleRate, extraTimePerCharMs));
         }
 
-        return audioData.ToArray();
+        return [.. audioData];
     }
 
     private static string CharToMorse(string morseChar)
