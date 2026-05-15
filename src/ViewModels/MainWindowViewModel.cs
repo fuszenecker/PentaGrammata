@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string timeCounterText = "00:00";
+
+    [ObservableProperty]
+    private IBrush timeCounterForeground = Brushes.Gainsboro;
 
     [ObservableProperty]
     private string[] characterSets = [];
@@ -81,6 +85,7 @@ public partial class MainWindowViewModel : ViewModelBase
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
+        TimeCounterForeground = Brushes.CornflowerBlue;
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
         var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
@@ -89,15 +94,18 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await _practiceController.StartAsync();
             TimeCounterText = "Practice completed!";
+            TimeCounterForeground = Brushes.LimeGreen;
         }
         catch (OperationCanceledException)
         {
             TimeCounterText = "Stopped.";
+            TimeCounterForeground = Brushes.IndianRed;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Practice session failed unexpectedly");
             TimeCounterText = "Practice failed. Check logs for details.";
+            TimeCounterForeground = Brushes.IndianRed;
         }
         finally
         {
@@ -136,6 +144,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IsPracticeRunning = false;
         UpdateCommandStates();
         TimeCounterText = "Stopped.";
+        TimeCounterForeground = Brushes.IndianRed;
     }
 
     public async Task OpenSettingsDialogAsync()
@@ -147,6 +156,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!_practiceController.TryApplySettings(newSettings, out var error))
         {
             TimeCounterText = error;
+            TimeCounterForeground = Brushes.IndianRed;
             return;
         }
 
@@ -180,6 +190,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var startedAt = DateTime.UtcNow;
         TimeCounterText = "Ready.";
+        TimeCounterForeground = Brushes.Gainsboro;
 
         try
         {
@@ -187,6 +198,7 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 var elapsed = DateTime.UtcNow - startedAt;
                 TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+                TimeCounterForeground = Brushes.CornflowerBlue;
                 await Task.Delay(1000, cancellationToken);
             }
         }

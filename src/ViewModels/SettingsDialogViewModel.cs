@@ -43,7 +43,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private int selectedSampleRate;
 
-    public int[] SampleRateOptions { get; } = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000];
+    public int[] SampleRateOptions { get; } = [8000, 11025, 16000, 22050, 32000, 44100, 48000];
 
     [ObservableProperty]
     private double frequency;

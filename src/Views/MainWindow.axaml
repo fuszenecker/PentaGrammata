@@ -34,7 +34,7 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,1,0,0"
             Padding="10,5">
 
-            <TextBlock Text="{Binding TimeCounterText}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding TimeCounterText}" Foreground="{Binding TimeCounterForeground}" VerticalAlignment="Center"/>
         </Border>
         
         <Grid>
@@ -84,14 +84,20 @@
 
 
             <Button Grid.Column="2" Grid.Row="1" Content="Practice" Margin="0,0,10,10"
+                MinWidth="90"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Background="#1D4ED8"
+                Foreground="White"
                 Command="{Binding StartPracticeCommand}"
                 Click="OnPracticeClick"/>
             
             <Button Grid.Column="3" Grid.Row="1" Content="Stop" Margin="0,0,10,10"
+                MinWidth="90"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Background="#E53935"
+                Foreground="White"
                 Command="{Binding StopPracticeCommand}"/>
 
             <!-- Third row: Received message -->
@@ -100,7 +106,8 @@
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
 
             <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding ReceivedText}"
-                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"/>
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"
+                Padding="8,6"/>
 
             <!-- Fourth row: Check result button -->
 
@@ -108,6 +115,9 @@
                 HorizontalAlignment="Stretch" VerticalAlignment="Center" 
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Margin="0,0,10,10"
+                MinWidth="90"
+                Background="#B45309"
+                Foreground="White"
                 IsEnabled="{Binding !IsPracticeRunning}"
                 Command="{Binding CheckResultCommand}"/>
         </Grid>

@@ -28,8 +28,11 @@
                 Margin="0,0,10,0"
                 MinWidth="100"
                 HorizontalAlignment="Right"
+                VerticalAlignment="Center"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"
+                Background="#1D4ED8"
+                Foreground="White"
                 Command="{Binding CloseCommand}"/>
     </Grid>
 </Window>
