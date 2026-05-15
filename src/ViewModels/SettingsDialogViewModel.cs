@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.ViewModels;
 
@@ -13,6 +15,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
 {
     private readonly int _defaultDurationMins;
     private readonly string _defaultCharacterSet;
+    private readonly IPracticeSettingsValidator _settingsValidator;
 
     [ObservableProperty]
     private int characterWpm;
@@ -40,7 +43,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private int selectedSampleRate;
 
-    public int[] SampleRateOptions { get; } = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000];
+    public int[] SampleRateOptions { get; } = [8000, 11025, 16000, 22050, 32000, 44100, 48000];
 
     [ObservableProperty]
     private double frequency;
@@ -60,8 +63,14 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string errorMessage = string.Empty;
 
-    public SettingsDialogViewModel(AppConfig config)
+    public IRelayCommand SaveCommand { get; }
+    public IRelayCommand CancelCommand { get; }
+
+    public event Action<bool>? CloseRequested;
+
+    public SettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator)
     {
+        _settingsValidator = settingsValidator;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
         _defaultCharacterSet = config.Practice.DefaultCharacterSet;
 
@@ -80,17 +89,14 @@ public partial class SettingsDialogViewModel : ViewModelBase
         }
 
         CharacterSetsText = CharacterSetTextCodec.FormatForEditor(config.CharacterSets);
+
+        SaveCommand = new RelayCommand(OnSave);
+        CancelCommand = new RelayCommand(OnCancel);
     }
 
     public bool TryBuildSettings(out AppConfig settings)
     {
         settings = new AppConfig();
-
-        if (!TryValidateScalarSettings(out var scalarError))
-        {
-            ErrorMessage = scalarError;
-            return false;
-        }
 
         if (!CharacterSetTextCodec.TryParse(CharacterSetsText, out var parsedSets, out var parserError))
         {
@@ -100,56 +106,27 @@ public partial class SettingsDialogViewModel : ViewModelBase
 
         settings = BuildConfig(parsedSets);
 
+        if (!_settingsValidator.TryValidate(settings, out var validationError))
+        {
+            ErrorMessage = validationError;
+            return false;
+        }
+
         ErrorMessage = string.Empty;
         return true;
     }
 
-    private bool TryValidateScalarSettings(out string error)
+    private void OnSave()
     {
-        if (CharacterWpm < 1 || AverageWpm < 1)
+        if (TryBuildSettings(out _))
         {
-            error = "Character and average WPM must be positive values.";
-            return false;
+            CloseRequested?.Invoke(true);
         }
+    }
 
-        if (AverageWpm > CharacterWpm)
-        {
-            error = "Average WPM cannot exceed character WPM.";
-            return false;
-        }
-
-        if (SelectedSampleRate < 8000)
-        {
-            error = "Sample rate must be at least 8000.";
-            return false;
-        }
-
-        if (Frequency <= 0)
-        {
-            error = "Frequency must be greater than 0.";
-            return false;
-        }
-
-        if (Volume < 0 || Volume > 1)
-        {
-            error = "Volume must be between 0 and 1.";
-            return false;
-        }
-
-        if (BeepRampMs < 0)
-        {
-            error = "Beep ramp must be 0 or greater.";
-            return false;
-        }
-
-        if (ErrorThreshold < 0 || ErrorThreshold > 100)
-        {
-            error = "Error rate threshold must be between 0 and 100.";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
+    private void OnCancel()
+    {
+        CloseRequested?.Invoke(false);
     }
 
     private AppConfig BuildConfig(IReadOnlyDictionary<string, string> parsedSets)

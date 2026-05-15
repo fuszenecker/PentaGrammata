@@ -11,7 +11,8 @@
 
     <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,*" Margin="10">
 
-        <GroupBox Grid.Row="0" Grid.Column="0" Header="Practice" Margin="0,0,10,10">
+        <GroupBox Grid.Row="0" Grid.Column="0" Header="Practice" Margin="0,0,10,10"
+                CornerRadius="10" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Character WPM"/>
                 <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
@@ -30,41 +31,43 @@
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Grid.Row="0" Grid.Column="1" Header="Audio" Margin="0,0,0,10">
+        <GroupBox Grid.Row="0" Grid.Column="1" Header="Audio" Margin="0,0,0,10"
+                CornerRadius="10" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Frequency (Hz)"/>
                 <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"/>
                 <TextBlock Text="Volume (0–1)"/>
                 <NumericUpDown Minimum="0" Maximum="1" Increment="0.05" FormatString="0.##" Value="{Binding Volume}"/>
-                <TextBlock Text="Sample Rate"/>
+                <TextBlock Text="Sample rate"/>
                 <ComboBox ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SelectedSampleRate}"/>
-                <TextBlock Text="Beep Ramp (ms)"/>
+                <TextBlock Text="Beep ramp (ms)"/>
                 <NumericUpDown Minimum="0" Maximum="200" Increment="1" FormatString="0" Value="{Binding BeepRampMs}"/>
             </StackPanel>
         </GroupBox>
 
-        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,15,0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Character sets" Margin="0,5,0,0"
+                CornerRadius="10" Background="#101010">
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <TextBlock Text="Character Sets" FontWeight="Bold" Grid.Row="0" Margin="0,0,0,5"/>
+                <TextBlock Grid.Row="0" Margin="0,0,0,8" Foreground="#9aa0a6"
+                        Text="Format: name = characters (one character set per line)."/>
 
-            <TextBlock Grid.Row="1" Margin="0,0,0,10" Foreground="#9aa0a6"
-                    Text="Character sets format: Name = Characters (one character set per line)."/>
-
-            <TextBox Grid.Row="2"
-                     Text="{Binding CharacterSetsText}"
-                     TextWrapping="Wrap"
-                     FontFamily="Consolas, monospace"
-                     AcceptsReturn="True"
-                     VerticalAlignment="Stretch"
-                     HorizontalAlignment="Stretch"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
-        </Grid>
+                <TextBox Grid.Row="1"
+                         Text="{Binding CharacterSetsText}"
+                         TextWrapping="Wrap"
+                         FontFamily="Consolas, monospace"
+                         AcceptsReturn="True"
+                         Padding="8,6"
+                         VerticalAlignment="Stretch"
+                         HorizontalAlignment="Stretch"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+            </Grid>
+        </GroupBox>
 
         <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
@@ -74,8 +77,8 @@
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#ff6b6b"
                        Text="{Binding ErrorMessage}"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
-                <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnSaveClick"/>
-                <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnCancelClick"/>
+                <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="#1D4ED8" Foreground="White" Command="{Binding SaveCommand}"/>
+                <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding CancelCommand}"/>
             </StackPanel>
         </Grid>
     </Grid>
