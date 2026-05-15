@@ -8,7 +8,8 @@
         Title="About PentaGrammata">
 
     <Grid RowDefinitions="*,60" Margin="0">
-        <StackPanel Margin="0,0,0,0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Background="#202020">
+        <Border Background="#202020">
+            <StackPanel Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Image Source="/Assets/pentagrammata-icon.png" Width="96" Height="96" HorizontalAlignment="Center"/>
 
             <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -19,6 +20,7 @@
 
             <TextBlock x:Name="VersionText" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
         </StackPanel>
+        </Border>
 
         <Button Grid.Row="1"
                 Content="Close"
