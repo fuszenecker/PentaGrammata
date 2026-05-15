@@ -25,6 +25,8 @@
                 <TextBlock Text="Average WPM"/>
                 <NumericUpDown Minimum="1" Maximum="{Binding CharacterWpm}" Increment="1" FormatString="0" Value="{Binding AverageWpm}"
                                IsEnabled="{Binding !WpmLocked}"/>
+                <TextBlock Text="Error threshold (%)"/>
+                <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"/>
             </StackPanel>
         </GroupBox>
 

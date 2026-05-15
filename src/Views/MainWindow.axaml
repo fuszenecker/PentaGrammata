@@ -57,11 +57,12 @@
 
             <!-- First row: Character palette selection -->
 
-            <Label Grid.Column="0" Grid.Row="0" Content="Character palette:"
+            <Label Grid.Column="0" Grid.Row="0" Content="Character set:"
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,10,10,10"/>
             
             <ComboBox Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="3" Margin="0,10,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                IsEnabled="{Binding !IsPracticeRunning}"
                 ItemsSource="{Binding CharacterSets}"
                 SelectedItem="{Binding SelectedCharacterSet}"/>
 
@@ -75,7 +76,8 @@
 
                 <NumericUpDown Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
                     Value="{Binding PracticeDuration}" Minimum="1" Maximum="999" FormatString="0"
-                    AllowSpin="True"/>
+                    AllowSpin="True"
+                    IsEnabled="{Binding !IsPracticeRunning}"/>
 
                 <Label Content="mins" VerticalAlignment="Center"/>
             </StackPanel>
@@ -97,7 +99,7 @@
             <Label Grid.Column="0" Grid.Row="2" Content="You received:"
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
 
-            <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Greeting}"
+            <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding ReceivedText}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"/>
 
             <!-- Fourth row: Check result button -->
@@ -106,6 +108,7 @@
                 HorizontalAlignment="Stretch" VerticalAlignment="Center" 
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Margin="0,0,10,10"
+                IsEnabled="{Binding !IsPracticeRunning}"
                 Click="OnCheckResultClick"/>
         </Grid>
     </DockPanel>

@@ -49,9 +49,9 @@
                 <TextBlock Grid.Column="0" Text="Character count:" FontWeight="Bold"/>
                 <TextBlock Grid.Column="1" Text="{Binding CharacterCountText}"/>
                 <TextBlock Grid.Column="2" Text="Errors:" FontWeight="Bold"/>
-                <TextBlock Grid.Column="3" Text="{Binding ErrorsText}"/>
+                <TextBlock Grid.Column="3" Text="{Binding ErrorsText}" Foreground="{Binding ResultForeground}"/>
                 <TextBlock Grid.Column="4" Text="Error rate:" FontWeight="Bold"/>
-                <TextBlock Grid.Column="5" Text="{Binding ErrorRateText}"/>
+                <TextBlock Grid.Column="5" Text="{Binding ErrorRateText}" Foreground="{Binding ResultForeground}"/>
             </Grid>
         </Border>
     </Grid>

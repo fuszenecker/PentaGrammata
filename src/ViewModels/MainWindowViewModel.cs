@@ -15,7 +15,9 @@ namespace PentaGrammata.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly PracticeController _practiceController;
-    private bool _isPracticeRunning;
+
+    [ObservableProperty]
+    private bool isPracticeRunning;
 
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
 
@@ -23,7 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand StopPracticeCommand { get; }
 
     [ObservableProperty]
-    private string greeting = string.Empty;
+    private string receivedText = string.Empty;
 
     [ObservableProperty]
     private string timeCounterText = "00:00";
@@ -52,13 +54,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task StartPracticeAsync()
     {
-        if (_isPracticeRunning)
+        if (IsPracticeRunning)
         {
             return;
         }
 
-        _isPracticeRunning = true;
+        IsPracticeRunning = true;
         UpdateCommandStates();
+        ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
@@ -88,14 +91,14 @@ public partial class MainWindowViewModel : ViewModelBase
             {
             }
 
-            _isPracticeRunning = false;
+            IsPracticeRunning = false;
             UpdateCommandStates();
         }
     }
 
     public void StopPractice()
     {
-        if (!_isPracticeRunning)
+        if (!IsPracticeRunning)
         {
             return;
         }
@@ -107,7 +110,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _practiceTimerCancellationTokenSource.Cancel();
         }
 
-        _isPracticeRunning = false;
+        IsPracticeRunning = false;
         UpdateCommandStates();
         TimeCounterText = "Stopped.";
     }
@@ -140,7 +143,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void OpenResultWindow(Window owner)
     {
-        var result = _practiceController.BuildResult(Greeting);
+        var result = _practiceController.BuildResult(ReceivedText);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = new PracticeResultWindowViewModel(result)
@@ -180,12 +183,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanStartPractice()
     {
-        return !_isPracticeRunning;
+        return !IsPracticeRunning;
     }
 
     private bool CanStopPractice()
     {
-        return _isPracticeRunning;
+        return IsPracticeRunning;
     }
 
     private void UpdateCommandStates()

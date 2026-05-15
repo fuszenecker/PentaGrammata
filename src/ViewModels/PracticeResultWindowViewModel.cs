@@ -14,6 +14,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
     public string CharacterCountText { get; }
     public string ErrorsText { get; }
     public string ErrorRateText { get; }
+    public IBrush ResultForeground { get; }
 
     public PracticeResultWindowViewModel(PracticeResult result)
     {
@@ -28,6 +29,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         CharacterCountText = result.CharacterCount.ToString(CultureInfo.InvariantCulture);
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
+        ResultForeground = result.IsSuccessful ? Brushes.LimeGreen : Brushes.IndianRed;
     }
 
     private static ObservableCollection<PracticeResultDiffSegmentViewModel> ParseDifferenceSegments(string difference)
