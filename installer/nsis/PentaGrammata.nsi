@@ -9,7 +9,9 @@ Unicode True
 ; General
 
 !define APP_NAME        "PentaGrammata"
-!define APP_VERSION     "1.0.0"
+!ifndef APP_VERSION
+!define APP_VERSION     "0.0.0.0"
+!endif
 !define APP_PUBLISHER   "PentaGrammata"
 !define APP_EXE         "PentaGrammata.exe"
 !define APP_ICON        "..\..\src\Assets\pentagrammata-icon.ico"

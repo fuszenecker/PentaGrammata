@@ -5,7 +5,7 @@
 
 .PARAMETER Version
     Version string to embed in the installer (e.g. "1.2.0").
-    Defaults to the version defined in the .nsi script.
+    Defaults to the value in version.txt at the repository root.
 
 .PARAMETER Runtime
     .NET runtime identifier to publish for. Defaults to "win-x64".
@@ -36,6 +36,22 @@ $ProjectFile = Join-Path $RepoRoot "src\PentaGrammata.csproj"
 $NsiFile     = Join-Path $RepoRoot "installer\nsis\PentaGrammata.nsi"
 $PublishDir  = Join-Path $RepoRoot "publish\$Runtime"
 $OutputDir   = Join-Path $RepoRoot "installer\nsis"
+$VersionFile = Join-Path $RepoRoot "version.txt"
+
+# ---------------------------------------------------------------------------
+# Resolve version
+# ---------------------------------------------------------------------------
+if (-not $Version) {
+    if (-not (Test-Path $VersionFile)) {
+        Write-Error "version.txt not found at '$VersionFile'. Create it or pass -Version explicitly."
+    }
+    $Version = (Get-Content $VersionFile -Raw).Trim()
+    if (-not $Version) {
+        Write-Error "version.txt is empty. Add a version string (e.g. 1.0.0) and try again."
+    }
+}
+Write-Host ""
+Write-Host "==> Version: $Version" -ForegroundColor Cyan
 
 # ---------------------------------------------------------------------------
 # Validate tools
@@ -88,6 +104,9 @@ if (-not $SkipPublish) {
         "-c", "Release",
         "-r", $Runtime,
         "--self-contained", "true",
+        "-p:Version=$Version",
+        "-p:AssemblyVersion=$Version",
+        "-p:FileVersion=$Version",
         "-o", $PublishDir
     )
 
@@ -111,15 +130,12 @@ if (-not $SkipPublish) {
 Write-Host ""
 Write-Host "==> Running NSIS ..." -ForegroundColor Cyan
 
-$nsisArgs = @()
+$nsisArgs = @(
+    "/DAPP_VERSION=$Version",
+    $NsiFile
+)
 
-# Override APP_VERSION if caller supplied one
-if ($Version) {
-    $nsisArgs += "/DAPP_VERSION=$Version"
-    Write-Host "    Overriding APP_VERSION -> $Version" -ForegroundColor Yellow
-}
-
-$nsisArgs += $NsiFile
+Write-Host "    Using APP_VERSION=$Version" -ForegroundColor Yellow
 
 Push-Location $OutputDir
 try {
@@ -134,11 +150,7 @@ try {
 # ---------------------------------------------------------------------------
 # Report output
 # ---------------------------------------------------------------------------
-$EffectiveVersion = if ($Version) { $Version } else {
-    # Read version from .nsi as fallback for display purposes
-    $match = Select-String -Path $NsiFile -Pattern '!define APP_VERSION\s+"([^"]+)"'
-    if ($match) { $match.Matches[0].Groups[1].Value } else { "unknown" }
-}
+$EffectiveVersion = $Version
 
 $InstallerFile = Join-Path $OutputDir "PentaGrammata-$EffectiveVersion-$Runtime-setup.exe"
 
