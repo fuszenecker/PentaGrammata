@@ -17,8 +17,6 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-
-
     <DockPanel>
 
         <Menu DockPanel.Dock="Top"
@@ -55,7 +53,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="4" Background="#202020" Padding="0" />
+            <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="4" Background="#101010" Padding="0" />
 
             <!-- First row: Character palette selection -->
 

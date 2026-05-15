@@ -8,7 +8,7 @@
         Title="About PentaGrammata">
 
     <Grid RowDefinitions="*,60" Margin="0">
-        <Border Background="#202020">
+        <Border Background="#101010">
             <StackPanel Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Image Source="/Assets/pentagrammata-icon.png" Width="96" Height="96" HorizontalAlignment="Center"/>
 
