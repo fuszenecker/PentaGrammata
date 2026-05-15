@@ -20,4 +20,4 @@ jobs:
       - name: Build
         run: dotnet build PentaGrammata.slnx --configuration Release --no-restore
       - name: Test
-        run: dotnet test PentaGrammata.slnx --no-build --verbosity normal
+        run: dotnet test PentaGrammata.slnx --configuration Release --no-build --verbosity normal
