@@ -116,9 +116,8 @@
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Margin="0,0,10,10"
                 MinWidth="90"
-                Background="#B45309"
+                Background="#16A34A"
                 Foreground="White"
-                IsEnabled="{Binding !IsPracticeRunning}"
                 Command="{Binding CheckResultCommand}"/>
         </Grid>
     </DockPanel>

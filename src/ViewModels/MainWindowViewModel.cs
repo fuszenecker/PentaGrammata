@@ -23,6 +23,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool isPracticeRunning;
 
+    private bool hasPracticeStarted;
+
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
@@ -81,6 +83,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        hasPracticeStarted = true;
         IsPracticeRunning = true;
         UpdateCommandStates();
         ReceivedText = string.Empty;
@@ -186,6 +189,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _practiceController.PracticeDurationMins = value;
     }
 
+    partial void OnReceivedTextChanged(string value)
+    {
+        UpdateCommandStates();
+    }
+
     private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
     {
         var startedAt = DateTime.UtcNow;
@@ -219,7 +227,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanCheckResult()
     {
-        return !IsPracticeRunning;
+        return !IsPracticeRunning && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
     }
 
     private void UpdateCommandStates()
