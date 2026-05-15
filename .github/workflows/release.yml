@@ -1,0 +1,37 @@
+name: Release Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore dependencies
+        run: dotnet restore PentaGrammata.slnx
+      - name: Build (Release)
+        run: dotnet build PentaGrammata.slnx --configuration Release --no-restore
+      - name: Publish (linux-x64)
+        run: dotnet publish src/PentaGrammata.csproj --configuration Release --runtime linux-x64 --self-contained false --output publish/linux-x64
+      - name: Build .deb installer
+        run: bash scripts/Build-Deb-Installer.sh
+      - name: Build .rpm installer
+        run: bash scripts/Build-Rpm-Installer.sh
+      - name: Build NSIS installer (Windows, if possible)
+        if: runner.os == 'Windows'
+        run: pwsh scripts/Build-Installer.ps1
+      - name: Upload Installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers
+          path: |
+            installer/deb/build/**/*.deb
+            installer/redhat/build/**/*.rpm
+            installer/nsis/*.exe
