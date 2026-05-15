@@ -112,7 +112,8 @@ public class PracticeController
 
             try
             {
-                await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, frequency: Frequency, volume: Volume, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
+                string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
+                await _morsePlayer.PlayMorseCodeAsync(morseCodeToPlay, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, frequency: Frequency, volume: Volume, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
                 System.Diagnostics.Debug.WriteLine("Audio playback completed");
             }
             catch (Exception ex)

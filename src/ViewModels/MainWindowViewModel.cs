@@ -23,7 +23,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand StopPracticeCommand { get; }
 
     [ObservableProperty]
-    private string greeting = string.Empty;
+    private string receivedText = string.Empty;
 
     [ObservableProperty]
     private string timeCounterText = "00:00";
@@ -59,6 +59,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _isPracticeRunning = true;
         UpdateCommandStates();
+        ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
@@ -140,7 +141,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void OpenResultWindow(Window owner)
     {
-        var result = _practiceController.BuildResult(Greeting);
+        var result = _practiceController.BuildResult(ReceivedText);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = new PracticeResultWindowViewModel(result)

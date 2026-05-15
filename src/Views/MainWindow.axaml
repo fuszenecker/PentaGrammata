@@ -97,7 +97,7 @@
             <Label Grid.Column="0" Grid.Row="2" Content="You received:"
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
 
-            <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Greeting}"
+            <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding ReceivedText}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"/>
 
             <!-- Fourth row: Check result button -->
