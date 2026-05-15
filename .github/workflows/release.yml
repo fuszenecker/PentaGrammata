@@ -32,6 +32,6 @@ jobs:
         with:
           name: installers
           path: |
-            installer/deb/build/**/*.deb
-            installer/redhat/build/**/*.rpm
+            installer/deb/*.deb
+            installer/rpm/**/*.rpm
             installer/nsis/*.exe
