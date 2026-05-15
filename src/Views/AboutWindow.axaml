@@ -12,11 +12,10 @@
             <StackPanel Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Image Source="/Assets/pentagrammata-icon.png" Width="96" Height="96" HorizontalAlignment="Center"/>
 
-            <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,10"/>
+
             <TextBlock Text="Morse practice with configurable character sets, audio settings, and detailed result analysis."
-                       TextWrapping="Wrap"
-                       TextAlignment="Center"
-                       Foreground="#c9d1d9"/>
+                       TextWrapping="Wrap" TextAlignment="Center" Foreground="#c9d1d9" Margin="0,0,0,10"/>
 
             <TextBlock x:Name="VersionText" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
         </StackPanel>
