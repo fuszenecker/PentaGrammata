@@ -17,18 +17,7 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Window.Styles>
-        <Style Selector="NumericUpDown.durationSpinner /template/ TextBox#PART_TextBox">
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="IsHitTestVisible" Value="False"/>
-        </Style>
-        <Style Selector="NumericUpDown.durationSpinner TextBox#PART_TextBox">
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="IsHitTestVisible" Value="False"/>
-        </Style>
-    </Window.Styles>
+
 
     <DockPanel>
 
@@ -84,7 +73,7 @@
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal"
                 Margin="0,0,10,10" VerticalAlignment="Center">
 
-                <NumericUpDown Classes="durationSpinner" Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
+                <NumericUpDown Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
                     Value="{Binding PracticeDuration}" Minimum="1" Maximum="999" FormatString="0"
                     AllowSpin="True"/>
 
