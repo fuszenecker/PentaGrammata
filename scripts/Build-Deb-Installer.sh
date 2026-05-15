@@ -150,7 +150,7 @@ Comment=${DESCRIPTION}
 Exec=${PACKAGE_NAME}
 Icon=${PACKAGE_NAME}
 Terminal=false
-Categories=Education;Utility;
+Categories=Utility;HamRadio;
 EOF
 
 chmod 0644 "${DESKTOP_DIR}/${PACKAGE_NAME}.desktop"

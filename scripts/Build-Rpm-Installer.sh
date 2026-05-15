@@ -178,7 +178,7 @@ Comment=${SUMMARY}
 Exec=${PACKAGE_NAME}
 Icon=${PACKAGE_NAME}
 Terminal=false
-Categories=Education;Utility;
+Categories=Utility;HamRadio;
 EOF
 
 chmod 0755 "${SOURCE_ROOT}/usr/bin/${PACKAGE_NAME}"
