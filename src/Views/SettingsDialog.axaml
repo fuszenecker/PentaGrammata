@@ -15,8 +15,16 @@
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Character WPM"/>
                 <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
+                <ToggleButton IsChecked="{Binding WpmLocked}" HorizontalAlignment="Right" Padding="10,5"
+                              ToolTip.Tip="Lock both WPM values together">
+                    <Panel>
+                        <TextBlock Text="🔒 Locked"   IsVisible="{Binding WpmLocked}"/>
+                        <TextBlock Text="🔓 Unlocked" IsVisible="{Binding !WpmLocked}"/>
+                    </Panel>
+                </ToggleButton>
                 <TextBlock Text="Average WPM"/>
-                <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding AverageWpm}"/>
+                <NumericUpDown Minimum="1" Maximum="{Binding CharacterWpm}" Increment="1" FormatString="0" Value="{Binding AverageWpm}"
+                               IsEnabled="{Binding !WpmLocked}"/>
             </StackPanel>
         </GroupBox>
 

@@ -17,8 +17,25 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private int characterWpm;
 
+    partial void OnCharacterWpmChanged(int value)
+    {
+        if (WpmLocked)
+            AverageWpm = value;
+        else if (AverageWpm > value)
+            AverageWpm = value;
+    }
+
     [ObservableProperty]
     private int averageWpm;
+
+    partial void OnAverageWpmChanged(int value)
+    {
+        if (WpmLocked)
+            CharacterWpm = value;
+    }
+
+    [ObservableProperty]
+    private bool wpmLocked;
 
     [ObservableProperty]
     private int selectedSampleRate;
@@ -47,6 +64,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
 
         CharacterWpm = config.Practice.CharacterWpm;
         AverageWpm = config.Practice.AverageWpm;
+        WpmLocked = config.Practice.CharacterWpm == config.Practice.AverageWpm;
         SelectedSampleRate = config.Audio.SampleRate;
         Frequency = config.Audio.Frequency;
         Volume = config.Audio.Volume;
