@@ -175,7 +175,8 @@ public class PracticeController
             Rows = rows,
             CharacterCount = characterCount,
             ErrorCount = errorCount,
-            ErrorRatePercent = errorRatePercent
+            ErrorRatePercent = errorRatePercent,
+            IsSuccessful = errorRatePercent <= _configuration.Practice.ErrorThreshold
         };
     }
 
@@ -193,6 +194,7 @@ public class PracticeController
                 CharacterWpm = _configuration.Practice.CharacterWpm,
                 AverageWpm = _configuration.Practice.AverageWpm,
                 DefaultCharacterSet = _configuration.Practice.DefaultCharacterSet,
+                ErrorThreshold = _configuration.Practice.ErrorThreshold,
             },
             Audio = new Audio
             {
@@ -249,6 +251,12 @@ public class PracticeController
             return false;
         }
 
+        if (settings.Practice.ErrorThreshold < 0 || settings.Practice.ErrorThreshold > 100)
+        {
+            error = "Error rate threshold must be between 0 and 100.";
+            return false;
+        }
+
         if (settings.CharacterSets == null || settings.CharacterSets.Count == 0)
         {
             error = "At least one character set is required.";
@@ -269,6 +277,7 @@ public class PracticeController
         _configuration.Audio.Volume = settings.Audio.Volume;
         _configuration.Audio.BeepRampMs = settings.Audio.BeepRampMs;
         _configuration.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
+        _configuration.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
 
         _configuration.CharacterSets.Clear();
         foreach (var item in settings.CharacterSets)

@@ -52,6 +52,9 @@ public partial class SettingsDialogViewModel : ViewModelBase
     private int beepRampMs;
 
     [ObservableProperty]
+    private double errorThreshold;
+
+    [ObservableProperty]
     private string characterSetsText = string.Empty;
 
     [ObservableProperty]
@@ -69,6 +72,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
         Frequency = config.Audio.Frequency;
         Volume = config.Audio.Volume;
         BeepRampMs = config.Audio.BeepRampMs;
+        ErrorThreshold = config.Practice.ErrorThreshold;
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
         {
@@ -138,6 +142,12 @@ public partial class SettingsDialogViewModel : ViewModelBase
             return false;
         }
 
+        if (ErrorThreshold < 0 || ErrorThreshold > 100)
+        {
+            error = "Error rate threshold must be between 0 and 100.";
+            return false;
+        }
+
         error = string.Empty;
         return true;
     }
@@ -160,6 +170,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
                 CharacterWpm = CharacterWpm,
                 AverageWpm = AverageWpm,
                 DefaultCharacterSet = defaultSet,
+                ErrorThreshold = ErrorThreshold,
             },
             Audio = new Audio
             {

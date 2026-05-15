@@ -6,4 +6,5 @@ public sealed class Practice
 	public int CharacterWpm { get; set; } = 20;
 	public int AverageWpm { get; set; } = 15;
 	public string DefaultCharacterSet { get; set; } = "Default";
+	public double ErrorThreshold { get; set; } = 10.0;
 }

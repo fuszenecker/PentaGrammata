@@ -8,4 +8,5 @@ public sealed class PracticeResult
     public int CharacterCount { get; init; }
     public int ErrorCount { get; init; }
     public double ErrorRatePercent { get; init; }
+    public bool IsSuccessful { get; init; }
 }
