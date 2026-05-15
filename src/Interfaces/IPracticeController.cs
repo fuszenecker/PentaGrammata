@@ -9,7 +9,7 @@ public interface IPracticeController
 {
     int PracticeDurationMins { get; set; }
 
-    List<KeyValuePair<string, string>> CharacterSets { get; }
+    IReadOnlyList<KeyValuePair<string, string>> CharacterSets { get; }
 
     string SelectedCharacterSet { get; set; }
 

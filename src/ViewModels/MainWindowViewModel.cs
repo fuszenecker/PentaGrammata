@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Interfaces;
-using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
@@ -17,6 +17,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISettingsDialogService _settingsDialogService;
     private readonly IPracticeResultWindowService _practiceResultWindowService;
     private readonly IAboutDialogService _aboutDialogService;
+    private readonly ILogger<MainWindowViewModel> _logger;
 
     [ObservableProperty]
     private bool isPracticeRunning;
@@ -48,12 +49,14 @@ public partial class MainWindowViewModel : ViewModelBase
         IPracticeController practiceController,
         ISettingsDialogService settingsDialogService,
         IPracticeResultWindowService practiceResultWindowService,
-        IAboutDialogService aboutDialogService)
+        IAboutDialogService aboutDialogService,
+        ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
         _settingsDialogService = settingsDialogService;
         _practiceResultWindowService = practiceResultWindowService;
         _aboutDialogService = aboutDialogService;
+        _logger = logger;
 
         PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
@@ -87,9 +90,14 @@ public partial class MainWindowViewModel : ViewModelBase
             await _practiceController.StartAsync();
             TimeCounterText = "Practice completed!";
         }
+        catch (OperationCanceledException)
+        {
+            TimeCounterText = "Stopped.";
+        }
         catch (Exception ex)
         {
-            TimeCounterText = $"Error: {ex.Message}";
+            _logger.LogError(ex, "Practice session failed unexpectedly");
+            TimeCounterText = "Practice failed. Check logs for details.";
         }
         finally
         {

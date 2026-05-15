@@ -1,7 +1,4 @@
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
@@ -11,15 +8,24 @@ namespace PentaGrammata.Services;
 
 public sealed class SettingsDialogService : ISettingsDialogService
 {
+    private readonly IWindowContext _windowContext;
+    private readonly IPracticeSettingsValidator _settingsValidator;
+
+    public SettingsDialogService(IWindowContext windowContext, IPracticeSettingsValidator settingsValidator)
+    {
+        _windowContext = windowContext;
+        _settingsValidator = settingsValidator;
+    }
+
     public async Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings)
     {
-        var owner = GetOwnerWindow();
+        var owner = _windowContext.MainWindow;
         if (owner is null)
         {
             return null;
         }
 
-        var viewModel = new SettingsDialogViewModel(currentSettings);
+        var viewModel = new SettingsDialogViewModel(currentSettings, _settingsValidator);
         var dialog = new SettingsDialog
         {
             DataContext = viewModel
@@ -32,10 +38,5 @@ public sealed class SettingsDialogService : ISettingsDialogService
         }
 
         return viewModel.TryBuildSettings(out var newSettings) ? newSettings : null;
-    }
-
-    private static Window? GetOwnerWindow()
-    {
-        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
     }
 }

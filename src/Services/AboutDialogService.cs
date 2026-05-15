@@ -1,7 +1,4 @@
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
@@ -10,9 +7,16 @@ namespace PentaGrammata.Services;
 
 public sealed class AboutDialogService : IAboutDialogService
 {
+    private readonly IWindowContext _windowContext;
+
+    public AboutDialogService(IWindowContext windowContext)
+    {
+        _windowContext = windowContext;
+    }
+
     public async Task ShowAboutAsync()
     {
-        var owner = GetOwnerWindow();
+        var owner = _windowContext.MainWindow;
         if (owner is null)
         {
             return;
@@ -24,10 +28,5 @@ public sealed class AboutDialogService : IAboutDialogService
         };
 
         await aboutWindow.ShowDialog(owner);
-    }
-
-    private static Window? GetOwnerWindow()
-    {
-        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
     }
 }
