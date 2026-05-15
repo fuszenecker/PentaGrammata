@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PentaGrammata.Views.AboutWindow"
+        Width="520" Height="340"
+        MinWidth="420" MinHeight="280"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/pentagrammata-icon.ico"
+        Title="About PentaGrammata">
+
+    <Grid RowDefinitions="*,Auto" Margin="20">
+        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420">
+            <Image Source="/Assets/pentagrammata-icon.png" Width="96" Height="96" HorizontalAlignment="Center"/>
+
+            <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Morse practice with configurable character sets, audio settings, and detailed result analysis."
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       Foreground="#c9d1d9"/>
+
+            <TextBlock x:Name="VersionText" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
+        </StackPanel>
+
+        <Button Grid.Row="1"
+                Content="Close"
+                MinWidth="100"
+                HorizontalAlignment="Right"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                Click="OnCloseClick"/>
+    </Grid>
+</Window>
