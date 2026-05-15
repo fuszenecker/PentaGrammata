@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build-and-package:
+  build-linux-installers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,14 +22,30 @@ jobs:
         run: bash scripts/Build-Deb-Installer.sh --version "${GITHUB_REF_NAME#v}"
       - name: Build .rpm installer
         run: bash scripts/Build-Rpm-Installer.sh --version "${GITHUB_REF_NAME#v}"
-      - name: Build NSIS installer (Windows, if possible)
-        if: runner.os == 'Windows'
-        run: pwsh scripts/Build-Installer.ps1 -Version $($env:GITHUB_REF_NAME.TrimStart('v'))
-      - name: Upload Installers
+      - name: Upload Linux Installers
         uses: actions/upload-artifact@v4
         with:
-          name: installers
+          name: linux-installers
           path: |
             installer/deb/*.deb
             installer/rpm/**/*.rpm
-            installer/nsis/*.exe
+
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore dependencies
+        run: dotnet restore PentaGrammata.slnx
+      - name: Build (Release)
+        run: dotnet build PentaGrammata.slnx --configuration Release --no-restore
+      - name: Build NSIS installer
+        run: pwsh scripts/Build-Installer.ps1 -Version $($env:GITHUB_REF_NAME.TrimStart('v'))
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: installer/nsis/*.exe
