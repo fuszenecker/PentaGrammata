@@ -55,7 +55,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
-src/PentaGrammata.csproj.lscache
+*.lscache
 installer/nsis/PentaGrammata-*-win-x64-setup.exe
 publish
 installer/deb/*
