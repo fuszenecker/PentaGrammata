@@ -74,8 +74,8 @@
             <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#ff6b6b"
                        Text="{Binding ErrorMessage}"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
-                <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnSaveClick"/>
-                <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnCancelClick"/>
+                <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding SaveCommand}"/>
+                <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding CancelCommand}"/>
             </StackPanel>
         </Grid>
     </Grid>

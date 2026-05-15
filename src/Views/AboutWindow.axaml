@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.AboutWindow"
+    x:DataType="vm:AboutWindowViewModel"
         Width="520" Height="340"
         MinWidth="420" MinHeight="280"
         WindowStartupLocation="CenterOwner"
@@ -17,7 +19,7 @@
             <TextBlock Text="Morse practice with configurable character sets, audio settings, and detailed result analysis."
                        TextWrapping="Wrap" TextAlignment="Center" Foreground="#c9d1d9" Margin="0,0,0,10"/>
 
-            <TextBlock x:Name="VersionText" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
+            <TextBlock Text="{Binding VersionText}" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
         </StackPanel>
         </Border>
 
@@ -28,6 +30,6 @@
                 HorizontalAlignment="Right"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"
-                Click="OnCloseClick"/>
+                Command="{Binding CloseCommand}"/>
     </Grid>
 </Window>

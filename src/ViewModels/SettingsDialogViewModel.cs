@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Configuration;
@@ -60,6 +61,11 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string errorMessage = string.Empty;
 
+    public IRelayCommand SaveCommand { get; }
+    public IRelayCommand CancelCommand { get; }
+
+    public event Action<bool>? CloseRequested;
+
     public SettingsDialogViewModel(AppConfig config)
     {
         _defaultDurationMins = config.Practice.DefaultDurationMins;
@@ -80,6 +86,9 @@ public partial class SettingsDialogViewModel : ViewModelBase
         }
 
         CharacterSetsText = CharacterSetTextCodec.FormatForEditor(config.CharacterSets);
+
+        SaveCommand = new RelayCommand(OnSave);
+        CancelCommand = new RelayCommand(OnCancel);
     }
 
     public bool TryBuildSettings(out AppConfig settings)
@@ -102,6 +111,19 @@ public partial class SettingsDialogViewModel : ViewModelBase
 
         ErrorMessage = string.Empty;
         return true;
+    }
+
+    private void OnSave()
+    {
+        if (TryBuildSettings(out _))
+        {
+            CloseRequested?.Invoke(true);
+        }
+    }
+
+    private void OnCancel()
+    {
+        CloseRequested?.Invoke(false);
     }
 
     private bool TryValidateScalarSettings(out string error)

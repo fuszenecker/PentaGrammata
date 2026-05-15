@@ -9,11 +9,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.Services;
 
-public class PracticeController
+public class PracticeController : IPracticeController
 {
     private const double LengthCorrector = 0.7;
 

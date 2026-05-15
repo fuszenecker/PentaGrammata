@@ -23,10 +23,10 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
 
             <MenuItem Header="_Settings">
-                <MenuItem Header="_Morse settings..." Click="OnMorseSettingsClick"/>
+                <MenuItem Header="_Morse settings..." Command="{Binding OpenSettingsCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
-                <MenuItem Header="_About" Click="OnAboutClick"/>
+                <MenuItem Header="_About" Command="{Binding OpenAboutCommand}"/>
             </MenuItem>
         </Menu>
 
@@ -109,7 +109,7 @@
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Margin="0,0,10,10"
                 IsEnabled="{Binding !IsPracticeRunning}"
-                Click="OnCheckResultClick"/>
+                Command="{Binding CheckResultCommand}"/>
         </Grid>
     </DockPanel>
 

@@ -6,15 +6,17 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using PentaGrammata.Interfaces;
 using PentaGrammata.Services;
-using PentaGrammata.Views;
-using Avalonia.Controls;
 
 namespace PentaGrammata.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly PracticeController _practiceController;
+    private readonly IPracticeController _practiceController;
+    private readonly ISettingsDialogService _settingsDialogService;
+    private readonly IPracticeResultWindowService _practiceResultWindowService;
+    private readonly IAboutDialogService _aboutDialogService;
 
     [ObservableProperty]
     private bool isPracticeRunning;
@@ -23,6 +25,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
+    public IAsyncRelayCommand OpenSettingsCommand { get; }
+    public IRelayCommand CheckResultCommand { get; }
+    public IAsyncRelayCommand OpenAboutCommand { get; }
 
     [ObservableProperty]
     private string receivedText = string.Empty;
@@ -39,9 +44,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private int practiceDuration = 5;
 
-    public MainWindowViewModel(PracticeController practiceController)
+    public MainWindowViewModel(
+        IPracticeController practiceController,
+        ISettingsDialogService settingsDialogService,
+        IPracticeResultWindowService practiceResultWindowService,
+        IAboutDialogService aboutDialogService)
     {
         _practiceController = practiceController;
+        _settingsDialogService = settingsDialogService;
+        _practiceResultWindowService = practiceResultWindowService;
+        _aboutDialogService = aboutDialogService;
 
         PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
@@ -49,6 +61,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
         StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
+        OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
+        CheckResultCommand = new RelayCommand(OpenResultWindow, CanCheckResult);
+        OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         UpdateCommandStates();
     }
 
@@ -115,19 +130,10 @@ public partial class MainWindowViewModel : ViewModelBase
         TimeCounterText = "Stopped.";
     }
 
-    public async Task OpenSettingsDialogAsync(Window owner)
+    public async Task OpenSettingsDialogAsync()
     {
-        var settingsDialogViewModel = new SettingsDialogViewModel(_practiceController.CreateSettingsSnapshot());
-        var settingsDialog = new SettingsDialog
-        {
-            DataContext = settingsDialogViewModel
-        };
-
-        var result = await settingsDialog.ShowDialog<bool>(owner);
-        if (!result)
-            return;
-
-        if (!settingsDialogViewModel.TryBuildSettings(out var newSettings))
+        var newSettings = await _settingsDialogService.ShowSettingsDialogAsync(_practiceController.CreateSettingsSnapshot());
+        if (newSettings is null)
             return;
 
         if (!_practiceController.TryApplySettings(newSettings, out var error))
@@ -141,15 +147,15 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
     }
 
-    public void OpenResultWindow(Window owner)
+    public void OpenResultWindow()
     {
         var result = _practiceController.BuildResult(ReceivedText);
-        var resultWindow = new PracticeResultWindow
-        {
-            DataContext = new PracticeResultWindowViewModel(result)
-        };
+        _practiceResultWindowService.ShowPracticeResult(result);
+    }
 
-        resultWindow.Show(owner);
+    public Task OpenAboutAsync()
+    {
+        return _aboutDialogService.ShowAboutAsync();
     }
 
     partial void OnSelectedCharacterSetChanged(string value)
@@ -191,9 +197,15 @@ public partial class MainWindowViewModel : ViewModelBase
         return IsPracticeRunning;
     }
 
+    private bool CanCheckResult()
+    {
+        return !IsPracticeRunning;
+    }
+
     private void UpdateCommandStates()
     {
         StartPracticeCommand.NotifyCanExecuteChanged();
         StopPracticeCommand.NotifyCanExecuteChanged();
+        CheckResultCommand.NotifyCanExecuteChanged();
     }
 }
