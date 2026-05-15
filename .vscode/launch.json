@@ -8,7 +8,7 @@
             "name": "C#: PentaGrammata Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/PentaGrammata.csproj",
+            "projectPath": "${workspaceFolder}/src/PentaGrammata.csproj",
             "preLaunchTask": "dotnet: build"
         }
     ]
