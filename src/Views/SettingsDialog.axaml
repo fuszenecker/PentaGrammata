@@ -22,6 +22,10 @@
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Audio" Margin="0,0,0,10">
             <StackPanel Margin="10" Spacing="8">
+                <TextBlock Text="Frequency (Hz)"/>
+                <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"/>
+                <TextBlock Text="Volume (0–1)"/>
+                <NumericUpDown Minimum="0" Maximum="1" Increment="0.05" FormatString="0.##" Value="{Binding Volume}"/>
                 <TextBlock Text="Sample Rate"/>
                 <ComboBox ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SelectedSampleRate}"/>
                 <TextBlock Text="Beep Ramp (ms)"/>

@@ -55,6 +55,8 @@ public class PracticeController
     }
 
     public int SampleRate { get => _configuration.Audio.SampleRate; set => _configuration.Audio.SampleRate = value; }
+    public double Frequency { get => _configuration.Audio.Frequency; set => _configuration.Audio.Frequency = value; }
+    public double Volume { get => _configuration.Audio.Volume; set => _configuration.Audio.Volume = value; }
     public int BeepRampMs { get => _configuration.Audio.BeepRampMs; set => _configuration.Audio.BeepRampMs = value; }
     public int CharacterWpm { get => _configuration.Practice.CharacterWpm; set => _configuration.Practice.CharacterWpm = value; }
     public int AverageWpm { get => _configuration.Practice.AverageWpm; set => _configuration.Practice.AverageWpm = value; }
@@ -110,7 +112,7 @@ public class PracticeController
 
             try
             {
-                await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
+                await _morsePlayer.PlayMorseCodeAsync(morseCode, charWpm: CharacterWpm, averageWpm: AverageWpm, sampleRate: SampleRate, frequency: Frequency, volume: Volume, beepRampMs: BeepRampMs, _cancellationTokenSource.Token);
                 System.Diagnostics.Debug.WriteLine("Audio playback completed");
             }
             catch (Exception ex)
@@ -176,47 +178,71 @@ public class PracticeController
         };
     }
 
-    public PracticeSettings CreateSettingsSnapshot()
+    public AppConfig CreateSettingsSnapshot()
     {
-        return new PracticeSettings
+        var characterSets = new CharacterSets();
+        foreach (var kv in _configuration.CharacterSets)
+            characterSets[kv.Key] = kv.Value;
+
+        return new AppConfig
         {
-            DefaultDurationMins = _configuration.Practice.DefaultDurationMins,
-            CharacterWpm = _configuration.Practice.CharacterWpm,
-            AverageWpm = _configuration.Practice.AverageWpm,
-            SampleRate = _configuration.Audio.SampleRate,
-            BeepRampMs = _configuration.Audio.BeepRampMs,
-            DefaultCharacterSet = _configuration.Practice.DefaultCharacterSet,
-            CharacterSets = _configuration.CharacterSets.ToDictionary(kv => kv.Key, kv => kv.Value)
+            Practice = new Practice
+            {
+                DefaultDurationMins = _configuration.Practice.DefaultDurationMins,
+                CharacterWpm = _configuration.Practice.CharacterWpm,
+                AverageWpm = _configuration.Practice.AverageWpm,
+                DefaultCharacterSet = _configuration.Practice.DefaultCharacterSet,
+            },
+            Audio = new Audio
+            {
+                SampleRate = _configuration.Audio.SampleRate,
+                Frequency = _configuration.Audio.Frequency,
+                Volume = _configuration.Audio.Volume,
+                BeepRampMs = _configuration.Audio.BeepRampMs,
+            },
+            CharacterSets = characterSets,
         };
     }
 
-    public bool TryApplySettings(PracticeSettings settings, out string error)
+    public bool TryApplySettings(AppConfig settings, out string error)
     {
-        if (settings.DefaultDurationMins < 1)
+        if (settings.Practice.DefaultDurationMins < 1)
         {
             error = "Default duration must be at least 1 minute.";
             return false;
         }
 
-        if (settings.CharacterWpm < 1 || settings.AverageWpm < 1)
+        if (settings.Practice.CharacterWpm < 1 || settings.Practice.AverageWpm < 1)
         {
             error = "Character and average WPM must be positive values.";
             return false;
         }
 
-        if (settings.AverageWpm > settings.CharacterWpm)
+        if (settings.Practice.AverageWpm > settings.Practice.CharacterWpm)
         {
             error = "Average WPM cannot exceed character WPM.";
             return false;
         }
 
-        if (settings.SampleRate < 8000)
+        if (settings.Audio.SampleRate < 8000)
         {
             error = "Sample rate must be at least 8000.";
             return false;
         }
 
-        if (settings.BeepRampMs < 0)
+        if (settings.Audio.Frequency <= 0)
+        {
+            error = "Frequency must be greater than 0.";
+            return false;
+        }
+
+        if (settings.Audio.Volume < 0 || settings.Audio.Volume > 1)
+        {
+            error = "Volume must be between 0 and 1.";
+            return false;
+        }
+
+        if (settings.Audio.BeepRampMs < 0)
         {
             error = "Beep ramp must be 0 or greater.";
             return false;
@@ -228,18 +254,20 @@ public class PracticeController
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(settings.DefaultCharacterSet) || !settings.CharacterSets.ContainsKey(settings.DefaultCharacterSet))
+        if (string.IsNullOrWhiteSpace(settings.Practice.DefaultCharacterSet) || !settings.CharacterSets.ContainsKey(settings.Practice.DefaultCharacterSet))
         {
             error = "Default character set must match one of the configured character set names.";
             return false;
         }
 
-        _configuration.Practice.DefaultDurationMins = settings.DefaultDurationMins;
-        _configuration.Practice.CharacterWpm = settings.CharacterWpm;
-        _configuration.Practice.AverageWpm = settings.AverageWpm;
-        _configuration.Audio.SampleRate = settings.SampleRate;
-        _configuration.Audio.BeepRampMs = settings.BeepRampMs;
-        _configuration.Practice.DefaultCharacterSet = settings.DefaultCharacterSet;
+        _configuration.Practice.DefaultDurationMins = settings.Practice.DefaultDurationMins;
+        _configuration.Practice.CharacterWpm = settings.Practice.CharacterWpm;
+        _configuration.Practice.AverageWpm = settings.Practice.AverageWpm;
+        _configuration.Audio.SampleRate = settings.Audio.SampleRate;
+        _configuration.Audio.Frequency = settings.Audio.Frequency;
+        _configuration.Audio.Volume = settings.Audio.Volume;
+        _configuration.Audio.BeepRampMs = settings.Audio.BeepRampMs;
+        _configuration.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
 
         _configuration.CharacterSets.Clear();
         foreach (var item in settings.CharacterSets)

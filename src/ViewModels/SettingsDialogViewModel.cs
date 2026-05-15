@@ -4,6 +4,7 @@ using System.Linq;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using AppConfig = PentaGrammata.Configuration.Configuration;
 using PentaGrammata.Configuration;
 
 namespace PentaGrammata.ViewModels;
@@ -25,6 +26,12 @@ public partial class SettingsDialogViewModel : ViewModelBase
     public int[] SampleRateOptions { get; } = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000];
 
     [ObservableProperty]
+    private double frequency;
+
+    [ObservableProperty]
+    private double volume;
+
+    [ObservableProperty]
     private int beepRampMs;
 
     [ObservableProperty]
@@ -33,27 +40,29 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string errorMessage = string.Empty;
 
-    public SettingsDialogViewModel(PracticeSettings settings)
+    public SettingsDialogViewModel(AppConfig config)
     {
-        _defaultDurationMins = settings.DefaultDurationMins;
-        _defaultCharacterSet = settings.DefaultCharacterSet;
+        _defaultDurationMins = config.Practice.DefaultDurationMins;
+        _defaultCharacterSet = config.Practice.DefaultCharacterSet;
 
-        CharacterWpm = settings.CharacterWpm;
-        AverageWpm = settings.AverageWpm;
-        SelectedSampleRate = settings.SampleRate;
-        BeepRampMs = settings.BeepRampMs;
+        CharacterWpm = config.Practice.CharacterWpm;
+        AverageWpm = config.Practice.AverageWpm;
+        SelectedSampleRate = config.Audio.SampleRate;
+        Frequency = config.Audio.Frequency;
+        Volume = config.Audio.Volume;
+        BeepRampMs = config.Audio.BeepRampMs;
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
         {
             SelectedSampleRate = 44100;
         }
 
-        CharacterSetsText = CharacterSetTextCodec.FormatForEditor(settings.CharacterSets);
+        CharacterSetsText = CharacterSetTextCodec.FormatForEditor(config.CharacterSets);
     }
 
-    public bool TryBuildSettings(out PracticeSettings settings)
+    public bool TryBuildSettings(out AppConfig settings)
     {
-        settings = new PracticeSettings();
+        settings = new AppConfig();
 
         if (!TryValidateScalarSettings(out var scalarError))
         {
@@ -67,7 +76,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
             return false;
         }
 
-        settings = BuildSettings(parsedSets);
+        settings = BuildConfig(parsedSets);
 
         ErrorMessage = string.Empty;
         return true;
@@ -93,6 +102,18 @@ public partial class SettingsDialogViewModel : ViewModelBase
             return false;
         }
 
+        if (Frequency <= 0)
+        {
+            error = "Frequency must be greater than 0.";
+            return false;
+        }
+
+        if (Volume < 0 || Volume > 1)
+        {
+            error = "Volume must be between 0 and 1.";
+            return false;
+        }
+
         if (BeepRampMs < 0)
         {
             error = "Beep ramp must be 0 or greater.";
@@ -103,21 +124,33 @@ public partial class SettingsDialogViewModel : ViewModelBase
         return true;
     }
 
-    private PracticeSettings BuildSettings(IReadOnlyDictionary<string, string> parsedSets)
+    private AppConfig BuildConfig(IReadOnlyDictionary<string, string> parsedSets)
     {
         var defaultSet = parsedSets.ContainsKey(_defaultCharacterSet)
             ? _defaultCharacterSet
             : parsedSets.Keys.First();
 
-        return new PracticeSettings
+        var characterSets = new CharacterSets();
+        foreach (var kv in parsedSets)
+            characterSets[kv.Key] = kv.Value;
+
+        return new AppConfig
         {
-            DefaultDurationMins = _defaultDurationMins,
-            CharacterWpm = CharacterWpm,
-            AverageWpm = AverageWpm,
-            SampleRate = SelectedSampleRate,
-            BeepRampMs = BeepRampMs,
-            DefaultCharacterSet = defaultSet,
-            CharacterSets = parsedSets.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal)
+            Practice = new Practice
+            {
+                DefaultDurationMins = _defaultDurationMins,
+                CharacterWpm = CharacterWpm,
+                AverageWpm = AverageWpm,
+                DefaultCharacterSet = defaultSet,
+            },
+            Audio = new Audio
+            {
+                SampleRate = SelectedSampleRate,
+                Frequency = Frequency,
+                Volume = Volume,
+                BeepRampMs = BeepRampMs,
+            },
+            CharacterSets = characterSets,
         };
     }
 }

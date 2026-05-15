@@ -10,17 +10,17 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 {
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
 
-    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, int beepRampMs, CancellationToken cancellationToken)
+    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, double frequency, double volume, int beepRampMs, CancellationToken cancellationToken)
     {
         var audioData = await Task.Run(
-            () => GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, beepRampMs),
+            () => GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, frequency, volume, beepRampMs),
             cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
         await _audioPlayer.PlayAudioAsync(audioData, sampleRate, cancellationToken);
     }
 
-    private static short[] GenerateBeep(int sampleRate, int durationMs, int beepRampMs)
+    private static short[] GenerateBeep(int sampleRate, int durationMs, double frequency, double volume, int beepRampMs)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
         int rampSamples = Math.Min((sampleRate * beepRampMs) / 1000, sampleCount / 2);
@@ -39,7 +39,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
                 envelope = (double)(sampleCount - 1 - i) / rampSamples;
             }
 
-            audioData[i] = (short)(Math.Sin(2 * Math.PI * 440 * i / sampleRate) * short.MaxValue * envelope);
+            audioData[i] = (short)(Math.Sin(2 * Math.PI * frequency * i / sampleRate) * short.MaxValue * volume * envelope);
         }
 
         return audioData;
@@ -51,7 +51,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
         return new short[sampleCount]; // 16-bit audio silence
     }
 
-    private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate, int beepRampMs)
+    private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate, double frequency, double volume, int beepRampMs)
     {        
         if (averageWpm > charWpm)
         {
@@ -99,11 +99,11 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
             {
                 if (symbol == '.')
                 {
-                    audioData.AddRange(GenerateBeep(sampleRate, ditLengthMs, beepRampMs));
+                    audioData.AddRange(GenerateBeep(sampleRate, ditLengthMs, frequency, volume, beepRampMs));
                 }
                 else if (symbol == '-')
                 {
-                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditLengthMs, beepRampMs));
+                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditLengthMs, frequency, volume, beepRampMs));
                 }
                 else if (symbol == ' ')
                 {
