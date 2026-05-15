@@ -21,12 +21,12 @@ jobs:
       - name: Publish (linux-x64)
         run: dotnet publish src/PentaGrammata.csproj --configuration Release --runtime linux-x64 --self-contained false --output publish/linux-x64
       - name: Build .deb installer
-        run: bash scripts/Build-Deb-Installer.sh
+        run: bash scripts/Build-Deb-Installer.sh --version "${GITHUB_REF_NAME#v}"
       - name: Build .rpm installer
-        run: bash scripts/Build-Rpm-Installer.sh
+        run: bash scripts/Build-Rpm-Installer.sh --version "${GITHUB_REF_NAME#v}"
       - name: Build NSIS installer (Windows, if possible)
         if: runner.os == 'Windows'
-        run: pwsh scripts/Build-Installer.ps1
+        run: pwsh scripts/Build-Installer.ps1 -Version $($env:GITHUB_REF_NAME.TrimStart('v'))
       - name: Upload Installers
         uses: actions/upload-artifact@v4
         with:
