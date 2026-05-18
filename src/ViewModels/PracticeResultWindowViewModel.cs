@@ -1,23 +1,63 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.Input;
 
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.ViewModels;
 
 public sealed class PracticeResultWindowViewModel : ViewModelBase
 {
+    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly PracticeResultStatisticsRecord _record;
+    private bool _isSaving;
+    private bool _isSaveCompleted;
+
     public ObservableCollection<PracticeResultRowViewModel> Rows { get; }
 
     public string CharacterCountText { get; }
     public string ErrorsText { get; }
     public string ErrorRateText { get; }
     public IBrush ResultForeground { get; }
+    public IAsyncRelayCommand SaveResultsCommand { get; }
 
-    public PracticeResultWindowViewModel(PracticeResult result)
+    public bool IsSaveCompleted
     {
+        get => _isSaveCompleted;
+        private set
+        {
+            if (SetProperty(ref _isSaveCompleted, value))
+            {
+                SaveResultsCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsSaving
+    {
+        get => _isSaving;
+        private set
+        {
+            if (SetProperty(ref _isSaving, value))
+            {
+                SaveResultsCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public PracticeResultWindowViewModel(
+        PracticeResult result,
+        int characterWpm,
+        int averageWpm,
+        IPracticeResultStatisticsStore statisticsStore)
+    {
+        _statisticsStore = statisticsStore;
+
         Rows = new ObservableCollection<PracticeResultRowViewModel>(
             result.Rows.Select(row => new PracticeResultRowViewModel
             {
@@ -30,6 +70,41 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
         ResultForeground = result.IsSuccessful ? Brushes.LimeGreen : Brushes.IndianRed;
+        _record = new PracticeResultStatisticsRecord
+        {
+            RecordedAt = DateTimeOffset.Now,
+            CharacterWpm = characterWpm,
+            AverageWpm = averageWpm,
+            CharacterCount = result.CharacterCount,
+            ErrorCount = result.ErrorCount,
+            ErrorRatePercent = result.ErrorRatePercent
+        };
+
+        SaveResultsCommand = new AsyncRelayCommand(SaveResultsAsync, CanSaveResults);
+    }
+
+    private bool CanSaveResults()
+    {
+        return !IsSaving && !IsSaveCompleted;
+    }
+
+    private async Task SaveResultsAsync()
+    {
+        if (!CanSaveResults())
+        {
+            return;
+        }
+
+        IsSaving = true;
+        try
+        {
+            await _statisticsStore.SaveAsync(_record);
+            IsSaveCompleted = true;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
     }
 
     private static ObservableCollection<PracticeResultDiffSegmentViewModel> ParseDifferenceSegments(string difference)

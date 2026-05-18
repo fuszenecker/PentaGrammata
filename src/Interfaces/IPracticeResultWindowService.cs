@@ -4,5 +4,5 @@ namespace PentaGrammata.Interfaces;
 
 public interface IPracticeResultWindowService
 {
-    void ShowPracticeResult(PracticeResult result);
+    void ShowPracticeResult(PracticeResult result, int characterWpm, int averageWpm);
 }

@@ -57,6 +57,7 @@ public partial class App : Application
         services.AddSingleton<IPracticeConfigurationStore, PracticeConfigurationStore>();
         services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
         services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
+        services.AddSingleton<IPracticeResultStatisticsStore, PracticeResultStatisticsStore>();
         services.AddSingleton<IPracticeController, PracticeController>();
 
         services.AddSingleton<ISettingsDialogService, SettingsDialogService>();
