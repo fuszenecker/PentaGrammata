@@ -73,7 +73,7 @@
             <Button Grid.Column="1"
                     Classes="save-results-button"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Bottom"
+                    VerticalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Padding="14,8"
