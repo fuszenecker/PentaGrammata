@@ -107,6 +107,12 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
                 "Results saved",
                 $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
         }
+        catch (Exception ex)
+        {
+            await _infoDialogService.ShowInfoAsync(
+                "Save failed",
+                $"Could not save statistics:\n{ex.Message}");
+        }
         finally
         {
             IsSaving = false;

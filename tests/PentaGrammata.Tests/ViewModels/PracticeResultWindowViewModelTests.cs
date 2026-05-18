@@ -111,4 +111,30 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
     }
+
+    [TestMethod]
+    public async Task SaveResultsCommand_WhenSaveFails_ShowsErrorAndKeepsSaveEnabled()
+    {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        statisticsStore.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("Database is locked")));
+
+        var result = new PracticeResult
+        {
+            CharacterCount = 8,
+            ErrorCount = 2,
+            ErrorRatePercent = 25,
+            IsSuccessful = false,
+        };
+
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
+
+        await sut.SaveResultsCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(sut.IsSaveCompleted);
+        Assert.IsFalse(sut.IsSaving);
+        Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
+        await infoDialogService.Received(1).ShowInfoAsync("Save failed", "Could not save statistics:\nDatabase is locked");
+    }
 }
