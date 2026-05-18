@@ -109,16 +109,29 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
                 "Results saved",
                 $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
         }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        catch (SqliteException ex)
         {
-            await _infoDialogService.ShowInfoAsync(
-                "Save failed",
-                $"Could not save statistics:\n{ex.Message}");
+            await ShowSaveFailedAsync(ex);
+        }
+        catch (IOException ex)
+        {
+            await ShowSaveFailedAsync(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            await ShowSaveFailedAsync(ex);
         }
         finally
         {
             IsSaving = false;
         }
+    }
+
+    private Task ShowSaveFailedAsync(Exception ex)
+    {
+        return _infoDialogService.ShowInfoAsync(
+            "Save failed",
+            $"Could not save statistics:\n{ex.Message}");
     }
 
     private static ObservableCollection<PracticeResultDiffSegmentViewModel> ParseDifferenceSegments(string difference)
