@@ -1,10 +1,12 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Data.Sqlite;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -107,7 +109,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
                 "Results saved",
                 $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
         {
             await _infoDialogService.ShowInfoAsync(
                 "Save failed",

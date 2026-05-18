@@ -118,7 +118,7 @@ public sealed class PracticeResultWindowViewModelTests
         var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
         statisticsStore.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("Database is locked")));
+            .Returns(Task.FromException(new IOException("Database is locked")));
 
         var result = new PracticeResult
         {
