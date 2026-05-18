@@ -73,9 +73,10 @@
             <Button Grid.Column="1"
                     Classes="save-results-button"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    Padding="14,8"
                     MinWidth="120"
                     Command="{Binding SaveResultsCommand}"
                     Content="Save results"/>

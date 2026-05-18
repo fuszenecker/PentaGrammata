@@ -6,5 +6,7 @@ namespace PentaGrammata.Interfaces;
 
 public interface IPracticeResultStatisticsStore
 {
+    string DatabasePath { get; }
+
     Task SaveAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken = default);
 }

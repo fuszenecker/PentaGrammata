@@ -14,6 +14,7 @@ namespace PentaGrammata.ViewModels;
 public sealed class PracticeResultWindowViewModel : ViewModelBase
 {
     private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IInfoDialogService _infoDialogService;
     private readonly PracticeResultStatisticsRecord _record;
     private bool _isSaving;
     private bool _isSaveCompleted;
@@ -54,9 +55,11 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         PracticeResult result,
         int characterWpm,
         int averageWpm,
-        IPracticeResultStatisticsStore statisticsStore)
+        IPracticeResultStatisticsStore statisticsStore,
+        IInfoDialogService infoDialogService)
     {
         _statisticsStore = statisticsStore;
+        _infoDialogService = infoDialogService;
 
         Rows = new ObservableCollection<PracticeResultRowViewModel>(
             result.Rows.Select(row => new PracticeResultRowViewModel
@@ -100,6 +103,9 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         {
             await _statisticsStore.SaveAsync(_record);
             IsSaveCompleted = true;
+            await _infoDialogService.ShowInfoAsync(
+                "Results saved",
+                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
         }
         finally
         {

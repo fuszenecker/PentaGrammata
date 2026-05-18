@@ -13,6 +13,8 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 {
     private readonly string _databasePath;
 
+    public string DatabasePath => _databasePath;
+
     public PracticeResultStatisticsStore()
     {
         var preferredConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();

@@ -14,6 +14,7 @@ public sealed class PracticeResultWindowViewModelTests
     public void Constructor_MapsRowsAndSummaryFields()
     {
         var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
             CharacterCount = 12,
@@ -31,7 +32,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
 
         Assert.AreEqual(1, sut.Rows.Count);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
@@ -46,6 +47,7 @@ public sealed class PracticeResultWindowViewModelTests
     public void Constructor_ParsesDifferenceIntoColoredSegments()
     {
         var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
             CharacterCount = 5,
@@ -63,7 +65,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
         Assert.AreEqual(5, segments.Count);
@@ -88,6 +90,8 @@ public sealed class PracticeResultWindowViewModelTests
     public async Task SaveResultsCommand_SavesOnce_AndDisablesAfterCompletion()
     {
         var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        statisticsStore.DatabasePath.Returns("/tmp/practice-results.db");
         var result = new PracticeResult
         {
             CharacterCount = 8,
@@ -96,13 +100,14 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
 
         Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
 
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
         await statisticsStore.Received(1).SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>());
+        await infoDialogService.Received(1).ShowInfoAsync("Results saved", "Statistics were saved to:\n/tmp/practice-results.db");
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
     }
