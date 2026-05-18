@@ -167,6 +167,7 @@ public sealed class MainWindowViewModelTests
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
+        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
 
         var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger)
         {
@@ -176,7 +177,7 @@ public sealed class MainWindowViewModelTests
         sut.OpenResultWindow();
 
         practiceController.Received(1).BuildResult("RX");
-        resultWindowService.Received(1).ShowPracticeResult(result);
+        resultWindowService.Received(1).ShowPracticeResult(result, 20, 15);
     }
 
     [TestMethod]

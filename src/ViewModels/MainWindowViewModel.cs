@@ -171,7 +171,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public void OpenResultWindow()
     {
         var result = _practiceController.BuildResult(ReceivedText);
-        _practiceResultWindowService.ShowPracticeResult(result);
+        var settings = _practiceController.CreateSettingsSnapshot();
+        _practiceResultWindowService.ShowPracticeResult(result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm);
     }
 
     public Task OpenAboutAsync()

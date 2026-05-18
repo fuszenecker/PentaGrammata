@@ -1,5 +1,7 @@
 using Avalonia.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NSubstitute;
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 
@@ -11,6 +13,8 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public void Constructor_MapsRowsAndSummaryFields()
     {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
             CharacterCount = 12,
@@ -28,7 +32,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
 
         Assert.AreEqual(1, sut.Rows.Count);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
@@ -42,6 +46,8 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public void Constructor_ParsesDifferenceIntoColoredSegments()
     {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
             CharacterCount = 5,
@@ -59,7 +65,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
         Assert.AreEqual(5, segments.Count);
@@ -78,5 +84,57 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.AreEqual(" ", segments[4].Text);
         Assert.AreSame(Brushes.Gainsboro, segments[4].Foreground);
         Assert.AreSame(Brushes.LimeGreen, sut.ResultForeground);
+    }
+
+    [TestMethod]
+    public async Task SaveResultsCommand_SavesOnce_AndDisablesAfterCompletion()
+    {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        statisticsStore.DatabasePath.Returns("/tmp/practice-results.db");
+        var result = new PracticeResult
+        {
+            CharacterCount = 8,
+            ErrorCount = 2,
+            ErrorRatePercent = 25,
+            IsSuccessful = false,
+        };
+
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
+
+        Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
+
+        await sut.SaveResultsCommand.ExecuteAsync(null);
+
+        await statisticsStore.Received(1).SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>());
+        await infoDialogService.Received(1).ShowInfoAsync("Results saved", "Statistics were saved to:\n/tmp/practice-results.db");
+        Assert.IsTrue(sut.IsSaveCompleted);
+        Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public async Task SaveResultsCommand_WhenSaveFails_ShowsErrorAndKeepsSaveEnabled()
+    {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        statisticsStore.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new IOException("Database is locked")));
+
+        var result = new PracticeResult
+        {
+            CharacterCount = 8,
+            ErrorCount = 2,
+            ErrorRatePercent = 25,
+            IsSuccessful = false,
+        };
+
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
+
+        await sut.SaveResultsCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(sut.IsSaveCompleted);
+        Assert.IsFalse(sut.IsSaving);
+        Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
+        await infoDialogService.Received(1).ShowInfoAsync("Save failed", "Could not save statistics:\nDatabase is locked");
     }
 }

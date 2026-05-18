@@ -1,23 +1,68 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Data.Sqlite;
 
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.ViewModels;
 
 public sealed class PracticeResultWindowViewModel : ViewModelBase
 {
+    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IInfoDialogService _infoDialogService;
+    private readonly PracticeResultStatisticsRecord _record;
+    private bool _isSaving;
+    private bool _isSaveCompleted;
+
     public ObservableCollection<PracticeResultRowViewModel> Rows { get; }
 
     public string CharacterCountText { get; }
     public string ErrorsText { get; }
     public string ErrorRateText { get; }
     public IBrush ResultForeground { get; }
+    public IAsyncRelayCommand SaveResultsCommand { get; }
 
-    public PracticeResultWindowViewModel(PracticeResult result)
+    public bool IsSaveCompleted
     {
+        get => _isSaveCompleted;
+        private set
+        {
+            if (SetProperty(ref _isSaveCompleted, value))
+            {
+                SaveResultsCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsSaving
+    {
+        get => _isSaving;
+        private set
+        {
+            if (SetProperty(ref _isSaving, value))
+            {
+                SaveResultsCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public PracticeResultWindowViewModel(
+        PracticeResult result,
+        int characterWpm,
+        int averageWpm,
+        IPracticeResultStatisticsStore statisticsStore,
+        IInfoDialogService infoDialogService)
+    {
+        _statisticsStore = statisticsStore;
+        _infoDialogService = infoDialogService;
+
         Rows = new ObservableCollection<PracticeResultRowViewModel>(
             result.Rows.Select(row => new PracticeResultRowViewModel
             {
@@ -30,6 +75,63 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
         ResultForeground = result.IsSuccessful ? Brushes.LimeGreen : Brushes.IndianRed;
+        _record = new PracticeResultStatisticsRecord
+        {
+            RecordedAt = DateTimeOffset.Now,
+            CharacterWpm = characterWpm,
+            AverageWpm = averageWpm,
+            CharacterCount = result.CharacterCount,
+            ErrorCount = result.ErrorCount,
+            ErrorRatePercent = result.ErrorRatePercent
+        };
+
+        SaveResultsCommand = new AsyncRelayCommand(SaveResultsAsync, CanSaveResults);
+    }
+
+    private bool CanSaveResults()
+    {
+        return !IsSaving && !IsSaveCompleted;
+    }
+
+    private async Task SaveResultsAsync()
+    {
+        if (!CanSaveResults())
+        {
+            return;
+        }
+
+        IsSaving = true;
+        try
+        {
+            await _statisticsStore.SaveAsync(_record);
+            IsSaveCompleted = true;
+            await _infoDialogService.ShowInfoAsync(
+                "Results saved",
+                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
+        }
+        catch (SqliteException ex)
+        {
+            await ShowSaveFailedAsync(ex);
+        }
+        catch (IOException ex)
+        {
+            await ShowSaveFailedAsync(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            await ShowSaveFailedAsync(ex);
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private Task ShowSaveFailedAsync(Exception ex)
+    {
+        return _infoDialogService.ShowInfoAsync(
+            "Save failed",
+            $"Could not save statistics:\n{ex.Message}");
     }
 
     private static ObservableCollection<PracticeResultDiffSegmentViewModel> ParseDifferenceSegments(string difference)
