@@ -78,6 +78,8 @@
                     VerticalContentAlignment="Center"
                     Padding="14,8"
                     MinWidth="120"
+                    Background="#1D4ED8"
+                    Foreground="White"                    
                     Command="{Binding SaveResultsCommand}"
                     Content="Save results"/>
         </Grid>
