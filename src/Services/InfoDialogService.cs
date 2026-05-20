@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Views;
@@ -10,20 +11,17 @@ public sealed class InfoDialogService : IInfoDialogService
 
     public InfoDialogService(IWindowContext windowContext)
     {
-        _windowContext = windowContext;
+        _windowContext = windowContext ?? throw new ArgumentNullException(nameof(windowContext));
     }
 
     public async Task ShowInfoAsync(string title, string message)
     {
-        var dialog = new InfoDialog(title, message);
-        var owner = _windowContext.MainWindow;
-
+        var owner = _windowContext.ActiveWindow;
         if (owner is null)
         {
-            dialog.Show();
             return;
         }
 
-        await dialog.ShowDialog(owner);
+        await new InfoDialog(title, message).ShowDialog(owner);
     }
 }
