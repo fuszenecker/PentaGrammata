@@ -108,7 +108,7 @@ public class PracticeController : IPracticeController
             if (string.IsNullOrWhiteSpace(characterSetCharacters))
                 characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
 
-            int numberOfGroups = (int)(PracticeDurationMins * _configuration.Practice.AverageWpm * LengthCorrector);
+            int numberOfGroups = (int)Math.Round(PracticeDurationMins * _configuration.Practice.AverageWpm * LengthCorrector);
             _logger.LogDebug("Generating {GroupCount} morse groups", numberOfGroups);
             
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
