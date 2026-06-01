@@ -191,6 +191,7 @@ fi
 tar -czf "${SOURCE_ARCHIVE}" -C "${RPM_TOPDIR}/SOURCES" "${PACKAGE_NAME}-${VERSION}"
 
 cat > "${SPEC_FILE}" <<EOF
+%global debug_package %{nil}
 Name:           ${PACKAGE_NAME}
 Version:        ${VERSION}
 Release:        ${RELEASE}%{?dist}
