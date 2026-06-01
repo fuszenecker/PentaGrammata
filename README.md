@@ -16,8 +16,8 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 
 ## Configuration and results
 
-Windows: `%LocalAppData%\PentaGrammata`.
-Linux: `$XDG_CONFIG_HOME/PentaGrammata` or `$HOME/.config/PentaGrammata`.
+- Windows: `%LocalAppData%\PentaGrammata`.
+- Linux: `$XDG_CONFIG_HOME/PentaGrammata` or `$HOME/.config/PentaGrammata`.
 
 ## Requirements
 
