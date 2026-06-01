@@ -14,6 +14,11 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 - Settings are persisted across sessions
 - Cross-platform: Windows, Linux (x64/arm64), and macOS
 
+## Configuration and results
+
+Windows: `%LocalAppData%\PentaGrammata`.
+Linux: `$XDG_CONFIG_HOME/PentaGrammata` or `$HOME/.config/PentaGrammata`.
+
 ## Requirements
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
@@ -93,6 +98,49 @@ Default character sets:
 | `Digits` | 0–9 |
 | `Punctuation` | `/+?=` |
 | `Full` | A–Z, 0–9, `/+?=`, prosigns `<ar><as><bk><bt><kn><sk>` |
+| `Koch-LCWO-01-KM` | K, M |
+| `Koch-LCWO-02-U` | K, M, U |
+| `Koch-LCWO-03-R` | K, M, U, R |
+| `Koch-LCWO-04-E` | K, M, U, R, E |
+| `Koch-LCWO-05-S` | K, M, U, R, E, S |
+| `Koch-LCWO-06-N` | K, M, U, R, E, S, N |
+| `Koch-LCWO-07-A` | K, M, U, R, E, S, N, A |
+| `Koch-LCWO-08-P` | K, M, U, R, E, S, N, A, P |
+| `Koch-LCWO-09-T` | K, M, U, R, E, S, N, A, P, T |
+| `Koch-LCWO-10-L` | K, M, U, R, E, S, N, A, P, T, L |
+| `Koch-LCWO-11-W` | K, M, U, R, E, S, N, A, P, T, L, W |
+| `Koch-LCWO-12-I` | K, M, U, R, E, S, N, A, P, T, L, W, I |
+| `Koch-LCWO-14-J` | K, M, U, R, E, S, N, A, P, T, L, W, I, J |
+| `Koch-LCWO-15-Z` | K, M, U, R, E, S, N, A, P, T, L, W, I, J, Z |
+| `Koch-LCWO-16-=` | K, M, U, R, E, S, N, A, P, T, L, W, I, J, Z, `=` |
+| `Koch-LCWO-17-F` | …+ F |
+| `Koch-LCWO-18-O` | …+ O |
+| `Koch-LCWO-19-Y` | …+ Y |
+| `Koch-LCWO-20-+` | …+ `+` |
+| `Koch-LCWO-21-V` | …+ V |
+| `Koch-LCWO-22-G` | …+ G |
+| `Koch-LCWO-23-5` | …+ 5 |
+| `Koch-LCWO-24-/` | …+ `/` |
+| `Koch-LCWO-25-Q` | …+ Q |
+| `Koch-LCWO-26-9` | …+ 9 |
+| `Koch-LCWO-27-2` | …+ 2 |
+| `Koch-LCWO-28-H` | …+ H |
+| `Koch-LCWO-29-3` | …+ 3 |
+| `Koch-LCWO-30-8` | …+ 8 |
+| `Koch-LCWO-31-B` | …+ B |
+| `Koch-LCWO-32-?` | …+ `?` |
+| `Koch-LCWO-33-4` | …+ 4 |
+| `Koch-LCWO-34-7` | …+ 7 |
+| `Koch-LCWO-35-C` | …+ C |
+| `Koch-LCWO-36-1` | …+ 1 |
+| `Koch-LCWO-37-D` | …+ D |
+| `Koch-LCWO-38-6` | …+ 6 |
+| `Koch-LCWO-39-0` | …+ 0 |
+| `Koch-LCWO-40-X` | …+ X (full LCWO set) |
+
+The Koch-LCWO sets follow the [LCWO](https://lcwo.net/) character introduction order. Each set is cumulative — it contains all characters from the previous sets plus the newly introduced one.
+
+Lesson 13 (`.`) is intentionally omitted because that character was deemed not useful for practice.
 
 All settings are editable at runtime through the in-app Settings dialog.
 
