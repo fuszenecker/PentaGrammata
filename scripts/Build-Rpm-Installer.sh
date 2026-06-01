@@ -192,6 +192,7 @@ tar -czf "${SOURCE_ARCHIVE}" -C "${RPM_TOPDIR}/SOURCES" "${PACKAGE_NAME}-${VERSI
 
 cat > "${SPEC_FILE}" <<EOF
 %global debug_package %{nil}
+%global __requires_exclude liblttng-ust\\.so\\.0
 Name:           ${PACKAGE_NAME}
 Version:        ${VERSION}
 Release:        ${RELEASE}%{?dist}
