@@ -168,7 +168,7 @@ Section: utils
 Priority: optional
 Architecture: ${DEB_ARCH}
 Maintainer: ${MAINTAINER}
-Depends: libc6
+Depends: libc6, libx11-6, libice6, libsm6, libxext6, libxrender1, fontconfig
 Homepage: ${HOMEPAGE}
 Installed-Size: ${INSTALLED_SIZE}
 Description: ${DESCRIPTION}

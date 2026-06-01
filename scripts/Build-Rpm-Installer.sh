@@ -201,7 +201,7 @@ License:        ${LICENSE}
 URL:            ${HOMEPAGE}
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      ${RPM_ARCH}
-Requires:       glibc
+Requires:       glibc libX11 libICE libSM libXext libXrender fontconfig
 
 %description
 ${SUMMARY}
