@@ -191,6 +191,8 @@ fi
 tar -czf "${SOURCE_ARCHIVE}" -C "${RPM_TOPDIR}/SOURCES" "${PACKAGE_NAME}-${VERSION}"
 
 cat > "${SPEC_FILE}" <<EOF
+%global debug_package %{nil}
+%global __requires_exclude liblttng-ust\\.so\\.0
 Name:           ${PACKAGE_NAME}
 Version:        ${VERSION}
 Release:        ${RELEASE}%{?dist}
@@ -199,7 +201,7 @@ License:        ${LICENSE}
 URL:            ${HOMEPAGE}
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      ${RPM_ARCH}
-Requires:       glibc
+Requires:       glibc libX11 libICE libSM libXext libXrender fontconfig
 
 %description
 ${SUMMARY}
