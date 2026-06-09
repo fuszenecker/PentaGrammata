@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
@@ -21,20 +22,21 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
         _infoDialogService = infoDialogService;
     }
 
-    public void ShowPracticeResult(PracticeResult result, int characterWpm, int averageWpm)
+    public async Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved)
     {
         var owner = _windowContext.MainWindow;
-        var resultWindow = new PracticeResultWindow
-        {
-            DataContext = new PracticeResultWindowViewModel(result, characterWpm, averageWpm, _statisticsStore, _infoDialogService)
-        };
-
         if (owner is null)
         {
-            resultWindow.Show();
-            return;
+            return false;
         }
 
-        resultWindow.Show(owner);
+        var viewModel = new PracticeResultWindowViewModel(result, characterWpm, averageWpm, alreadySaved, _statisticsStore, _infoDialogService);
+        var resultWindow = new PracticeResultWindow
+        {
+            DataContext = viewModel
+        };
+
+        await resultWindow.ShowDialog(owner);
+        return viewModel.IsSaveCompleted;
     }
 }

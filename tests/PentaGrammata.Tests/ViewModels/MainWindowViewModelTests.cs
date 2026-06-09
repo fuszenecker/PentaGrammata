@@ -150,7 +150,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public void OpenResultWindow_BuildsAndShowsPracticeResult()
+    public async Task OpenResultWindowAsync_BuildsAndShowsPracticeResult()
     {
         var practiceController = Substitute.For<IPracticeController>();
         var settingsDialogService = Substitute.For<ISettingsDialogService>();
@@ -164,20 +164,86 @@ public sealed class MainWindowViewModelTests
             new("Default", "ABCDE"),
         });
         practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.IsResultSaved.Returns(false);
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false).Returns(Task.FromResult(false));
 
         var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger)
         {
             ReceivedText = "RX",
         };
 
-        sut.OpenResultWindow();
+        await sut.OpenResultWindowAsync();
 
         practiceController.Received(1).BuildResult("RX");
-        resultWindowService.Received(1).ShowPracticeResult(result, 20, 15);
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false);
+    }
+
+    [TestMethod]
+    public async Task OpenResultWindowAsync_WhenSaved_SetsIsResultSavedOnController()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<ISettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.IsResultSaved.Returns(false);
+
+        var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
+        practiceController.BuildResult("RX").Returns(result);
+        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false).Returns(Task.FromResult(true));
+
+        var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger)
+        {
+            ReceivedText = "RX",
+        };
+
+        await sut.OpenResultWindowAsync();
+
+        practiceController.IsResultSaved = true;
+    }
+
+    [TestMethod]
+    public async Task OpenResultWindowAsync_PassesAlreadySavedFlag()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<ISettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.IsResultSaved.Returns(true);
+
+        var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
+        practiceController.BuildResult("RX").Returns(result);
+        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true).Returns(Task.FromResult(false));
+
+        var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger)
+        {
+            ReceivedText = "RX",
+        };
+
+        await sut.OpenResultWindowAsync();
+
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true);
     }
 
     [TestMethod]

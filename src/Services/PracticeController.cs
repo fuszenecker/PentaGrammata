@@ -59,6 +59,8 @@ public class PracticeController : IPracticeController
 
     public bool IsPracticing { get; private set; }
 
+    public bool IsResultSaved { get; set; }
+
     public PracticeController(
         IMorsePlayer morsePlayer,
         IMorseGenerator morseGenerator,
@@ -97,6 +99,7 @@ public class PracticeController : IPracticeController
         _logger.LogInformation("Starting practice session");
         _cancellationTokenSource = new CancellationTokenSource();
         IsPracticing = true;
+        IsResultSaved = false;
 
         try
         {

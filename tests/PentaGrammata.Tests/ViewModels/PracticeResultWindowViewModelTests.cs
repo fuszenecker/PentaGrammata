@@ -32,7 +32,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, statisticsStore, infoDialogService);
 
         Assert.AreEqual(1, sut.Rows.Count);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
@@ -65,7 +65,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, statisticsStore, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
         Assert.AreEqual(5, segments.Count);
@@ -100,7 +100,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, statisticsStore, infoDialogService);
 
         Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
 
@@ -128,7 +128,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, statisticsStore, infoDialogService);
 
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
@@ -136,5 +136,24 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.IsFalse(sut.IsSaving);
         Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
         await infoDialogService.Received(1).ShowInfoAsync("Save failed", "Could not save statistics:\nDatabase is locked");
+    }
+
+    [TestMethod]
+    public void Constructor_WhenAlreadySaved_SaveCommandIsDisabled()
+    {
+        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        var result = new PracticeResult
+        {
+            CharacterCount = 8,
+            ErrorCount = 2,
+            ErrorRatePercent = 25,
+            IsSuccessful = false,
+        };
+
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, true, statisticsStore, infoDialogService);
+
+        Assert.IsTrue(sut.IsSaveCompleted);
+        Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
     }
 }
