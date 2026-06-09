@@ -13,6 +13,8 @@ public interface IPracticeController
 
     string SelectedCharacterSet { get; set; }
 
+    bool IsResultSaved { get; set; }
+
     Task StartAsync();
 
     void Stop();

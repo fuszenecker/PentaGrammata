@@ -30,7 +30,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
     public IAsyncRelayCommand OpenSettingsCommand { get; }
-    public IRelayCommand CheckResultCommand { get; }
+    public IAsyncRelayCommand CheckResultCommand { get; }
     public IAsyncRelayCommand OpenAboutCommand { get; }
 
     [ObservableProperty]
@@ -71,7 +71,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
         StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
-        CheckResultCommand = new RelayCommand(OpenResultWindow, CanCheckResult);
+        CheckResultCommand = new AsyncRelayCommand(OpenResultWindowAsync, CanCheckResult);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         UpdateCommandStates();
     }
@@ -85,7 +85,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         hasPracticeStarted = true;
         IsPracticeRunning = true;
-        _practiceResultWindowService.ResetSavedState();
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
@@ -169,11 +168,16 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
     }
 
-    public void OpenResultWindow()
+    public async Task OpenResultWindowAsync()
     {
         var result = _practiceController.BuildResult(ReceivedText);
         var settings = _practiceController.CreateSettingsSnapshot();
-        _practiceResultWindowService.ShowPracticeResult(result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm);
+        var saved = await _practiceResultWindowService.ShowPracticeResultAsync(
+            result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm, _practiceController.IsResultSaved);
+        if (saved)
+        {
+            _practiceController.IsResultSaved = true;
+        }
     }
 
     public Task OpenAboutAsync()

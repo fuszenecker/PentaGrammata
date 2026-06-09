@@ -57,11 +57,13 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         PracticeResult result,
         int characterWpm,
         int averageWpm,
+        bool alreadySaved,
         IPracticeResultStatisticsStore statisticsStore,
         IInfoDialogService infoDialogService)
     {
         _statisticsStore = statisticsStore;
         _infoDialogService = infoDialogService;
+        _isSaveCompleted = alreadySaved;
 
         Rows = new ObservableCollection<PracticeResultRowViewModel>(
             result.Rows.Select(row => new PracticeResultRowViewModel

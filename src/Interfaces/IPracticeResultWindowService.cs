@@ -1,9 +1,9 @@
+using System.Threading.Tasks;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.Interfaces;
 
 public interface IPracticeResultWindowService
 {
-    void ShowPracticeResult(PracticeResult result, int characterWpm, int averageWpm);
-    void ResetSavedState();
+    Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved);
 }
