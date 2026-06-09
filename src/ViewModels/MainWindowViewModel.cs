@@ -85,6 +85,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         hasPracticeStarted = true;
         IsPracticeRunning = true;
+        _practiceResultWindowService.ResetSavedState();
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";

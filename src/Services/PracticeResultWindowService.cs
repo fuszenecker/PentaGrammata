@@ -10,6 +10,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
     private readonly IWindowContext _windowContext;
     private readonly IPracticeResultStatisticsStore _statisticsStore;
     private readonly IInfoDialogService _infoDialogService;
+    private PracticeResultWindowViewModel? _currentViewModel;
 
     public PracticeResultWindowService(
         IWindowContext windowContext,
@@ -23,10 +24,12 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
 
     public void ShowPracticeResult(PracticeResult result, int characterWpm, int averageWpm)
     {
+        _currentViewModel ??= new PracticeResultWindowViewModel(result, characterWpm, averageWpm, _statisticsStore, _infoDialogService);
+
         var owner = _windowContext.MainWindow;
         var resultWindow = new PracticeResultWindow
         {
-            DataContext = new PracticeResultWindowViewModel(result, characterWpm, averageWpm, _statisticsStore, _infoDialogService)
+            DataContext = _currentViewModel
         };
 
         if (owner is null)
@@ -36,5 +39,10 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
         }
 
         resultWindow.Show(owner);
+    }
+
+    public void ResetSavedState()
+    {
+        _currentViewModel = null;
     }
 }
