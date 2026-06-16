@@ -15,7 +15,7 @@
                 CornerRadius="10" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Character WPM"/>
-                <NumericUpDown Minimum="1" Maximum="200" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
+                <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
                 <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="0,0,0,0">
                     <StackPanel Grid.Column="0" Spacing="8">
                         <TextBlock Text="Average WPM"/>
