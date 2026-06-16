@@ -115,7 +115,7 @@ public sealed class SettingsDialogViewModelTests
         Assert.AreEqual(8, settings.Audio.BeepRampMs);
         Assert.AreEqual(12.5, settings.Practice.ErrorThreshold);
         Assert.AreEqual("Alpha", settings.Practice.DefaultCharacterSet);
-        Assert.AreEqual(2, settings.CharacterSets.Count);
+        Assert.HasCount(2, settings.CharacterSets);
     }
 
     [TestMethod]
@@ -139,7 +139,7 @@ public sealed class SettingsDialogViewModelTests
 
         sut.SaveCommand.Execute(null);
 
-        Assert.AreEqual(true, closeResult);
+        Assert.IsTrue(closeResult);
     }
 
     [TestMethod]
@@ -153,7 +153,7 @@ public sealed class SettingsDialogViewModelTests
 
         sut.CancelCommand.Execute(null);
 
-        Assert.AreEqual(false, closeResult);
+        Assert.IsFalse(closeResult);
     }
 
     private static AppConfig CreateConfig(int charWpm, int avgWpm, string defaultSet)

@@ -34,7 +34,7 @@ public sealed class PracticeResultWindowViewModelTests
 
         var sut = new PracticeResultWindowViewModel(result, 20, 15, false, statisticsStore, infoDialogService);
 
-        Assert.AreEqual(1, sut.Rows.Count);
+        Assert.HasCount(1, sut.Rows);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
         Assert.AreEqual("ABD", sut.Rows[0].ReceivedGroup);
         Assert.AreEqual("12", sut.CharacterCountText);
@@ -68,7 +68,7 @@ public sealed class PracticeResultWindowViewModelTests
         var sut = new PracticeResultWindowViewModel(result, 20, 15, false, statisticsStore, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
-        Assert.AreEqual(5, segments.Count);
+        Assert.HasCount(5, segments);
         Assert.AreEqual(".", segments[0].Text);
         Assert.AreSame(Brushes.Gainsboro, segments[0].Foreground);
 

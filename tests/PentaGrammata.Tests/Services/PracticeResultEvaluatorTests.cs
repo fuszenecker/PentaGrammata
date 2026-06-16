@@ -17,7 +17,7 @@ public sealed class PracticeResultEvaluatorTests
         Assert.AreEqual(0, result.ErrorCount);
         Assert.AreEqual(0d, result.ErrorRatePercent, 0.0001);
         Assert.IsTrue(result.IsSuccessful);
-        Assert.AreEqual(2, result.Rows.Count);
+        Assert.HasCount(2, result.Rows);
         Assert.AreEqual("...", result.Rows[0].Difference);
         Assert.AreEqual("..", result.Rows[1].Difference);
     }
@@ -43,7 +43,7 @@ public sealed class PracticeResultEvaluatorTests
         Assert.AreEqual(4, result.ErrorCount);
         Assert.AreEqual(100d, result.ErrorRatePercent, 0.0001);
         Assert.IsTrue(result.IsSuccessful);
-        Assert.AreEqual(2, result.Rows.Count);
+        Assert.HasCount(2, result.Rows);
         Assert.AreEqual("[+EFGH]", result.Rows[1].Difference);
     }
 }
