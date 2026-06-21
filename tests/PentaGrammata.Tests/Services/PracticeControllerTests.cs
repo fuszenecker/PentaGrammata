@@ -192,7 +192,7 @@ public sealed class PracticeControllerTests
 
         var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
 
-        Assert.AreEqual(1, sut.CharacterSets.Count);
+        Assert.HasCount(1, sut.CharacterSets);
         Assert.AreEqual("Default", sut.CharacterSets[0].Key);
         Assert.AreEqual("Default", sut.SelectedCharacterSet);
     }

@@ -33,7 +33,7 @@ public sealed class CharacterSetTextCodecTests
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
-        Assert.AreEqual(2, parsedSets.Count);
+        Assert.HasCount(2, parsedSets);
         Assert.AreEqual("ABC", parsedSets["Alpha"]);
         Assert.AreEqual("DEF", parsedSets["beta"]);
     }
@@ -46,7 +46,7 @@ public sealed class CharacterSetTextCodecTests
         var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
 
         Assert.IsFalse(success);
-        Assert.AreEqual(0, parsedSets.Count);
+        Assert.IsEmpty(parsedSets);
         Assert.AreEqual("Character set lines must use Name = Value format.", error);
     }
 
@@ -58,7 +58,7 @@ public sealed class CharacterSetTextCodecTests
         var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
 
         Assert.IsFalse(success);
-        Assert.AreEqual(0, parsedSets.Count);
+        Assert.IsEmpty(parsedSets);
         Assert.AreEqual("At least one character set is required.", error);
     }
 }
