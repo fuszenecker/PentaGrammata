@@ -22,7 +22,7 @@ public sealed class InfoDialogService : IInfoDialogService
         if (dialogKey is not null)
         {
             var config = _configStore.Load();
-            if (config.UiPreferences.SuppressedDialogs.Contains(dialogKey))
+            if (config.UiPreferences?.SuppressedDialogs?.Contains(dialogKey) == true)
             {
                 return;
             }
