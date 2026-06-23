@@ -100,7 +100,7 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
             CharacterSets = characterSets,
             UiPreferences = new UiPreferences
             {
-                SuppressedDialogs = [.. configuration.UiPreferences.SuppressedDialogs],
+                SuppressedDialogs = [.. (configuration.UiPreferences?.SuppressedDialogs ?? [])],
             },
         };
     }
