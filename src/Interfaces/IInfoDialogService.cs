@@ -4,5 +4,5 @@ namespace PentaGrammata.Interfaces;
 
 public interface IInfoDialogService
 {
-    Task ShowInfoAsync(string title, string message);
+    Task ShowInfoAsync(string title, string message, string? dialogKey = null);
 }

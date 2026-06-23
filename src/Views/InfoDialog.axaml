@@ -1,16 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.InfoDialog"
+        x:DataType="vm:InfoDialogViewModel"
+        Title="{Binding Title}"
         Width="640" Height="260"
         MinWidth="520" MinHeight="220"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        ShowInTaskbar="False"
-        Title="Information">
+        ShowInTaskbar="False">
 
     <Grid Margin="18" RowDefinitions="Auto,Auto,*,Auto">
-        <TextBlock x:Name="PrimaryMessageBlock"
-                   Grid.Row="0"
+        <TextBlock Grid.Row="0"
+                   Text="{Binding PrimaryMessage}"
                    FontSize="14"
                    TextWrapping="Wrap"
                    TextAlignment="Left"
@@ -24,8 +26,8 @@
                    FontWeight="SemiBold"
                    Margin="0,0,0,6"/>
 
-        <TextBox x:Name="DetailsBox"
-                 Grid.Row="2"
+        <TextBox Grid.Row="2"
+                 Text="{Binding DetailMessage}"
                  IsReadOnly="True"
                  TextWrapping="Wrap"
                  FontFamily="Consolas, monospace"
@@ -37,8 +39,15 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,12,0,0">
-            <Button x:Name="OkButton"
-                    Content="OK"
+            <Button Content="Do not show again"
+                    IsVisible="{Binding HasDoNotShowAgain}"
+                    Command="{Binding DoNotShowAgainCommand}"
+                    MinWidth="160"
+                    Margin="0,0,8,0"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"/>
+            <Button Content="OK"
+                    Command="{Binding OkCommand}"
                     MinWidth="90"
                     IsDefault="True"
                     HorizontalContentAlignment="Center"

@@ -15,6 +15,8 @@ public interface IPracticeController
 
     bool IsResultSaved { get; set; }
 
+    string LastGeneratedText { get; }
+
     Task StartAsync();
 
     void Stop();

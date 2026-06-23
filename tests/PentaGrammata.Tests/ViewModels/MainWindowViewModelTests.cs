@@ -31,6 +31,7 @@ public sealed class MainWindowViewModelTests
         });
         practiceController.SelectedCharacterSet.Returns("Default");
         practiceController.StartAsync().Returns(Task.CompletedTask);
+        practiceController.LastGeneratedText.Returns(string.Empty);
 
         var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
         sut.ReceivedText = "TO_BE_CLEARED";
@@ -268,6 +269,70 @@ public sealed class MainWindowViewModelTests
         await sut.OpenAboutAsync();
 
         await aboutDialogService.Received(1).ShowAboutAsync();
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenReceivedTextEmptyAfterPractice_FillsWithGeneratedText()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<ISettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.StartAsync().Returns(Task.CompletedTask);
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual("ABCDE FGHIJ", sut.ReceivedText);
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenReceivedTextNotEmpty_DoesNotOverwriteWithGeneratedText()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<ISettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        // Simulate the user typing during practice by setting ReceivedText after StartAsync is awaited
+        practiceController.StartAsync().Returns(async _ =>
+        {
+            await Task.Yield();
+        });
+
+        var sut = new MainWindowViewModel(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+
+        // Use a task-based trick: hook into StartAsync completion by wrapping the call
+        // We set ReceivedText before StartPracticeAsync finishes (after StartAsync, before the fill logic)
+        // The simplest reliable way: directly verify the condition — ReceivedText was non-empty going into the fill check.
+        // Since StartPracticeAsync clears ReceivedText at the top, we simulate the user having typed
+        // by replacing with a controller that sets it mid-flight. Instead, we test the guard directly:
+        // Call StartPracticeAsync, but override ReceivedText before the fill runs by using a continuation.
+        var startTask = sut.StartPracticeAsync();
+        // At this point StartAsync has yielded; set ReceivedText to simulate user input
+        sut.ReceivedText = "MY COPY";
+        await startTask;
+
+        Assert.AreEqual("MY COPY", sut.ReceivedText);
     }
 
     private static AppConfig CreateConfig(string defaultSet, int duration, int charWpm, int avgWpm)
