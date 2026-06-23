@@ -1,35 +1,19 @@
 using Avalonia.Controls;
+using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Views;
 
 public partial class InfoDialog : Window
 {
     public InfoDialog()
-        : this("Information", string.Empty)
+        : this(new InfoDialogViewModel("Information", string.Empty, string.Empty, false))
     {
     }
 
-    public InfoDialog(string title, string message)
+    public InfoDialog(InfoDialogViewModel viewModel)
     {
         InitializeComponent();
-
-        Title = title;
-        var (primaryMessage, detailMessage) = SplitMessage(message);
-        PrimaryMessageBlock.Text = primaryMessage;
-        DetailsBox.Text = detailMessage;
-        OkButton.Click += (_, _) => Close();
-    }
-
-    private static (string PrimaryMessage, string DetailMessage) SplitMessage(string message)
-    {
-        var separatorIndex = message.IndexOf('\n');
-        if (separatorIndex < 0)
-        {
-            return (message, string.Empty);
-        }
-
-        var primaryMessage = message[..separatorIndex].TrimEnd();
-        var detailMessage = message[(separatorIndex + 1)..].Trim();
-        return (primaryMessage, detailMessage);
+        DataContext = viewModel;
+        viewModel.CloseRequested += (_, _) => Close();
     }
 }

@@ -109,7 +109,8 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             IsSaveCompleted = true;
             await _infoDialogService.ShowInfoAsync(
                 "Results saved",
-                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}");
+                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}",
+                "ResultsSaved");
         }
         catch (SqliteException ex)
         {

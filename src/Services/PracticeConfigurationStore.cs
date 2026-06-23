@@ -98,6 +98,10 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
                 BeepRampMs = configuration.Audio.BeepRampMs,
             },
             CharacterSets = characterSets,
+            UiPreferences = new UiPreferences
+            {
+                SuppressedDialogs = [.. configuration.UiPreferences.SuppressedDialogs],
+            },
         };
     }
 }
