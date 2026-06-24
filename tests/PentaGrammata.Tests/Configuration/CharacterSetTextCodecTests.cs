@@ -61,4 +61,29 @@ public sealed class CharacterSetTextCodecTests
         Assert.IsEmpty(parsedSets);
         Assert.AreEqual("At least one character set is required.", error);
     }
+
+    [TestMethod]
+    public void TryParse_KeyContainsEquals_ParsesCorrectly()
+    {
+        const string text = "A=B = ABCDE";
+
+        var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+        Assert.HasCount(1, parsedSets);
+        Assert.AreEqual("ABCDE", parsedSets["A=B"]);
+    }
+
+    [TestMethod]
+    public void FormatForEditor_KeyContainsEquals_RoundTripsCorrectly()
+    {
+        var characterSets = new Dictionary<string, string> { ["A=B"] = "ABCDE" };
+
+        var formatted = CharacterSetTextCodec.FormatForEditor(characterSets);
+        var success = CharacterSetTextCodec.TryParse(formatted, out var parsed, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual("ABCDE", parsed["A=B"]);
+    }
 }

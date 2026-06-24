@@ -27,15 +27,15 @@ public static class CharacterSetTextCodec
                 continue;
             }
 
-            var separatorIndex = line.IndexOf('=');
-            if (separatorIndex <= 0 || separatorIndex >= line.Length - 1)
+            var separatorIndex = line.IndexOf(" = ", StringComparison.Ordinal);
+            if (separatorIndex <= 0)
             {
                 error = "Character set lines must use Name = Value format.";
                 return false;
             }
 
             var name = line[..separatorIndex].Trim();
-            var value = line[(separatorIndex + 1)..].Trim();
+            var value = line[(separatorIndex + 3)..].Trim();
             if (name.Length == 0 || value.Length == 0)
             {
                 error = "Character set name and value cannot be empty.";
