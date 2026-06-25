@@ -40,6 +40,12 @@ public partial class SettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private bool wpmLocked;
 
+    partial void OnWpmLockedChanged(bool value)
+    {
+        if (value)
+            AverageWpm = CharacterWpm;
+    }
+
     [ObservableProperty]
     private int selectedSampleRate;
 

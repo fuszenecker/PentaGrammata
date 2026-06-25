@@ -11,6 +11,22 @@ namespace PentaGrammata.Tests.ViewModels;
 public sealed class SettingsDialogViewModelTests
 {
     [TestMethod]
+    public void WpmUnlocked_EnablingLock_SetsAverageWpmToCharacterWpm()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        var sut = new SettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator);
+
+        Assert.IsFalse(sut.WpmLocked);
+        Assert.AreEqual(30, sut.CharacterWpm);
+        Assert.AreEqual(20, sut.AverageWpm);
+
+        sut.WpmLocked = true;
+
+        Assert.AreEqual(30, sut.CharacterWpm);
+        Assert.AreEqual(30, sut.AverageWpm);
+    }
+
+    [TestMethod]
     public void WpmLocked_ChangingOneWpm_UpdatesTheOther()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
