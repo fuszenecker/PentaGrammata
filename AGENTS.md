@@ -6,7 +6,7 @@ Cross-platform Morse code copying practice app built with .NET 10 and Avalonia U
 
 ### Core Practice Flow
 
-1. The user starts a timed session (configurable duration, default 5 min).
+1. The user starts a timed session (configurable duration, default 1 min).
 2. The app generates random **5-character groups** from the selected character set and plays them as synthesized Morse code audio.
 3. The user types what they hear; a live countdown shows remaining time.
 4. When time runs out (or the user stops early), the session ends and accuracy is evaluated.
@@ -20,7 +20,7 @@ Cross-platform Morse code copying practice app built with .NET 10 and Avalonia U
 ### Scoring & Results
 
 - Accuracy is measured with **Levenshtein distance** per group; error rate = total edit distance / total sent characters × 100 %.
-- A session is marked **successful** when `ErrorRatePercent ≤ ErrorThreshold` (default 10 %).
+- A session is marked **successful** when `ErrorRatePercent ≤ ErrorThreshold` (default 5 %).
 - A side-by-side diff of sent vs. received groups is displayed in the results window.
 - Every session result (WPM settings, character count, error count, error rate) is persisted to a **SQLite database** (`practice-results.db`) in the per-user config directory.
 
@@ -33,7 +33,7 @@ Cross-platform Morse code copying practice app built with .NET 10 and Avalonia U
 ### Settings & Persistence
 
 - All settings (WPM, duration, character set, audio parameters) are editable in a Settings dialog and saved to a per-user `appsettings.json`.
-- Config location: `%LocalAppData%\PentaGrammata` on Windows; `$XDG_CONFIG_HOME/PentaGrammata` (fallback `~/.config/PentaGrammata`) on Linux.
+- Config location: `%AppData%\PentaGrammata` and `%LocalAppData%\PentaGrammata` on Windows (local is preferred for writing); `$XDG_CONFIG_HOME/PentaGrammata` (fallback `~/.config/PentaGrammata`) on Linux.
 
 ## Architecture
 

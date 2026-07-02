@@ -16,8 +16,9 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 
 ## Configuration and results
 
-- Windows: `%LocalAppData%\PentaGrammata`.
+- Windows: `%AppData%\PentaGrammata` and `%LocalAppData%\PentaGrammata` are both searched; `%LocalAppData%\PentaGrammata` is used for writing.
 - Linux: `$XDG_CONFIG_HOME/PentaGrammata` or `$HOME/.config/PentaGrammata`.
+- macOS: audio playback is not yet fully implemented (placeholder only).
 
 ## Requirements
 
@@ -82,11 +83,11 @@ All packaging scripts read the version from `version.txt` by default and accept 
 | `Audio` | `Frequency` | `523.25` | Tone frequency (Hz) |
 | `Audio` | `Volume` | `0.7` | Volume (0–1) |
 | `Audio` | `BeepRampMs` | `4` | Envelope ramp time (ms) |
-| `Practice` | `DefaultDurationMins` | `5` | Session length (minutes) |
-| `Practice` | `CharacterWpm` | `20` | Character speed (WPM) |
-| `Practice` | `AverageWpm` | `15` | Average (Farnsworth) speed (WPM) |
+| `Practice` | `DefaultDurationMins` | `1` | Session length (minutes) |
+| `Practice` | `CharacterWpm` | `18` | Character speed (WPM) |
+| `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
-| `Practice` | `ErrorThreshold` | `10.0` | Maximum error rate (%) to pass |
+| `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
 | `CharacterSets` | _(named sets)_ | see below | Named sets selectable in the UI |
 
 Default character sets:
@@ -138,7 +139,7 @@ Default character sets:
 | `Koch-LCWO-39-0` | …+ 0 |
 | `Koch-LCWO-40-X` | …+ X (full LCWO set) |
 
-The Koch-LCWO sets follow the [LCWO](https://lcwo.net/) character introduction order. Each set is cumulative — it contains all characters from the previous sets plus the newly introduced one.
+The Koch-LCWO sets follow the [LCWO](https://lcwo.net/) character introduction order. Each set is cumulative and **weighted** — it contains all characters from the previous sets plus the newly introduced one, with the new character repeated several times so it appears more frequently during practice.
 
 Lesson 13 (`.`) is intentionally omitted because that character was deemed not useful for practice.
 
