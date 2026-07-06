@@ -57,6 +57,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private double receivedTextFontSize = 24.0;
 
+    [ObservableProperty]
+    private string sentText = string.Empty;
+
+    [ObservableProperty]
+    private bool isSentTextVisible;
+
     public MainWindowViewModel(
         IPracticeController practiceController,
         IConfigurationService configurationService,
@@ -99,6 +105,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IsPracticeRunning = true;
         UpdateCommandStates();
         ReceivedText = string.Empty;
+        SentText = string.Empty;
+        IsSentTextVisible = false;
         TimeCounterText = "Starting practice...";
         TimeCounterForeground = Brushes.CornflowerBlue;
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
@@ -113,6 +121,11 @@ public partial class MainWindowViewModel : ViewModelBase
             if (string.IsNullOrEmpty(ReceivedText))
             {
                 ReceivedText = _practiceController.LastGeneratedText;
+            }
+            if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice)
+            {
+                SentText = _practiceController.LastGeneratedText;
+                IsSentTextVisible = true;
             }
         }
         catch (OperationCanceledException)
@@ -209,6 +222,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
 
         _configurationService.Current.UiPreferences.ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
+        _configurationService.Current.UiPreferences.RevealSentTextAfterPractice = newPrefs.RevealSentTextAfterPractice;
         _configurationService.Current.UiPreferences.SuppressedDialogs = [.. newPrefs.SuppressedDialogs];
         await _configurationService.SaveAsync();
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;

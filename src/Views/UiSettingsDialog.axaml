@@ -16,6 +16,8 @@
                 <TextBlock Text="Received text font size (pt)"/>
                 <NumericUpDown Minimum="8" Maximum="72" Increment="1" FormatString="0"
                                Value="{Binding ReceivedTextFontSize}"/>
+                <CheckBox Content="Reveal sent text after practice"
+                          IsChecked="{Binding RevealSentTextAfterPractice}"/>
             </StackPanel>
         </GroupBox>
 

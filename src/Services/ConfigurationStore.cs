@@ -102,6 +102,7 @@ public sealed class ConfigurationStore : IConfigurationStore
             {
                 SuppressedDialogs = [.. (configuration.UiPreferences?.SuppressedDialogs ?? [])],
                 ReceivedTextFontSize = configuration.UiPreferences?.ReceivedTextFontSize ?? 24.0,
+                RevealSentTextAfterPractice = configuration.UiPreferences?.RevealSentTextAfterPractice ?? true,
             },
         };
     }

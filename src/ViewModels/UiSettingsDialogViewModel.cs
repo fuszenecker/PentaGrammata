@@ -15,6 +15,9 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private double receivedTextFontSize;
 
+    [ObservableProperty]
+    private bool revealSentTextAfterPractice;
+
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
 
@@ -24,6 +27,7 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     {
         _suppressedDialogs = [.. prefs.SuppressedDialogs];
         ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+        RevealSentTextAfterPractice = prefs.RevealSentTextAfterPractice;
 
         SaveCommand = new RelayCommand(() => CloseRequested?.Invoke(true));
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(false));
@@ -33,5 +37,6 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     {
         SuppressedDialogs = [.. _suppressedDialogs],
         ReceivedTextFontSize = ReceivedTextFontSize,
+        RevealSentTextAfterPractice = RevealSentTextAfterPractice,
     };
 }
