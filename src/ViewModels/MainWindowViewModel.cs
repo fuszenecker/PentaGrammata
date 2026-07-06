@@ -15,7 +15,9 @@ namespace PentaGrammata.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IPracticeController _practiceController;
-    private readonly ISettingsDialogService _settingsDialogService;
+    private readonly IConfigurationService _configurationService;
+    private readonly IMorseSettingsDialogService _settingsDialogService;
+    private readonly IUiSettingsDialogService _uiSettingsDialogService;
     private readonly IPracticeResultWindowService _practiceResultWindowService;
     private readonly IAboutDialogService _aboutDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
@@ -30,6 +32,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
     public IAsyncRelayCommand OpenSettingsCommand { get; }
+    public IAsyncRelayCommand OpenUiSettingsCommand { get; }
     public IAsyncRelayCommand CheckResultCommand { get; }
     public IAsyncRelayCommand OpenAboutCommand { get; }
 
@@ -51,15 +54,22 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private int practiceDuration = 5;
 
+    [ObservableProperty]
+    private double receivedTextFontSize = 24.0;
+
     public MainWindowViewModel(
         IPracticeController practiceController,
-        ISettingsDialogService settingsDialogService,
+        IConfigurationService configurationService,
+        IMorseSettingsDialogService settingsDialogService,
+        IUiSettingsDialogService uiSettingsDialogService,
         IPracticeResultWindowService practiceResultWindowService,
         IAboutDialogService aboutDialogService,
         ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
+        _configurationService = configurationService;
         _settingsDialogService = settingsDialogService;
+        _uiSettingsDialogService = uiSettingsDialogService;
         _practiceResultWindowService = practiceResultWindowService;
         _aboutDialogService = aboutDialogService;
         _logger = logger;
@@ -67,10 +77,12 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
         SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
         StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
+        OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync);
         CheckResultCommand = new AsyncRelayCommand(OpenResultWindowAsync, CanCheckResult);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         UpdateCommandStates();
@@ -187,6 +199,19 @@ public partial class MainWindowViewModel : ViewModelBase
     public Task OpenAboutAsync()
     {
         return _aboutDialogService.ShowAboutAsync();
+    }
+
+    public async Task OpenUiSettingsDialogAsync()
+    {
+        var newPrefs = await _uiSettingsDialogService.ShowUiSettingsDialogAsync(
+            _configurationService.Current.UiPreferences);
+        if (newPrefs is null)
+            return;
+
+        _configurationService.Current.UiPreferences.ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
+        _configurationService.Current.UiPreferences.SuppressedDialogs = [.. newPrefs.SuppressedDialogs];
+        await _configurationService.SaveAsync();
+        ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
 
     partial void OnSelectedCharacterSetChanged(string value)

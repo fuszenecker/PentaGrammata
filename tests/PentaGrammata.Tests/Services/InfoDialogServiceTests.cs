@@ -13,7 +13,7 @@ public sealed class InfoDialogServiceTests
     [TestMethod]
     public void Constructor_NullWindowContext_ThrowsArgumentNullException()
     {
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configStore = Substitute.For<IConfigurationStore>();
         Assert.ThrowsExactly<ArgumentNullException>(() => new InfoDialogService(null!, configStore));
     }
 
@@ -22,7 +22,7 @@ public sealed class InfoDialogServiceTests
     {
         var windowContext = Substitute.For<IWindowContext>();
         windowContext.ActiveWindow.Returns((Avalonia.Controls.Window?)null);
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configStore = Substitute.For<IConfigurationStore>();
         var sut = new InfoDialogService(windowContext, configStore);
 
         // Must not throw; no Avalonia dialog is created when there is no owner window.

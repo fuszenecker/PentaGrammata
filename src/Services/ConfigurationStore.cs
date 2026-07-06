@@ -11,13 +11,13 @@ using AppConfig = PentaGrammata.Configuration.Configuration;
 
 namespace PentaGrammata.Services;
 
-public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
+public sealed class ConfigurationStore : IConfigurationStore
 {
-    private readonly ILogger<PracticeConfigurationStore> _logger;
+    private readonly ILogger<ConfigurationStore> _logger;
     private readonly string? _userConfigPath;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
-    public PracticeConfigurationStore(ILogger<PracticeConfigurationStore> logger)
+    public ConfigurationStore(ILogger<ConfigurationStore> logger)
     {
         _logger = logger;
         _userConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();
@@ -101,6 +101,7 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
             UiPreferences = new UiPreferences
             {
                 SuppressedDialogs = [.. (configuration.UiPreferences?.SuppressedDialogs ?? [])],
+                ReceivedTextFontSize = configuration.UiPreferences?.ReceivedTextFontSize ?? 24.0,
             },
         };
     }

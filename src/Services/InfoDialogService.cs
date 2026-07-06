@@ -9,9 +9,9 @@ namespace PentaGrammata.Services;
 public sealed class InfoDialogService : IInfoDialogService
 {
     private readonly IWindowContext _windowContext;
-    private readonly IPracticeConfigurationStore _configStore;
+    private readonly IConfigurationStore _configStore;
 
-    public InfoDialogService(IWindowContext windowContext, IPracticeConfigurationStore configStore)
+    public InfoDialogService(IWindowContext windowContext, IConfigurationStore configStore)
     {
         _windowContext = windowContext ?? throw new ArgumentNullException(nameof(windowContext));
         _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));

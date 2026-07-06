@@ -3,7 +3,9 @@ using AppConfig = PentaGrammata.Configuration.Configuration;
 
 namespace PentaGrammata.Interfaces;
 
-public interface ISettingsDialogService
+public interface IConfigurationStore
 {
-    Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings);
+    AppConfig Load();
+
+    Task SaveAsync(AppConfig configuration);
 }

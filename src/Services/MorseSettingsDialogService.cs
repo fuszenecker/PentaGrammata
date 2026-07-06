@@ -6,12 +6,12 @@ using PentaGrammata.Views;
 
 namespace PentaGrammata.Services;
 
-public sealed class SettingsDialogService : ISettingsDialogService
+public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IPracticeSettingsValidator _settingsValidator;
 
-    public SettingsDialogService(IWindowContext windowContext, IPracticeSettingsValidator settingsValidator)
+    public MorseSettingsDialogService(IWindowContext windowContext, IPracticeSettingsValidator settingsValidator)
     {
         _windowContext = windowContext;
         _settingsValidator = settingsValidator;
@@ -25,8 +25,8 @@ public sealed class SettingsDialogService : ISettingsDialogService
             return null;
         }
 
-        var viewModel = new SettingsDialogViewModel(currentSettings, _settingsValidator);
-        var dialog = new SettingsDialog
+        var viewModel = new MorseSettingsDialogViewModel(currentSettings, _settingsValidator);
+        var dialog = new MorseSettingsDialog
         {
             DataContext = viewModel
         };

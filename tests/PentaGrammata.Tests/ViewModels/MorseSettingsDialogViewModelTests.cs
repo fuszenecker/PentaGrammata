@@ -8,13 +8,13 @@ using PentaGrammata.ViewModels;
 namespace PentaGrammata.Tests.ViewModels;
 
 [TestClass]
-public sealed class SettingsDialogViewModelTests
+public sealed class MorseSettingsDialogViewModelTests
 {
     [TestMethod]
     public void WpmUnlocked_EnablingLock_SetsAverageWpmToCharacterWpm()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new SettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator);
 
         Assert.IsFalse(sut.WpmLocked);
         Assert.AreEqual(30, sut.CharacterWpm);
@@ -30,7 +30,7 @@ public sealed class SettingsDialogViewModelTests
     public void WpmLocked_ChangingOneWpm_UpdatesTheOther()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 20, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 20, "Default"), validator);
 
         Assert.IsTrue(sut.WpmLocked);
 
@@ -45,7 +45,7 @@ public sealed class SettingsDialogViewModelTests
     public void WpmUnlocked_CharacterWpmDrop_ClampsAverageWpm()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new SettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator)
         {
             AverageWpm = 28,
         };
@@ -61,7 +61,7 @@ public sealed class SettingsDialogViewModelTests
     public void TryBuildSettings_WhenCharacterSetsTextInvalid_ReturnsFalseAndParserError()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
         {
             CharacterSetsText = "invalid line",
         };
@@ -85,7 +85,7 @@ public sealed class SettingsDialogViewModelTests
                 return false;
             });
 
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
         {
             CharacterSetsText = "Alpha = ABCDE",
         };
@@ -107,7 +107,7 @@ public sealed class SettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 15, "MissingDefault"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "MissingDefault"), validator)
         {
             CharacterWpm = 28,
             AverageWpm = 17,
@@ -145,7 +145,7 @@ public sealed class SettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
         {
             CharacterSetsText = "Default = ABCDE",
         };
@@ -162,7 +162,7 @@ public sealed class SettingsDialogViewModelTests
     public void CancelCommand_RaisesCloseRequestedFalse()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new SettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator);
 
         bool? closeResult = null;
         sut.CloseRequested += saved => closeResult = saved;

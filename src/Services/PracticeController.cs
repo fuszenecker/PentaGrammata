@@ -19,9 +19,8 @@ public class PracticeController : IPracticeController
     private readonly IMorseGenerator _morseGenerator;
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultEvaluator _resultEvaluator;
-    private readonly IPracticeConfigurationStore _configurationStore;
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<PracticeController> _logger;
-    private readonly AppConfig _configuration;
     private CancellationTokenSource? _cancellationTokenSource;
 
     public string LastGeneratedText { get; private set; } = string.Empty;
@@ -29,31 +28,31 @@ public class PracticeController : IPracticeController
 
     public int PracticeDurationMins
     {
-        get => _configuration.Practice.DefaultDurationMins;
+        get => _configurationService.Current.Practice.DefaultDurationMins;
         set
         {
-            if (_configuration.Practice.DefaultDurationMins == value)
+            if (_configurationService.Current.Practice.DefaultDurationMins == value)
                 return;
 
-            _configuration.Practice.DefaultDurationMins = value;
-            QueueSaveConfiguration();
+            _configurationService.Current.Practice.DefaultDurationMins = value;
+            _ = _configurationService.SaveAsync();
         }
     }
 
-    public IReadOnlyList<KeyValuePair<string, string>> CharacterSets => _configuration.CharacterSets
+    public IReadOnlyList<KeyValuePair<string, string>> CharacterSets => _configurationService.Current.CharacterSets
         .Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value))
         .ToList();
 
     public string SelectedCharacterSet
     {
-        get => _configuration.Practice.DefaultCharacterSet;
+        get => _configurationService.Current.Practice.DefaultCharacterSet;
         set
         {
-            if (_configuration.Practice.DefaultCharacterSet == value)
+            if (_configurationService.Current.Practice.DefaultCharacterSet == value)
                 return;
 
-            _configuration.Practice.DefaultCharacterSet = value;
-            QueueSaveConfiguration();
+            _configurationService.Current.Practice.DefaultCharacterSet = value;
+            _ = _configurationService.SaveAsync();
         }
     }
 
@@ -66,20 +65,20 @@ public class PracticeController : IPracticeController
         IMorseGenerator morseGenerator,
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultEvaluator resultEvaluator,
-        IPracticeConfigurationStore configurationStore,
+        IConfigurationService configurationService,
         ILogger<PracticeController> logger)
     {
         _morsePlayer = morsePlayer;
         _morseGenerator = morseGenerator;
         _settingsValidator = settingsValidator;
         _resultEvaluator = resultEvaluator;
-        _configurationStore = configurationStore;
+        _configurationService = configurationService;
         _logger = logger;
-        _configuration = _configurationStore.Load();
 
+        var config = _configurationService.Current;
         var characterSets = new List<KeyValuePair<string, string>>();
 
-        foreach (var characterSet in _configuration.CharacterSets)
+        foreach (var characterSet in config.CharacterSets)
         {
             if (!string.IsNullOrWhiteSpace(characterSet.Value))
                 characterSets.Add(new KeyValuePair<string, string>(characterSet.Key, characterSet.Value));
@@ -88,10 +87,10 @@ public class PracticeController : IPracticeController
         if (characterSets.Count == 0)
         {
             characterSets.Add(new KeyValuePair<string, string>("Default", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>"));
-            _configuration.CharacterSets["Default"] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
+            config.CharacterSets["Default"] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
         }
 
-        _configuration.Practice.DefaultCharacterSet = _configuration.Practice.DefaultCharacterSet ?? characterSets[0].Key;
+        config.Practice.DefaultCharacterSet = config.Practice.DefaultCharacterSet ?? characterSets[0].Key;
     }
 
     public async Task StartAsync()
@@ -103,7 +102,7 @@ public class PracticeController : IPracticeController
 
         try
         {
-            string characterSetCharacters = _configuration.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
+            string characterSetCharacters = _configurationService.Current.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
                 && !string.IsNullOrWhiteSpace(selectedCharacters)
                     ? selectedCharacters
                     : CharacterSets.FirstOrDefault().Value;
@@ -111,7 +110,7 @@ public class PracticeController : IPracticeController
             if (string.IsNullOrWhiteSpace(characterSetCharacters))
                 characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
 
-            int numberOfGroups = (int)Math.Round(PracticeDurationMins * _configuration.Practice.AverageWpm * LengthCorrector);
+            int numberOfGroups = (int)Math.Round(PracticeDurationMins * _configurationService.Current.Practice.AverageWpm * LengthCorrector);
             _logger.LogDebug("Generating {GroupCount} morse groups", numberOfGroups);
             
             string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
@@ -122,12 +121,12 @@ public class PracticeController : IPracticeController
                 string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
                 await _morsePlayer.PlayMorseCodeAsync(
                     morseCodeToPlay,
-                    charWpm: _configuration.Practice.CharacterWpm,
-                    averageWpm: _configuration.Practice.AverageWpm,
-                    sampleRate: _configuration.Audio.SampleRate,
-                    frequency: _configuration.Audio.Frequency,
-                    volume: _configuration.Audio.Volume,
-                    beepRampMs: _configuration.Audio.BeepRampMs,
+                    charWpm: _configurationService.Current.Practice.CharacterWpm,
+                    averageWpm: _configurationService.Current.Practice.AverageWpm,
+                    sampleRate: _configurationService.Current.Audio.SampleRate,
+                    frequency: _configurationService.Current.Audio.Frequency,
+                    volume: _configurationService.Current.Audio.Volume,
+                    beepRampMs: _configurationService.Current.Audio.BeepRampMs,
                     _cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
@@ -154,31 +153,32 @@ public class PracticeController : IPracticeController
     public PracticeResult BuildResult(string receivedText)
     {
         LastReceivedText = receivedText ?? string.Empty;
-        return _resultEvaluator.Evaluate(LastGeneratedText, LastReceivedText, _configuration.Practice.ErrorThreshold);
+        return _resultEvaluator.Evaluate(LastGeneratedText, LastReceivedText, _configurationService.Current.Practice.ErrorThreshold);
     }
 
     public AppConfig CreateSettingsSnapshot()
     {
+        var config = _configurationService.Current;
         var characterSets = new CharacterSets();
-        foreach (var kv in _configuration.CharacterSets)
+        foreach (var kv in config.CharacterSets)
             characterSets[kv.Key] = kv.Value;
 
         return new AppConfig
         {
             Practice = new Practice
             {
-                DefaultDurationMins = _configuration.Practice.DefaultDurationMins,
-                CharacterWpm = _configuration.Practice.CharacterWpm,
-                AverageWpm = _configuration.Practice.AverageWpm,
-                DefaultCharacterSet = _configuration.Practice.DefaultCharacterSet,
-                ErrorThreshold = _configuration.Practice.ErrorThreshold,
+                DefaultDurationMins = config.Practice.DefaultDurationMins,
+                CharacterWpm = config.Practice.CharacterWpm,
+                AverageWpm = config.Practice.AverageWpm,
+                DefaultCharacterSet = config.Practice.DefaultCharacterSet,
+                ErrorThreshold = config.Practice.ErrorThreshold,
             },
             Audio = new Audio
             {
-                SampleRate = _configuration.Audio.SampleRate,
-                Frequency = _configuration.Audio.Frequency,
-                Volume = _configuration.Audio.Volume,
-                BeepRampMs = _configuration.Audio.BeepRampMs,
+                SampleRate = config.Audio.SampleRate,
+                Frequency = config.Audio.Frequency,
+                Volume = config.Audio.Volume,
+                BeepRampMs = config.Audio.BeepRampMs,
             },
             CharacterSets = characterSets,
         };
@@ -191,44 +191,28 @@ public class PracticeController : IPracticeController
             return false;
         }
 
-        _configuration.Practice.DefaultDurationMins = settings.Practice.DefaultDurationMins;
-        _configuration.Practice.CharacterWpm = settings.Practice.CharacterWpm;
-        _configuration.Practice.AverageWpm = settings.Practice.AverageWpm;
-        _configuration.Audio.SampleRate = settings.Audio.SampleRate;
-        _configuration.Audio.Frequency = settings.Audio.Frequency;
-        _configuration.Audio.Volume = settings.Audio.Volume;
-        _configuration.Audio.BeepRampMs = settings.Audio.BeepRampMs;
-        _configuration.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
-        _configuration.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
+        var config = _configurationService.Current;
+        config.Practice.DefaultDurationMins = settings.Practice.DefaultDurationMins;
+        config.Practice.CharacterWpm = settings.Practice.CharacterWpm;
+        config.Practice.AverageWpm = settings.Practice.AverageWpm;
+        config.Audio.SampleRate = settings.Audio.SampleRate;
+        config.Audio.Frequency = settings.Audio.Frequency;
+        config.Audio.Volume = settings.Audio.Volume;
+        config.Audio.BeepRampMs = settings.Audio.BeepRampMs;
+        config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
+        config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
 
-        _configuration.CharacterSets.Clear();
+        config.CharacterSets.Clear();
         foreach (var item in settings.CharacterSets)
         {
             if (!string.IsNullOrWhiteSpace(item.Key) && !string.IsNullOrWhiteSpace(item.Value))
             {
-                _configuration.CharacterSets[item.Key] = item.Value;
+                config.CharacterSets[item.Key] = item.Value;
             }
         }
 
-        QueueSaveConfiguration();
+        _ = _configurationService.SaveAsync();
         error = string.Empty;
         return true;
-    }
-
-    private void QueueSaveConfiguration()
-    {
-        _ = PersistConfigurationAsync();
-    }
-
-    private async Task PersistConfigurationAsync()
-    {
-        try
-        {
-            await _configurationStore.SaveAsync(CreateSettingsSnapshot()).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to persist user configuration");
-        }
     }
 }

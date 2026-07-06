@@ -21,7 +21,7 @@ public sealed class PracticeControllerTests
         var morseGenerator = Substitute.For<IMorseGenerator>();
         var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
         var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configService = Substitute.For<IConfigurationService>();
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
@@ -30,11 +30,11 @@ public sealed class PracticeControllerTests
         config.Practice.CharacterWpm = 24;
         config.CharacterSets["Letters"] = "ABCDE";
         config.Practice.DefaultCharacterSet = "Letters";
-        configStore.Load().Returns(config);
+        configService.Current.Returns(config);
 
         morseGenerator.GenerateGroupsOf5("ABCDE", 28).Returns("ABCDE FGHIJ");
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
 
         await sut.StartAsync();
 
@@ -59,12 +59,12 @@ public sealed class PracticeControllerTests
         var morseGenerator = Substitute.For<IMorseGenerator>();
         var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
         var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configService = Substitute.For<IConfigurationService>();
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
         config.Practice.ErrorThreshold = 17.5;
-        configStore.Load().Returns(config);
+        configService.Current.Returns(config);
 
         var expected = new PracticeResult
         {
@@ -75,7 +75,7 @@ public sealed class PracticeControllerTests
         };
         resultEvaluator.Evaluate(string.Empty, "RX", 17.5).Returns(expected);
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
 
         var actual = sut.BuildResult("RX");
 
@@ -91,10 +91,10 @@ public sealed class PracticeControllerTests
         var morseGenerator = Substitute.For<IMorseGenerator>();
         var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
         var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configService = Substitute.For<IConfigurationService>();
         var logger = Substitute.For<ILogger<PracticeController>>();
 
-        configStore.Load().Returns(CreateDefaultConfiguration());
+        configService.Current.Returns(CreateDefaultConfiguration());
         settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
             .Returns(callInfo =>
             {
@@ -102,13 +102,13 @@ public sealed class PracticeControllerTests
                 return false;
             });
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
 
         var success = sut.TryApplySettings(CreateDefaultConfiguration(), out var error);
 
         Assert.IsFalse(success);
         Assert.AreEqual("invalid settings", error);
-        configStore.DidNotReceive().SaveAsync(Arg.Any<AppConfig>());
+        configService.DidNotReceive().SaveAsync();
     }
 
     [TestMethod]
@@ -118,12 +118,11 @@ public sealed class PracticeControllerTests
         var morseGenerator = Substitute.For<IMorseGenerator>();
         var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
         var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configService = Substitute.For<IConfigurationService>();
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var loadedConfig = CreateDefaultConfiguration();
-        configStore.Load().Returns(loadedConfig);
-        configStore.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        configService.Current.Returns(loadedConfig);
         settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
             .Returns(callInfo =>
             {
@@ -131,7 +130,7 @@ public sealed class PracticeControllerTests
                 return true;
             });
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
         var newSettings = new AppConfig
         {
             Practice = new Practice
@@ -160,19 +159,18 @@ public sealed class PracticeControllerTests
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
-
-        configStore.Received(1).SaveAsync(Arg.Is<AppConfig>(saved =>
-            saved.Practice.DefaultDurationMins == 7
-            && saved.Practice.CharacterWpm == 30
-            && saved.Practice.AverageWpm == 18
-            && saved.Practice.DefaultCharacterSet == "Custom"
-            && saved.Practice.ErrorThreshold == 12.5
-            && saved.Audio.SampleRate == 48000
-            && saved.Audio.Frequency == 700
-            && saved.Audio.Volume == 0.3
-            && saved.Audio.BeepRampMs == 6
-            && saved.CharacterSets.Count == 1
-            && saved.CharacterSets["Custom"] == "ABCDE"));
+        configService.Received(1).SaveAsync();
+        Assert.AreEqual(7, loadedConfig.Practice.DefaultDurationMins);
+        Assert.AreEqual(30, loadedConfig.Practice.CharacterWpm);
+        Assert.AreEqual(18, loadedConfig.Practice.AverageWpm);
+        Assert.AreEqual("Custom", loadedConfig.Practice.DefaultCharacterSet);
+        Assert.AreEqual(12.5, loadedConfig.Practice.ErrorThreshold);
+        Assert.AreEqual(48000, loadedConfig.Audio.SampleRate);
+        Assert.AreEqual(700, loadedConfig.Audio.Frequency);
+        Assert.AreEqual(0.3, loadedConfig.Audio.Volume);
+        Assert.AreEqual(6, loadedConfig.Audio.BeepRampMs);
+        Assert.AreEqual(1, loadedConfig.CharacterSets.Count);
+        Assert.AreEqual("ABCDE", loadedConfig.CharacterSets["Custom"]);
     }
 
     [TestMethod]
@@ -182,15 +180,15 @@ public sealed class PracticeControllerTests
         var morseGenerator = Substitute.For<IMorseGenerator>();
         var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
         var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configStore = Substitute.For<IPracticeConfigurationStore>();
+        var configService = Substitute.For<IConfigurationService>();
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
         config.CharacterSets.Clear();
         config.Practice.DefaultCharacterSet = null!;
-        configStore.Load().Returns(config);
+        configService.Current.Returns(config);
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configStore, logger);
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
 
         Assert.HasCount(1, sut.CharacterSets);
         Assert.AreEqual("Default", sut.CharacterSets[0].Key);

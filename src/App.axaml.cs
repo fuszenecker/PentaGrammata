@@ -54,14 +54,16 @@ public partial class App : Application
         services.AddSingleton<IMorsePlayer, MorsePlayer>();
         services.AddSingleton<IMorseGenerator, MorseGenerator>();
 
-        services.AddSingleton<IPracticeConfigurationStore, PracticeConfigurationStore>();
+        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
         services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
         services.AddSingleton<IPracticeResultStatisticsStore, PracticeResultStatisticsStore>();
         services.AddSingleton<IPracticeController, PracticeController>();
         services.AddSingleton<IInfoDialogService, InfoDialogService>();
 
-        services.AddSingleton<ISettingsDialogService, SettingsDialogService>();
+        services.AddSingleton<IMorseSettingsDialogService, MorseSettingsDialogService>();
+        services.AddSingleton<IUiSettingsDialogService, UiSettingsDialogService>();
         services.AddSingleton<IPracticeResultWindowService, PracticeResultWindowService>();
         services.AddSingleton<IAboutDialogService, AboutDialogService>();
 

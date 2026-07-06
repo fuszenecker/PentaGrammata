@@ -3,9 +3,7 @@ using AppConfig = PentaGrammata.Configuration.Configuration;
 
 namespace PentaGrammata.Interfaces;
 
-public interface IPracticeConfigurationStore
+public interface IMorseSettingsDialogService
 {
-    AppConfig Load();
-
-    Task SaveAsync(AppConfig configuration);
+    Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings);
 }

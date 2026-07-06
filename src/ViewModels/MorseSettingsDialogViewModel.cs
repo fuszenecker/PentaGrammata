@@ -11,7 +11,7 @@ using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.ViewModels;
 
-public partial class SettingsDialogViewModel : ViewModelBase
+public partial class MorseSettingsDialogViewModel : ViewModelBase
 {
     private readonly int _defaultDurationMins;
     private readonly string _defaultCharacterSet;
@@ -74,7 +74,7 @@ public partial class SettingsDialogViewModel : ViewModelBase
 
     public event Action<bool>? CloseRequested;
 
-    public SettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator)
+    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator)
     {
         _settingsValidator = settingsValidator;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
