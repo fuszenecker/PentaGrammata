@@ -6,4 +6,12 @@ public sealed class Audio
 	public double Frequency { get; set; } = 523.25;
 	public double Volume { get; set; } = 0.7;
 	public int BeepRampMs { get; set; } = 4;
+
+	public Audio Clone() => new()
+	{
+		SampleRate = SampleRate,
+		Frequency = Frequency,
+		Volume = Volume,
+		BeepRampMs = BeepRampMs,
+	};
 }

@@ -36,7 +36,7 @@ public sealed class ConfigurationStore : IConfigurationStore
 
         var configRoot = builder.Build();
         var config = configRoot.Get<AppConfig>() ?? new AppConfig();
-        return Clone(config);
+        return config.Clone();
     }
 
     public async Task SaveAsync(AppConfig configuration)
@@ -52,7 +52,7 @@ public sealed class ConfigurationStore : IConfigurationStore
             return;
         }
 
-        var snapshot = Clone(configuration);
+        var snapshot = configuration.Clone();
 
         await _saveLock.WaitAsync().ConfigureAwait(false);
         try
@@ -70,40 +70,5 @@ public sealed class ConfigurationStore : IConfigurationStore
         {
             _saveLock.Release();
         }
-    }
-
-    private AppConfig Clone(AppConfig configuration)
-    {
-        var characterSets = new CharacterSets();
-        foreach (var kv in configuration.CharacterSets)
-        {
-            characterSets[kv.Key] = kv.Value;
-        }
-
-        return new AppConfig
-        {
-            Practice = new Practice
-            {
-                DefaultDurationMins = configuration.Practice.DefaultDurationMins,
-                CharacterWpm = configuration.Practice.CharacterWpm,
-                AverageWpm = configuration.Practice.AverageWpm,
-                DefaultCharacterSet = configuration.Practice.DefaultCharacterSet,
-                ErrorThreshold = configuration.Practice.ErrorThreshold,
-            },
-            Audio = new Audio
-            {
-                SampleRate = configuration.Audio.SampleRate,
-                Frequency = configuration.Audio.Frequency,
-                Volume = configuration.Audio.Volume,
-                BeepRampMs = configuration.Audio.BeepRampMs,
-            },
-            CharacterSets = characterSets,
-            UiPreferences = new UiPreferences
-            {
-                SuppressedDialogs = [.. (configuration.UiPreferences?.SuppressedDialogs ?? [])],
-                ReceivedTextFontSize = configuration.UiPreferences?.ReceivedTextFontSize ?? 24.0,
-                RevealSentTextAfterPractice = configuration.UiPreferences?.RevealSentTextAfterPractice ?? true,
-            },
-        };
     }
 }

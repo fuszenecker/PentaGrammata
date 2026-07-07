@@ -35,7 +35,7 @@ public class PracticeController : IPracticeController
                 return;
 
             _configurationService.Current.Practice.DefaultDurationMins = value;
-            _ = _configurationService.SaveAsync();
+            _configurationService.RequestSave();
         }
     }
 
@@ -52,7 +52,7 @@ public class PracticeController : IPracticeController
                 return;
 
             _configurationService.Current.Practice.DefaultCharacterSet = value;
-            _ = _configurationService.SaveAsync();
+            _configurationService.RequestSave();
         }
     }
 
@@ -158,30 +158,7 @@ public class PracticeController : IPracticeController
 
     public AppConfig CreateSettingsSnapshot()
     {
-        var config = _configurationService.Current;
-        var characterSets = new CharacterSets();
-        foreach (var kv in config.CharacterSets)
-            characterSets[kv.Key] = kv.Value;
-
-        return new AppConfig
-        {
-            Practice = new Practice
-            {
-                DefaultDurationMins = config.Practice.DefaultDurationMins,
-                CharacterWpm = config.Practice.CharacterWpm,
-                AverageWpm = config.Practice.AverageWpm,
-                DefaultCharacterSet = config.Practice.DefaultCharacterSet,
-                ErrorThreshold = config.Practice.ErrorThreshold,
-            },
-            Audio = new Audio
-            {
-                SampleRate = config.Audio.SampleRate,
-                Frequency = config.Audio.Frequency,
-                Volume = config.Audio.Volume,
-                BeepRampMs = config.Audio.BeepRampMs,
-            },
-            CharacterSets = characterSets,
-        };
+        return _configurationService.Current.Clone();
     }
 
     public bool TryApplySettings(AppConfig settings, out string error)
@@ -211,7 +188,7 @@ public class PracticeController : IPracticeController
             }
         }
 
-        _ = _configurationService.SaveAsync();
+        _configurationService.RequestSave();
         error = string.Empty;
         return true;
     }

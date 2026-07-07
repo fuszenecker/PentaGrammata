@@ -1,6 +1,8 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Services;
@@ -35,13 +37,36 @@ public partial class App : Application
 
             _serviceProvider.GetRequiredService<IWindowContext>().MainWindow = mainWindow;
             desktop.MainWindow = mainWindow;
+
+            // Surface configuration persistence failures instead of letting them be
+            // swallowed by the fire-and-forget save paths.
+            _serviceProvider.GetRequiredService<IConfigurationService>().SaveFailed += OnConfigurationSaveFailed;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
+    private void OnConfigurationSaveFailed(object? sender, Exception exception)
+    {
+        var infoDialogService = _serviceProvider?.GetService<IInfoDialogService>();
+        if (infoDialogService is null)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => _ = infoDialogService.ShowInfoAsync(
+            "Settings not saved",
+            $"Your settings could not be saved:\n{exception.Message}"));
+    }
+
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
+        var configurationService = _serviceProvider?.GetService<IConfigurationService>();
+        if (configurationService is not null)
+        {
+            configurationService.SaveFailed -= OnConfigurationSaveFailed;
+        }
+
         _serviceProvider?.Dispose();
     }
 

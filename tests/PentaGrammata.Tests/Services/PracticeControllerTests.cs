@@ -108,7 +108,7 @@ public sealed class PracticeControllerTests
 
         Assert.IsFalse(success);
         Assert.AreEqual("invalid settings", error);
-        configService.DidNotReceive().SaveAsync();
+        configService.DidNotReceive().RequestSave();
     }
 
     [TestMethod]
@@ -159,7 +159,7 @@ public sealed class PracticeControllerTests
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
-        configService.Received(1).SaveAsync();
+        configService.Received(1).RequestSave();
         Assert.AreEqual(7, loadedConfig.Practice.DefaultDurationMins);
         Assert.AreEqual(30, loadedConfig.Practice.CharacterWpm);
         Assert.AreEqual(18, loadedConfig.Practice.AverageWpm);
