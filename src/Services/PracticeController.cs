@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -119,14 +119,21 @@ public class PracticeController : IPracticeController
             try
             {
                 string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
+                var practice = _configurationService.Current.Practice;
+                var audio = _configurationService.Current.Audio;
+                var playbackSettings = new MorsePlaybackSettings
+                {
+                    CharacterWpm = practice.CharacterWpm,
+                    AverageWpm = practice.AverageWpm,
+                    SampleRate = audio.SampleRate,
+                    Frequency = audio.Frequency,
+                    Volume = audio.Volume,
+                    BeepRampMs = audio.BeepRampMs,
+                };
+
                 await _morsePlayer.PlayMorseCodeAsync(
                     morseCodeToPlay,
-                    charWpm: _configurationService.Current.Practice.CharacterWpm,
-                    averageWpm: _configurationService.Current.Practice.AverageWpm,
-                    sampleRate: _configurationService.Current.Audio.SampleRate,
-                    frequency: _configurationService.Current.Audio.Frequency,
-                    volume: _configurationService.Current.Audio.Volume,
-                    beepRampMs: _configurationService.Current.Audio.BeepRampMs,
+                    playbackSettings,
                     _cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)

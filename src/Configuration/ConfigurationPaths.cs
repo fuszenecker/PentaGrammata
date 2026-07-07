@@ -42,4 +42,21 @@ public static class ConfigurationPaths
         var paths = GetPerUserConfigPaths();
         return paths.Length > 0 ? paths[^1] : null;
     }
+
+    /// <summary>
+    /// The per-user directory where PentaGrammata stores its data (configuration,
+    /// statistics database, etc.). Single source of truth so stores don't each
+    /// re-derive the location independently.
+    /// </summary>
+    public static string GetAppDataDirectory()
+    {
+        var preferredConfigPath = GetPreferredPerUserConfigPath();
+        var directory = preferredConfigPath is not null
+            ? Path.GetDirectoryName(preferredConfigPath)
+            : null;
+
+        return string.IsNullOrWhiteSpace(directory)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PentaGrammata")
+            : directory;
+    }
 }

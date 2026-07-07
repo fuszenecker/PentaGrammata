@@ -6,5 +6,5 @@ namespace PentaGrammata.Services;
 
 public interface IMorsePlayer
 {
-    Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, double frequency, double volume, int beepRampMs, CancellationToken cancellationToken);
+    Task PlayMorseCodeAsync(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken);
 }

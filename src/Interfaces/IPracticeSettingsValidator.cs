@@ -1,4 +1,4 @@
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Interfaces;
 

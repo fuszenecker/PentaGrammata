@@ -1,6 +1,6 @@
 namespace PentaGrammata.Configuration;
 
-public sealed class Configuration
+public sealed class AppConfiguration
 {
     public Audio Audio { get; set; } = new();
     public Practice Practice { get; set; } = new();
@@ -12,7 +12,7 @@ public sealed class Configuration
     /// This is the single authority for copying configuration; callers must not
     /// hand-copy individual properties.
     /// </summary>
-    public Configuration Clone() => new()
+    public AppConfiguration Clone() => new()
     {
         Audio = (Audio ?? new Audio()).Clone(),
         Practice = (Practice ?? new Practice()).Clone(),

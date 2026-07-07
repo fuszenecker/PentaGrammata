@@ -32,14 +32,13 @@ public class MorseGenerator : IMorseGenerator
             }
         }
 
-        var random = new Random(DateTime.Now.Millisecond);
         var result = new StringBuilder();
 
         for (int i = 0; i < numberOfGroups; i++)
         {
             for (int j = 0; j < 5; j++)
             {
-                int index = random.Next(morseCodeList.Count);
+                int index = Random.Shared.Next(morseCodeList.Count);
                 string morseCode = morseCodeList[index];
                 result.Append(morseCode);
             }

@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -14,17 +15,20 @@ namespace PentaGrammata.Services;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
+    private readonly ILogger<PracticeResultStatisticsStore> _logger;
     private readonly string _databasePath;
+
+    // Schema initialization runs once per process, not on every insert.
+    private readonly SemaphoreSlim _schemaLock = new(1, 1);
+    private bool _schemaInitialized;
 
     public string DatabasePath => _databasePath;
 
-    public PracticeResultStatisticsStore()
+    public PracticeResultStatisticsStore(ILogger<PracticeResultStatisticsStore> logger)
     {
-        var preferredConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();
-        var appDirectory = preferredConfigPath is null
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PentaGrammata")
-            : Path.GetDirectoryName(preferredConfigPath) ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PentaGrammata");
+        _logger = logger;
 
+        var appDirectory = ConfigurationPaths.GetAppDataDirectory();
         Directory.CreateDirectory(appDirectory);
         _databasePath = Path.Combine(appDirectory, "practice-results.db");
     }
@@ -37,6 +41,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         }
         catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
         {
+            _logger.LogError(ex, "Failed to save practice statistics to {DatabasePath}", _databasePath);
             throw new StatisticsStoreException("Could not save practice statistics.", ex);
         }
     }
@@ -46,21 +51,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         await using var connection = new SqliteConnection($"Data Source={_databasePath}");
         await connection.OpenAsync(cancellationToken);
 
-        var createCommand = connection.CreateCommand();
-        createCommand.CommandText =
-            """
-            CREATE TABLE IF NOT EXISTS practice_result_statistics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                recorded_at TEXT NOT NULL,
-                character_wpm INTEGER NOT NULL,
-                average_wpm INTEGER NOT NULL,
-                character_count INTEGER NOT NULL,
-                error_count INTEGER NOT NULL,
-                error_rate_percent REAL NOT NULL
-            );
-            """;
-
-        await createCommand.ExecuteNonQueryAsync(cancellationToken);
+        await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText =
@@ -91,5 +82,43 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$error_rate_percent", record.ErrorRatePercent);
 
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private async Task EnsureSchemaAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        if (_schemaInitialized)
+        {
+            return;
+        }
+
+        await _schemaLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_schemaInitialized)
+            {
+                return;
+            }
+
+            var createCommand = connection.CreateCommand();
+            createCommand.CommandText =
+                """
+                CREATE TABLE IF NOT EXISTS practice_result_statistics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at TEXT NOT NULL,
+                    character_wpm INTEGER NOT NULL,
+                    average_wpm INTEGER NOT NULL,
+                    character_count INTEGER NOT NULL,
+                    error_count INTEGER NOT NULL,
+                    error_rate_percent REAL NOT NULL
+                );
+                """;
+
+            await createCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            _schemaInitialized = true;
+        }
+        finally
+        {
+            _schemaLock.Release();
+        }
     }
 }

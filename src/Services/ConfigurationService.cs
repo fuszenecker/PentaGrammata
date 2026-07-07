@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Services;
@@ -19,8 +19,6 @@ public sealed class ConfigurationService : IConfigurationService
 
     public AppConfig Current { get; }
 
-    public event EventHandler<Exception>? SaveFailed;
-
     public ConfigurationService(IConfigurationStore store, ILogger<ConfigurationService> logger)
     {
         _store = store;
@@ -30,12 +28,16 @@ public sealed class ConfigurationService : IConfigurationService
 
     public Task SaveAsync()
     {
+        // Snapshot on the CALLER's thread (the UI thread, where all mutations happen)
+        // so the clone can never race with a concurrent mutation of Current. This also
+        // captures the state as it was at the moment SaveAsync was called, which is the
+        // state the caller intended to persist.
+        var snapshot = Current.Clone();
+
         lock (_saveGate)
         {
-            // Snapshot happens inside PersistAsync (via the store) at the moment the
-            // save actually runs, so the most recent in-memory state is captured.
             _saveChain = _saveChain.ContinueWith(
-                _ => PersistAsync(),
+                _ => PersistAsync(snapshot),
                 CancellationToken.None,
                 TaskContinuationOptions.None,
                 TaskScheduler.Default).Unwrap();
@@ -46,8 +48,8 @@ public sealed class ConfigurationService : IConfigurationService
 
     public void RequestSave()
     {
-        // Fire-and-forget, but still ordered and with failures reported through the
-        // event/log rather than being lost on an unobserved task.
+        // Fire-and-forget, but still ordered; failures are logged in PersistAsync
+        // rather than being lost on an unobserved task.
         _ = SaveAsync();
     }
 
@@ -72,16 +74,15 @@ public sealed class ConfigurationService : IConfigurationService
         return SaveAsync();
     }
 
-    private async Task PersistAsync()
+    private async Task PersistAsync(AppConfig snapshot)
     {
         try
         {
-            await _store.SaveAsync(Current).ConfigureAwait(false);
+            await _store.SaveAsync(snapshot).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to persist configuration");
-            SaveFailed?.Invoke(this, ex);
         }
     }
 }

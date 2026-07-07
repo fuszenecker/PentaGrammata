@@ -1,6 +1,5 @@
-using System;
 using System.Threading.Tasks;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Interfaces;
 
@@ -16,12 +15,6 @@ public interface IConfigurationService
     AppConfig Current { get; }
 
     /// <summary>
-    /// Raised when a persistence attempt fails. Lets callers surface the failure
-    /// instead of it being silently swallowed.
-    /// </summary>
-    event EventHandler<Exception>? SaveFailed;
-
-    /// <summary>
     /// Persists the current configuration. Saves are serialized so concurrent or
     /// rapid calls run in order and never interleave writes to the backing file.
     /// </summary>
@@ -30,7 +23,7 @@ public interface IConfigurationService
     /// <summary>
     /// Fire-and-forget variant of <see cref="SaveAsync"/> for callers (e.g. property
     /// setters) that cannot await. The save is still ordered behind any in-flight
-    /// save, and failures are reported through <see cref="SaveFailed"/>.
+    /// save; failures are logged.
     /// </summary>
     void RequestSave();
 

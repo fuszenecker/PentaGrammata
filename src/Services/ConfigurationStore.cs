@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Services;
 
@@ -52,14 +52,14 @@ public sealed class ConfigurationStore : IConfigurationStore
             return;
         }
 
-        var snapshot = configuration.Clone();
-
+        // Callers (ConfigurationService) hand us an already-isolated snapshot, so we
+        // don't clone again here. The lock still serializes concurrent file writes.
         await _saveLock.WaitAsync().ConfigureAwait(false);
         try
         {
             Directory.CreateDirectory(directory);
 
-            var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
+            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
             {
                 WriteIndented = true
             });

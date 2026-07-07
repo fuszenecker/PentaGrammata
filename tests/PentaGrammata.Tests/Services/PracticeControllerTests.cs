@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -43,12 +43,13 @@ public sealed class PracticeControllerTests
         morseGenerator.Received(1).GenerateGroupsOf5("ABCDE", 28);
         await morsePlayer.Received(1).PlayMorseCodeAsync(
             "vvv = ABCDE FGHIJ <ar>",
-            24,
-            20,
-            config.Audio.SampleRate,
-            config.Audio.Frequency,
-            config.Audio.Volume,
-            config.Audio.BeepRampMs,
+            Arg.Is<MorsePlaybackSettings>(s =>
+                s.CharacterWpm == 24 &&
+                s.AverageWpm == 20 &&
+                s.SampleRate == config.Audio.SampleRate &&
+                s.Frequency == config.Audio.Frequency &&
+                s.Volume == config.Audio.Volume &&
+                s.BeepRampMs == config.Audio.BeepRampMs),
             Arg.Any<CancellationToken>());
     }
 

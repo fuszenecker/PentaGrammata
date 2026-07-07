@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -212,7 +212,7 @@ public sealed class MainWindowViewModelTests
 
         await sut.OpenResultWindowAsync();
 
-        practiceController.IsResultSaved = true;
+        practiceController.Received(1).IsResultSaved = true;
     }
 
     [TestMethod]

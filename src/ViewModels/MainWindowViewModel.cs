@@ -208,9 +208,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (newPrefs is null)
             return;
 
-        _configurationService.Current.UiPreferences.ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
-        _configurationService.Current.UiPreferences.RevealSentTextAfterPractice = newPrefs.RevealSentTextAfterPractice;
-        _configurationService.Current.UiPreferences.SuppressedDialogs = [.. newPrefs.SuppressedDialogs];
+        _configurationService.Current.UiPreferences = newPrefs.Clone();
         await _configurationService.SaveAsync();
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
