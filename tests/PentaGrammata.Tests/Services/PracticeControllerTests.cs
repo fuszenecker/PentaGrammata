@@ -169,7 +169,7 @@ public sealed class PracticeControllerTests
         Assert.AreEqual(700, loadedConfig.Audio.Frequency);
         Assert.AreEqual(0.3, loadedConfig.Audio.Volume);
         Assert.AreEqual(6, loadedConfig.Audio.BeepRampMs);
-        Assert.AreEqual(1, loadedConfig.CharacterSets.Count);
+        Assert.HasCount(1, loadedConfig.CharacterSets);
         Assert.AreEqual("ABCDE", loadedConfig.CharacterSets["Custom"]);
     }
 
