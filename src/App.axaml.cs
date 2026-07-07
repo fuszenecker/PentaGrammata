@@ -74,6 +74,7 @@ public partial class App : Application
     {
         services.AddLogging();
 
+        services.AddSingleton<IDialogViewModelFactory, DialogViewModelFactory>();
         services.AddSingleton<IWindowContext, WindowContext>();
         services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
         services.AddSingleton<IMorsePlayer, MorsePlayer>();

@@ -7,6 +7,9 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
+// SqliteException, IOException and UnauthorizedAccessException are translated into
+// StatisticsStoreException so callers never depend on the storage technology.
+
 namespace PentaGrammata.Services;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
@@ -27,6 +30,18 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
     }
 
     public async Task SaveAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await SaveCoreAsync(record, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            throw new StatisticsStoreException("Could not save practice statistics.", ex);
+        }
+    }
+
+    private async Task SaveCoreAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection($"Data Source={_databasePath}");
         await connection.OpenAsync(cancellationToken);

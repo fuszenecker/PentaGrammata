@@ -35,7 +35,7 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,1,0,0"
             Padding="10,5">
 
-            <TextBlock Text="{Binding TimeCounterText}" Foreground="{Binding TimeCounterForeground}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding TimeCounterText}" Foreground="{Binding TimeCounterStatus, Converter={StaticResource StatusLevelToBrush}}" VerticalAlignment="Center"/>
         </Border>
         
         <Grid>

@@ -10,10 +10,12 @@ namespace PentaGrammata.Services;
 public sealed class UiSettingsDialogService : IUiSettingsDialogService
 {
     private readonly IWindowContext _windowContext;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public UiSettingsDialogService(IWindowContext windowContext)
+    public UiSettingsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext;
+        _viewModelFactory = viewModelFactory;
     }
 
     public async Task<UiPreferences?> ShowUiSettingsDialogAsync(UiPreferences current)
@@ -24,7 +26,7 @@ public sealed class UiSettingsDialogService : IUiSettingsDialogService
             return null;
         }
 
-        var viewModel = new UiSettingsDialogViewModel(current);
+        var viewModel = _viewModelFactory.CreateUiSettings(current);
         var dialog = new UiSettingsDialog
         {
             DataContext = viewModel

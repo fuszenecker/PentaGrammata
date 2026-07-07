@@ -2,8 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PentaGrammata.App"
              xmlns:local="using:PentaGrammata"
+             xmlns:converters="using:PentaGrammata.Converters"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Resources>
+        <converters:StatusLevelToBrushConverter x:Key="StatusLevelToBrush"/>
+        <converters:DiffSegmentKindToBrushConverter x:Key="DiffSegmentKindToBrush"/>
+    </Application.Resources>
 
     <Application.DataTemplates>
         <local:ViewLocator/>

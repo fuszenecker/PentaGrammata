@@ -9,12 +9,12 @@ namespace PentaGrammata.Services;
 public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
 {
     private readonly IWindowContext _windowContext;
-    private readonly IPracticeSettingsValidator _settingsValidator;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public MorseSettingsDialogService(IWindowContext windowContext, IPracticeSettingsValidator settingsValidator)
+    public MorseSettingsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext;
-        _settingsValidator = settingsValidator;
+        _viewModelFactory = viewModelFactory;
     }
 
     public async Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings)
@@ -25,7 +25,7 @@ public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
             return null;
         }
 
-        var viewModel = new MorseSettingsDialogViewModel(currentSettings, _settingsValidator);
+        var viewModel = _viewModelFactory.CreateMorseSettings(currentSettings);
         var dialog = new MorseSettingsDialog
         {
             DataContext = viewModel

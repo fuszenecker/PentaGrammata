@@ -9,17 +9,14 @@ namespace PentaGrammata.Services;
 public sealed class PracticeResultWindowService : IPracticeResultWindowService
 {
     private readonly IWindowContext _windowContext;
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
-    private readonly IInfoDialogService _infoDialogService;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
     public PracticeResultWindowService(
         IWindowContext windowContext,
-        IPracticeResultStatisticsStore statisticsStore,
-        IInfoDialogService infoDialogService)
+        IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext;
-        _statisticsStore = statisticsStore;
-        _infoDialogService = infoDialogService;
+        _viewModelFactory = viewModelFactory;
     }
 
     public async Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved)
@@ -30,7 +27,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             return false;
         }
 
-        var viewModel = new PracticeResultWindowViewModel(result, characterWpm, averageWpm, alreadySaved, _statisticsStore, _infoDialogService);
+        var viewModel = _viewModelFactory.CreatePracticeResult(result, characterWpm, averageWpm, alreadySaved);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = viewModel

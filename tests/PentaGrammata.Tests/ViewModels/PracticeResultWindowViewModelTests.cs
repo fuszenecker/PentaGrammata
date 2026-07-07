@@ -1,4 +1,3 @@
-using Avalonia.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
 using PentaGrammata.Interfaces;
@@ -40,7 +39,7 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.AreEqual("12", sut.CharacterCountText);
         Assert.AreEqual("3", sut.ErrorsText);
         Assert.AreEqual("25.00%", sut.ErrorRateText);
-        Assert.AreSame(Brushes.IndianRed, sut.ResultForeground);
+        Assert.AreEqual(StatusLevel.Error, sut.ResultStatus);
     }
 
     [TestMethod]
@@ -70,20 +69,20 @@ public sealed class PracticeResultWindowViewModelTests
 
         Assert.HasCount(5, segments);
         Assert.AreEqual(".", segments[0].Text);
-        Assert.AreSame(Brushes.Gainsboro, segments[0].Foreground);
+        Assert.AreEqual(DiffSegmentKind.Unchanged, segments[0].Kind);
 
         Assert.AreEqual("yz", segments[1].Text);
-        Assert.AreSame(Brushes.LimeGreen, segments[1].Foreground);
+        Assert.AreEqual(DiffSegmentKind.Inserted, segments[1].Kind);
 
         Assert.AreEqual("q", segments[2].Text);
-        Assert.AreSame(Brushes.IndianRed, segments[2].Foreground);
+        Assert.AreEqual(DiffSegmentKind.Deleted, segments[2].Kind);
 
         Assert.AreEqual("A", segments[3].Text);
-        Assert.AreSame(Brushes.Gold, segments[3].Foreground);
+        Assert.AreEqual(DiffSegmentKind.Substituted, segments[3].Kind);
 
         Assert.AreEqual(" ", segments[4].Text);
-        Assert.AreSame(Brushes.Gainsboro, segments[4].Foreground);
-        Assert.AreSame(Brushes.LimeGreen, sut.ResultForeground);
+        Assert.AreEqual(DiffSegmentKind.Unchanged, segments[4].Kind);
+        Assert.AreEqual(StatusLevel.Success, sut.ResultStatus);
     }
 
     [TestMethod]
@@ -118,7 +117,9 @@ public sealed class PracticeResultWindowViewModelTests
         var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
         statisticsStore.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new IOException("Database is locked")));
+            .Returns(Task.FromException(new StatisticsStoreException(
+                "Could not save practice statistics.",
+                new IOException("Database is locked"))));
 
         var result = new PracticeResult
         {
