@@ -272,7 +272,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public async Task StartPracticeAsync_WhenReceivedTextEmptyAfterPractice_FillsWithGeneratedText()
+    public async Task StartPracticeAsync_WhenRevealEnabledAndReceivedTextEmpty_FillsWithGeneratedText()
     {
         var practiceController = Substitute.For<IPracticeController>();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
@@ -289,7 +289,7 @@ public sealed class MainWindowViewModelTests
         practiceController.StartAsync().Returns(Task.CompletedTask);
         practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: true), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
 
         await sut.StartPracticeAsync();
 
@@ -297,7 +297,32 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public async Task StartPracticeAsync_WhenReceivedTextNotEmpty_DoesNotOverwriteWithGeneratedText()
+    public async Task StartPracticeAsync_WhenRevealDisabledAndReceivedTextEmpty_DoesNotFill()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.StartAsync().Returns(Task.CompletedTask);
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: false), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual(string.Empty, sut.ReceivedText);
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenRevealEnabledAndReceivedTextNotEmpty_DoesNotOverwriteWithGeneratedText()
     {
         var practiceController = Substitute.For<IPracticeController>();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
@@ -319,14 +344,8 @@ public sealed class MainWindowViewModelTests
             await Task.Yield();
         });
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: true), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
 
-        // Use a task-based trick: hook into StartAsync completion by wrapping the call
-        // We set ReceivedText before StartPracticeAsync finishes (after StartAsync, before the fill logic)
-        // The simplest reliable way: directly verify the condition — ReceivedText was non-empty going into the fill check.
-        // Since StartPracticeAsync clears ReceivedText at the top, we simulate the user having typed
-        // by replacing with a controller that sets it mid-flight. Instead, we test the guard directly:
-        // Call StartPracticeAsync, but override ReceivedText before the fill runs by using a continuation.
         var startTask = sut.StartPracticeAsync();
         // At this point StartAsync has yielded; set ReceivedText to simulate user input
         sut.ReceivedText = "MY COPY";
@@ -335,10 +354,16 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual("MY COPY", sut.ReceivedText);
     }
 
-    private static IConfigurationService CreateConfigService()
+    private static IConfigurationService CreateConfigService(bool revealSentText = true)
     {
         var configService = Substitute.For<IConfigurationService>();
-        configService.Current.Returns(new AppConfig());
+        configService.Current.Returns(new AppConfig
+        {
+            UiPreferences = new UiPreferences
+            {
+                RevealSentTextAfterPractice = revealSentText,
+            },
+        });
         return configService;
     }
 
