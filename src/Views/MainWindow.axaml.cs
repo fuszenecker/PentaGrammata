@@ -13,5 +13,12 @@ public partial class MainWindow : Window
     private void OnPracticeClick(object? sender, RoutedEventArgs e)
     {
         ReceivedTextBox.Focus();
+        ReceivedTextBox.CaretIndex = 0;
+    }
+
+    private void OnStopClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Focus();
+        ReceivedTextBox.CaretIndex = 0;
     }
 }

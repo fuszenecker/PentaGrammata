@@ -99,7 +99,8 @@
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Background="#E53935"
                 Foreground="White"
-                Command="{Binding StopPracticeCommand}"/>
+                Command="{Binding StopPracticeCommand}"
+                Click="OnStopClick"/>
 
             <!-- Third row: Received message -->
 

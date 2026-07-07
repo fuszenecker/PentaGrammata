@@ -110,11 +110,8 @@ public partial class MainWindowViewModel : ViewModelBase
             await _practiceController.StartAsync();
             TimeCounterText = "Practice completed!";
             TimeCounterForeground = Brushes.LimeGreen;
-            if (string.IsNullOrEmpty(ReceivedText))
-            {
-                ReceivedText = _practiceController.LastGeneratedText;
-            }
-            if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice)
+            if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice
+                && string.IsNullOrEmpty(ReceivedText))
             {
                 ReceivedText = _practiceController.LastGeneratedText;
             }
