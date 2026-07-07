@@ -57,12 +57,6 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private double receivedTextFontSize = 24.0;
 
-    [ObservableProperty]
-    private string sentText = string.Empty;
-
-    [ObservableProperty]
-    private bool isSentTextVisible;
-
     public MainWindowViewModel(
         IPracticeController practiceController,
         IConfigurationService configurationService,
@@ -105,8 +99,6 @@ public partial class MainWindowViewModel : ViewModelBase
         IsPracticeRunning = true;
         UpdateCommandStates();
         ReceivedText = string.Empty;
-        SentText = string.Empty;
-        IsSentTextVisible = false;
         TimeCounterText = "Starting practice...";
         TimeCounterForeground = Brushes.CornflowerBlue;
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
@@ -124,8 +116,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
             if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice)
             {
-                SentText = _practiceController.LastGeneratedText;
-                IsSentTextVisible = true;
+                ReceivedText = _practiceController.LastGeneratedText;
             }
         }
         catch (OperationCanceledException)
