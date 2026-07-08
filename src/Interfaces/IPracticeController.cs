@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.Interfaces;

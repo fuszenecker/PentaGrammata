@@ -1,20 +1,20 @@
 using System.Threading.Tasks;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
 namespace PentaGrammata.Services;
 
-public sealed class SettingsDialogService : ISettingsDialogService
+public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
 {
     private readonly IWindowContext _windowContext;
-    private readonly IPracticeSettingsValidator _settingsValidator;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public SettingsDialogService(IWindowContext windowContext, IPracticeSettingsValidator settingsValidator)
+    public MorseSettingsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext;
-        _settingsValidator = settingsValidator;
+        _viewModelFactory = viewModelFactory;
     }
 
     public async Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings)
@@ -25,8 +25,8 @@ public sealed class SettingsDialogService : ISettingsDialogService
             return null;
         }
 
-        var viewModel = new SettingsDialogViewModel(currentSettings, _settingsValidator);
-        var dialog = new SettingsDialog
+        var viewModel = _viewModelFactory.CreateMorseSettings(currentSettings);
+        var dialog = new MorseSettingsDialog
         {
             DataContext = viewModel
         };

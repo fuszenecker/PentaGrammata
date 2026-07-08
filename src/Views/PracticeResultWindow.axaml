@@ -46,7 +46,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Text}" Foreground="{Binding Foreground}" FontFamily="Consolas, monospace"/>
+                                                <TextBlock Text="{Binding Text}" Foreground="{Binding Kind, Converter={StaticResource DiffSegmentKindToBrush}}" FontFamily="Consolas, monospace"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -64,9 +64,9 @@
                     <TextBlock Grid.Column="0" Text="Character count:" FontWeight="Bold"/>
                     <TextBlock Grid.Column="1" Text="{Binding CharacterCountText}"/>
                     <TextBlock Grid.Column="2" Text="Errors:" FontWeight="Bold"/>
-                    <TextBlock Grid.Column="3" Text="{Binding ErrorsText}" Foreground="{Binding ResultForeground}"/>
+                    <TextBlock Grid.Column="3" Text="{Binding ErrorsText}" Foreground="{Binding ResultStatus, Converter={StaticResource StatusLevelToBrush}}"/>
                     <TextBlock Grid.Column="4" Text="Error rate:" FontWeight="Bold"/>
-                    <TextBlock Grid.Column="5" Text="{Binding ErrorRateText}" Foreground="{Binding ResultForeground}"/>
+                    <TextBlock Grid.Column="5" Text="{Binding ErrorRateText}" Foreground="{Binding ResultStatus, Converter={StaticResource StatusLevelToBrush}}"/>
                 </Grid>
             </Border>
 

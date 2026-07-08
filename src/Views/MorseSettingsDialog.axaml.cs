@@ -5,11 +5,11 @@ using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Views;
 
-public partial class SettingsDialog : Window
+public partial class MorseSettingsDialog : Window
 {
-    private SettingsDialogViewModel? _viewModel;
+    private MorseSettingsDialogViewModel? _viewModel;
 
-    public SettingsDialog()
+    public MorseSettingsDialog()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
@@ -22,7 +22,7 @@ public partial class SettingsDialog : Window
             _viewModel.CloseRequested -= OnCloseRequested;
         }
 
-        _viewModel = DataContext as SettingsDialogViewModel;
+        _viewModel = DataContext as MorseSettingsDialogViewModel;
 
         if (_viewModel is not null)
         {

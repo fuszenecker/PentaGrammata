@@ -9,23 +9,19 @@ namespace PentaGrammata.Services;
 public sealed class InfoDialogService : IInfoDialogService
 {
     private readonly IWindowContext _windowContext;
-    private readonly IPracticeConfigurationStore _configStore;
+    private readonly IConfigurationService _configurationService;
 
-    public InfoDialogService(IWindowContext windowContext, IPracticeConfigurationStore configStore)
+    public InfoDialogService(IWindowContext windowContext, IConfigurationService configurationService)
     {
         _windowContext = windowContext ?? throw new ArgumentNullException(nameof(windowContext));
-        _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
     }
 
     public async Task ShowInfoAsync(string title, string message, string? dialogKey = null)
     {
-        if (dialogKey is not null)
+        if (dialogKey is not null && _configurationService.IsDialogSuppressed(dialogKey))
         {
-            var config = _configStore.Load();
-            if (config.UiPreferences?.SuppressedDialogs?.Contains(dialogKey) == true)
-            {
-                return;
-            }
+            return;
         }
 
         var owner = _windowContext.ActiveWindow;
@@ -40,12 +36,7 @@ public sealed class InfoDialogService : IInfoDialogService
 
         if (viewModel.DoNotShowAgain && dialogKey is not null)
         {
-            var config = _configStore.Load();
-            if (!config.UiPreferences.SuppressedDialogs.Contains(dialogKey))
-            {
-                config.UiPreferences.SuppressedDialogs.Add(dialogKey);
-                await _configStore.SaveAsync(config).ConfigureAwait(false);
-            }
+            await _configurationService.SuppressDialogAsync(dialogKey).ConfigureAwait(false);
         }
     }
 

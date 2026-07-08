@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Interfaces;
 
-public interface ISettingsDialogService
+public interface IMorseSettingsDialogService
 {
     Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings);
 }

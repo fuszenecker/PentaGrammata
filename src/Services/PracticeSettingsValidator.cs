@@ -1,6 +1,6 @@
 using System.Linq;
 using PentaGrammata.Interfaces;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Services;
 

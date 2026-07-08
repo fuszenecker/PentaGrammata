@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+        x:Class="PentaGrammata.Views.UiSettingsDialog"
+        x:DataType="vm:UiSettingsDialogViewModel"
+        Width="360" Height="200"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Title="UI Settings">
+
+    <Grid RowDefinitions="*,Auto" Margin="10">
+
+        <GroupBox Grid.Row="0" Header="Text display" Margin="0,0,0,10"
+                  CornerRadius="10" Background="#101010">
+            <StackPanel Margin="10" Spacing="8">
+                <TextBlock Text="Received text font size (pt)"/>
+                <NumericUpDown Minimum="8" Maximum="72" Increment="1" FormatString="0"
+                               Value="{Binding ReceivedTextFontSize}"/>
+                <CheckBox Content="Reveal sent text after practice"
+                          IsChecked="{Binding RevealSentTextAfterPractice}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+            <Button Content="Save" MinWidth="90"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    Background="#1D4ED8" Foreground="White"
+                    Command="{Binding SaveCommand}"/>
+            <Button Content="Cancel" MinWidth="90"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    Command="{Binding CancelCommand}"/>
+        </StackPanel>
+
+    </Grid>
+</Window>

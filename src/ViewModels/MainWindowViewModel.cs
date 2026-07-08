@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -15,7 +14,9 @@ namespace PentaGrammata.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IPracticeController _practiceController;
-    private readonly ISettingsDialogService _settingsDialogService;
+    private readonly IConfigurationService _configurationService;
+    private readonly IMorseSettingsDialogService _settingsDialogService;
+    private readonly IUiSettingsDialogService _uiSettingsDialogService;
     private readonly IPracticeResultWindowService _practiceResultWindowService;
     private readonly IAboutDialogService _aboutDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
@@ -30,6 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand StartPracticeCommand { get; }
     public IRelayCommand StopPracticeCommand { get; }
     public IAsyncRelayCommand OpenSettingsCommand { get; }
+    public IAsyncRelayCommand OpenUiSettingsCommand { get; }
     public IAsyncRelayCommand CheckResultCommand { get; }
     public IAsyncRelayCommand OpenAboutCommand { get; }
 
@@ -40,7 +42,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string timeCounterText = "00:00";
 
     [ObservableProperty]
-    private IBrush timeCounterForeground = Brushes.Gainsboro;
+    private StatusLevel timeCounterStatus = StatusLevel.Neutral;
 
     [ObservableProperty]
     private string[] characterSets = [];
@@ -51,15 +53,22 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private int practiceDuration = 5;
 
+    [ObservableProperty]
+    private double receivedTextFontSize = 24.0;
+
     public MainWindowViewModel(
         IPracticeController practiceController,
-        ISettingsDialogService settingsDialogService,
+        IConfigurationService configurationService,
+        IMorseSettingsDialogService settingsDialogService,
+        IUiSettingsDialogService uiSettingsDialogService,
         IPracticeResultWindowService practiceResultWindowService,
         IAboutDialogService aboutDialogService,
         ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
+        _configurationService = configurationService;
         _settingsDialogService = settingsDialogService;
+        _uiSettingsDialogService = uiSettingsDialogService;
         _practiceResultWindowService = practiceResultWindowService;
         _aboutDialogService = aboutDialogService;
         _logger = logger;
@@ -67,10 +76,12 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
         SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
         StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
+        OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync);
         CheckResultCommand = new AsyncRelayCommand(OpenResultWindowAsync, CanCheckResult);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         UpdateCommandStates();
@@ -88,7 +99,7 @@ public partial class MainWindowViewModel : ViewModelBase
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
-        TimeCounterForeground = Brushes.CornflowerBlue;
+        TimeCounterStatus = StatusLevel.Info;
         _practiceTimerCancellationTokenSource = new CancellationTokenSource();
 
         var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
@@ -97,8 +108,9 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await _practiceController.StartAsync();
             TimeCounterText = "Practice completed!";
-            TimeCounterForeground = Brushes.LimeGreen;
-            if (string.IsNullOrEmpty(ReceivedText))
+            TimeCounterStatus = StatusLevel.Success;
+            if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice
+                && string.IsNullOrEmpty(ReceivedText))
             {
                 ReceivedText = _practiceController.LastGeneratedText;
             }
@@ -106,13 +118,13 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (OperationCanceledException)
         {
             TimeCounterText = "Stopped.";
-            TimeCounterForeground = Brushes.IndianRed;
+            TimeCounterStatus = StatusLevel.Error;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Practice session failed unexpectedly");
             TimeCounterText = "Practice failed. Check logs for details.";
-            TimeCounterForeground = Brushes.IndianRed;
+            TimeCounterStatus = StatusLevel.Error;
         }
         finally
         {
@@ -151,7 +163,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IsPracticeRunning = false;
         UpdateCommandStates();
         TimeCounterText = "Stopped.";
-        TimeCounterForeground = Brushes.IndianRed;
+        TimeCounterStatus = StatusLevel.Error;
     }
 
     public async Task OpenSettingsDialogAsync()
@@ -163,7 +175,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!_practiceController.TryApplySettings(newSettings, out var error))
         {
             TimeCounterText = error;
-            TimeCounterForeground = Brushes.IndianRed;
+            TimeCounterStatus = StatusLevel.Error;
             return;
         }
 
@@ -189,6 +201,18 @@ public partial class MainWindowViewModel : ViewModelBase
         return _aboutDialogService.ShowAboutAsync();
     }
 
+    public async Task OpenUiSettingsDialogAsync()
+    {
+        var newPrefs = await _uiSettingsDialogService.ShowUiSettingsDialogAsync(
+            _configurationService.Current.UiPreferences);
+        if (newPrefs is null)
+            return;
+
+        _configurationService.Current.UiPreferences = newPrefs.Clone();
+        await _configurationService.SaveAsync();
+        ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
+    }
+
     partial void OnSelectedCharacterSetChanged(string value)
     {
         _practiceController.SelectedCharacterSet = value;
@@ -208,7 +232,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var startedAt = DateTime.UtcNow;
         TimeCounterText = "Ready.";
-        TimeCounterForeground = Brushes.Gainsboro;
+        TimeCounterStatus = StatusLevel.Neutral;
 
         try
         {
@@ -216,7 +240,7 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 var elapsed = DateTime.UtcNow - startedAt;
                 TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
-                TimeCounterForeground = Brushes.CornflowerBlue;
+                TimeCounterStatus = StatusLevel.Info;
                 await Task.Delay(1000, cancellationToken);
             }
         }

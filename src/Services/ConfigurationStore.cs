@@ -7,17 +7,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
-using AppConfig = PentaGrammata.Configuration.Configuration;
+using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Services;
 
-public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
+public sealed class ConfigurationStore : IConfigurationStore
 {
-    private readonly ILogger<PracticeConfigurationStore> _logger;
+    private readonly ILogger<ConfigurationStore> _logger;
     private readonly string? _userConfigPath;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
-    public PracticeConfigurationStore(ILogger<PracticeConfigurationStore> logger)
+    public ConfigurationStore(ILogger<ConfigurationStore> logger)
     {
         _logger = logger;
         _userConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();
@@ -36,7 +36,7 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
 
         var configRoot = builder.Build();
         var config = configRoot.Get<AppConfig>() ?? new AppConfig();
-        return Clone(config);
+        return config.Clone();
     }
 
     public async Task SaveAsync(AppConfig configuration)
@@ -52,14 +52,14 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
             return;
         }
 
-        var snapshot = Clone(configuration);
-
+        // Callers (ConfigurationService) hand us an already-isolated snapshot, so we
+        // don't clone again here. The lock still serializes concurrent file writes.
         await _saveLock.WaitAsync().ConfigureAwait(false);
         try
         {
             Directory.CreateDirectory(directory);
 
-            var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
+            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
@@ -70,38 +70,5 @@ public sealed class PracticeConfigurationStore : IPracticeConfigurationStore
         {
             _saveLock.Release();
         }
-    }
-
-    private AppConfig Clone(AppConfig configuration)
-    {
-        var characterSets = new CharacterSets();
-        foreach (var kv in configuration.CharacterSets)
-        {
-            characterSets[kv.Key] = kv.Value;
-        }
-
-        return new AppConfig
-        {
-            Practice = new Practice
-            {
-                DefaultDurationMins = configuration.Practice.DefaultDurationMins,
-                CharacterWpm = configuration.Practice.CharacterWpm,
-                AverageWpm = configuration.Practice.AverageWpm,
-                DefaultCharacterSet = configuration.Practice.DefaultCharacterSet,
-                ErrorThreshold = configuration.Practice.ErrorThreshold,
-            },
-            Audio = new Audio
-            {
-                SampleRate = configuration.Audio.SampleRate,
-                Frequency = configuration.Audio.Frequency,
-                Volume = configuration.Audio.Volume,
-                BeepRampMs = configuration.Audio.BeepRampMs,
-            },
-            CharacterSets = characterSets,
-            UiPreferences = new UiPreferences
-            {
-                SuppressedDialogs = [.. (configuration.UiPreferences?.SuppressedDialogs ?? [])],
-            },
-        };
     }
 }

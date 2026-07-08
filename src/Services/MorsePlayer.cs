@@ -10,14 +10,14 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
 {
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
 
-    public async Task PlayMorseCodeAsync(string morseCode, int charWpm, int averageWpm, int sampleRate, double frequency, double volume, int beepRampMs, CancellationToken cancellationToken)
+    public async Task PlayMorseCodeAsync(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken)
     {
         var audioData = await Task.Run(
-            () => GenerateAudioData(morseCode.ToLower(), charWpm, averageWpm, sampleRate, frequency, volume, beepRampMs),
+            () => GenerateAudioData(morseCode.ToLower(), settings),
             cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
-        await _audioPlayer.PlayAudioAsync(audioData, sampleRate, cancellationToken);
+        await _audioPlayer.PlayAudioAsync(audioData, settings.SampleRate, cancellationToken);
     }
 
     private static short[] GenerateBeep(int sampleRate, int durationMs, double frequency, double volume, int beepRampMs)
@@ -51,8 +51,15 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
         return new short[sampleCount]; // 16-bit audio silence
     }
 
-    private static short[] GenerateAudioData(string morseCode, int charWpm, int averageWpm, int sampleRate, double frequency, double volume, int beepRampMs)
-    {        
+    private static short[] GenerateAudioData(string morseCode, MorsePlaybackSettings settings)
+    {
+        int charWpm = settings.CharacterWpm;
+        int averageWpm = settings.AverageWpm;
+        int sampleRate = settings.SampleRate;
+        double frequency = settings.Frequency;
+        double volume = settings.Volume;
+        int beepRampMs = settings.BeepRampMs;
+
         if (averageWpm > charWpm)
         {
             averageWpm = charWpm;

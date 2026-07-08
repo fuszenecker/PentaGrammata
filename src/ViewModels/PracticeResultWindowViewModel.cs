@@ -1,12 +1,9 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.Sqlite;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -26,7 +23,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
     public string CharacterCountText { get; }
     public string ErrorsText { get; }
     public string ErrorRateText { get; }
-    public IBrush ResultForeground { get; }
+    public StatusLevel ResultStatus { get; }
     public IAsyncRelayCommand SaveResultsCommand { get; }
 
     public bool IsSaveCompleted
@@ -76,7 +73,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         CharacterCountText = result.CharacterCount.ToString(CultureInfo.InvariantCulture);
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
-        ResultForeground = result.IsSuccessful ? Brushes.LimeGreen : Brushes.IndianRed;
+        ResultStatus = result.IsSuccessful ? StatusLevel.Success : StatusLevel.Error;
         _record = new PracticeResultStatisticsRecord
         {
             RecordedAt = DateTimeOffset.Now,
@@ -112,15 +109,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
                 $"Statistics were saved to:\n{_statisticsStore.DatabasePath}",
                 "ResultsSaved");
         }
-        catch (SqliteException ex)
-        {
-            await ShowSaveFailedAsync(ex);
-        }
-        catch (IOException ex)
-        {
-            await ShowSaveFailedAsync(ex);
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (StatisticsStoreException ex)
         {
             await ShowSaveFailedAsync(ex);
         }
@@ -130,11 +119,14 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         }
     }
 
-    private Task ShowSaveFailedAsync(Exception ex)
+    private Task ShowSaveFailedAsync(StatisticsStoreException ex)
     {
+        // Surface the underlying cause (e.g. "Database is locked") rather than the
+        // generic wrapper message, without leaking the storage exception type.
+        var detail = ex.InnerException?.Message ?? ex.Message;
         return _infoDialogService.ShowInfoAsync(
             "Save failed",
-            $"Could not save statistics:\n{ex.Message}");
+            $"Could not save statistics:\n{detail}");
     }
 
     private static ObservableCollection<PracticeResultDiffSegmentViewModel> ParseDifferenceSegments(string difference)
@@ -157,7 +149,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
                     segments.Add(new PracticeResultDiffSegmentViewModel
                     {
                         Text = tokenContent,
-                        Foreground = difference[i + 1] == '+' ? Brushes.LimeGreen : Brushes.IndianRed
+                        Kind = difference[i + 1] == '+' ? DiffSegmentKind.Inserted : DiffSegmentKind.Deleted
                     });
                     i = end + 1;
                     continue;
@@ -168,11 +160,11 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             segments.Add(new PracticeResultDiffSegmentViewModel
             {
                 Text = ch.ToString(),
-                Foreground = ch switch
+                Kind = ch switch
                 {
-                    '.' => Brushes.Gainsboro,
-                    ' ' => Brushes.Gainsboro,
-                    _ => Brushes.Gold
+                    '.' => DiffSegmentKind.Unchanged,
+                    ' ' => DiffSegmentKind.Unchanged,
+                    _ => DiffSegmentKind.Substituted
                 }
             });
             i++;
@@ -192,5 +184,5 @@ public sealed class PracticeResultRowViewModel
 public sealed class PracticeResultDiffSegmentViewModel
 {
     public string Text { get; init; } = string.Empty;
-    public IBrush Foreground { get; init; } = Brushes.Gainsboro;
+    public DiffSegmentKind Kind { get; init; } = DiffSegmentKind.Unchanged;
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 
 namespace PentaGrammata.Services;
@@ -8,14 +9,16 @@ public static class AudioPlayerFactory
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return new WindowsAudioPlayer();
-        
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             return new LinuxAudioPlayer();
-        
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             return new MacOSAudioPlayer();
-        
-        // Fallback for any other platform
-        return new MacOSAudioPlayer();
+
+        // Fail loudly rather than silently pretending to play audio on a platform
+        // we have no real implementation for.
+        throw new PlatformNotSupportedException(
+            $"No audio player is available for this platform: {RuntimeInformation.OSDescription}.");
     }
 }

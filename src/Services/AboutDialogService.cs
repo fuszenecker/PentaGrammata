@@ -8,10 +8,12 @@ namespace PentaGrammata.Services;
 public sealed class AboutDialogService : IAboutDialogService
 {
     private readonly IWindowContext _windowContext;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public AboutDialogService(IWindowContext windowContext)
+    public AboutDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext;
+        _viewModelFactory = viewModelFactory;
     }
 
     public async Task ShowAboutAsync()
@@ -24,7 +26,7 @@ public sealed class AboutDialogService : IAboutDialogService
 
         var aboutWindow = new AboutWindow
         {
-            DataContext = new AboutWindowViewModel()
+            DataContext = _viewModelFactory.CreateAbout()
         };
 
         await aboutWindow.ShowDialog(owner);
