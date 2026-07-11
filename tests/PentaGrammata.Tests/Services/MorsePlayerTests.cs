@@ -93,7 +93,41 @@ public sealed class MorsePlayerTests
     }
 
     [TestMethod]
-    public async Task PlayMorseCodeAsync_WithNoiseNone_LeavesSilentGapsSilent()
+    public async Task PlayMorseCodeAsync_NormalSpeed_PARISWordHasExactDuration()
+    {
+        // "PARIS " is the ITU standard for WPM measurement: 50 dit-units per word.
+        // At charWpm=20, T_char=60 ms → 50 × 60 = 3000 ms → 24000 samples at 8000 Hz.
+        // All timing values are integer multiples of 60 ms so there is no rounding error.
+        const int charWpm = 20;
+        const int sampleRate = 8000;
+        int expectedSamples = 50 * (1200 / charWpm) * sampleRate / 1000; // 24000
+
+        var (audio, _) = await PlayAndCaptureAsync("PARIS ", Settings(charWpm: charWpm, averageWpm: charWpm) with { SampleRate = sampleRate });
+
+        Assert.AreEqual(expectedSamples, audio.Length);
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_Farnsworth_ElementTimingPreservedAtCharacterSpeed()
+    {
+        // Farnsworth: the character element speed (charWpm) must not change when averageWpm
+        // is lowered. Only the inter-character and inter-word gaps grow. Verify by comparing
+        // the beep portion of "e" (a single dit) at the same charWpm but different averageWpm.
+        const int charWpm = 20;
+        const int sampleRate = 8000;
+        int ditSamples = (1200 / charWpm) * sampleRate / 1000; // 480
+
+        var (eNormal, _)      = await PlayAndCaptureAsync("e", Settings(charWpm: charWpm, averageWpm: charWpm)      with { SampleRate = sampleRate });
+        var (eFarnsworth, _)  = await PlayAndCaptureAsync("e", Settings(charWpm: charWpm, averageWpm: charWpm / 2)  with { SampleRate = sampleRate });
+
+        // Both recordings start with the same dit beep.
+        CollectionAssert.AreEqual(eNormal.Take(ditSamples).ToArray(), eFarnsworth.Take(ditSamples).ToArray());
+
+        // Farnsworth recording is longer overall (wider inter-character gap).
+        Assert.IsGreaterThan(eNormal.Length, eFarnsworth.Length);
+    }
+
+    [TestMethod]
     {
         var (audio, _) = await PlayAndCaptureAsync("e", Settings() with { NoiseType = NoiseType.None });
 

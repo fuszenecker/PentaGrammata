@@ -60,77 +60,87 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
     private short[] GenerateAudioData(string morseCode, MorsePlaybackSettings settings)
     {
         int charWpm = settings.CharacterWpm;
-        int averageWpm = settings.AverageWpm;
+        int averageWpm = Math.Min(settings.AverageWpm, charWpm);
         int sampleRate = settings.SampleRate;
         double frequency = settings.Frequency;
         double volume = DecibelsToLinear(settings.VolumeDb);
         int beepRampMs = settings.BeepRampMs;
 
-        if (averageWpm > charWpm)
-        {
-            averageWpm = charWpm;
-        }
+        // Standard PARIS word = 50 dit-units:
+        //   31 units of character elements and intra-character gaps (at character speed),
+        //   19 units of inter-character and inter-word gaps (stretched for Farnsworth).
+        //
+        // Element timing at character speed:
+        //   T_char = 1200 / charWpm  ms
+        //
+        // Farnsworth gap unit (stretched so one full PARIS word = 60000 / averageWpm ms):
+        //   T_gap = (60000 / averageWpm − 31 × T_char) / 19
+        //   When averageWpm == charWpm: T_gap == T_char (no stretching).
+        double tCharMs = 1200.0 / charWpm;
+        double tGapMs  = (60000.0 / averageWpm - 31.0 * tCharMs) / 19.0;
 
-        // Placeholder implementation: generate a simple beep for each dot and dash
+        int ditMs       = (int)Math.Round(tCharMs);
+        int intraCharMs = ditMs;                              // between elements within a character
+        int interCharMs = (int)Math.Round(3.0 * tGapMs);     // between characters
+        int interWordMs = (int)Math.Round(7.0 * tGapMs);     // between words
+
         var audioData = new List<short>();
-
-        // Calculate timing based on WPM
-        int ditLengthMs = 1200 / charWpm; 
-
-        // Extra time in ms to slow down to text WPM
-        int extraTimeMs = 60000 * (charWpm - averageWpm) / charWpm;
-
-        // Calculate extra time per character based on text WPM (assuming 5 characters per word: PARIS)
-        int totalCharsPerMinute = averageWpm * 5; 
-
-        // Extra time to add after each character to achieve the desired text WPM
-        int extraTimePerCharMs = (int)((double)extraTimeMs / totalCharsPerMinute);
+        bool firstToken = true;  // whether a gap needs to precede the next character
 
         for (int i = 0; i < morseCode.Length; i++)
         {
-            string morseString;
+            string token;
             char c = morseCode[i];
-            
+
             if (c == '<')
             {
-                int endIndex = morseCode.IndexOf('>', i);
-                if (endIndex == -1)
-                {
-                    continue; // Invalid format, skip
-                }
-                
-                morseString = morseCode.Substring(i, endIndex - i + 1);
-                i = endIndex;
+                int end = morseCode.IndexOf('>', i);
+                if (end == -1) continue;
+                token = morseCode.Substring(i, end - i + 1);
+                i = end;
             }
             else
             {
-                morseString = c.ToString();
+                token = c.ToString();
             }
 
-            string morseSymbols = CharToMorse(morseString);
-            foreach (char symbol in morseSymbols)
+            if (token == " ")
             {
-                if (symbol == '.')
-                {
-                    audioData.AddRange(GenerateBeep(sampleRate, ditLengthMs, frequency, volume, beepRampMs));
-                }
-                else if (symbol == '-')
-                {
-                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditLengthMs, frequency, volume, beepRampMs));
-                }
-                else if (symbol == ' ')
-                {
-                    audioData.AddRange(GenerateSilence(sampleRate, (7 - 1 - 2) * ditLengthMs)); // Space between symbols: 400ms silence
-                }
-
-                audioData.AddRange(GenerateSilence(sampleRate, ditLengthMs)); // Space between dots/dashes: 100ms silence
+                // Word boundary: emit the inter-word gap, then mark the next character as
+                // the start of a new word (it does not need a preceding inter-char gap).
+                if (!firstToken)
+                    audioData.AddRange(GenerateSilence(sampleRate, interWordMs));
+                firstToken = true;
+                continue;
             }
 
-            audioData.AddRange(GenerateSilence(sampleRate, (3 - 1) * ditLengthMs)); // Space between characters: 200ms silence
-            
-            // Farnsworth timing: add extra silence after each character to slow down the overall speed to text WPM
-            audioData.AddRange(GenerateSilence(sampleRate, extraTimePerCharMs));
+            string morseSymbols = CharToMorse(token);
+            if (morseSymbols.Length == 0)
+                continue;
+
+            // Prepend inter-character gap before every character except the first.
+            if (!firstToken)
+                audioData.AddRange(GenerateSilence(sampleRate, interCharMs));
+            firstToken = false;
+
+            // Emit elements with intra-character gaps between them (but not trailing).
+            for (int j = 0; j < morseSymbols.Length; j++)
+            {
+                if (j > 0)
+                    audioData.AddRange(GenerateSilence(sampleRate, intraCharMs));
+
+                char sym = morseSymbols[j];
+                if (sym == '.')
+                    audioData.AddRange(GenerateBeep(sampleRate, ditMs, frequency, volume, beepRampMs));
+                else if (sym == '-')
+                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditMs, frequency, volume, beepRampMs));
+            }
         }
+
+        // Append a trailing inter-character gap so the receiver chain processes the final
+        // character's elements before the buffer ends.
+        if (!firstToken)
+            audioData.AddRange(GenerateSilence(sampleRate, interCharMs));
 
         var samples = audioData.ToArray();
         ApplyReceiverChain(samples, settings);
