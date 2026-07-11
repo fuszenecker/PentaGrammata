@@ -8,6 +8,7 @@
     <Application.Resources>
         <converters:StatusLevelToBrushConverter x:Key="StatusLevelToBrush"/>
         <converters:DiffSegmentKindToBrushConverter x:Key="DiffSegmentKindToBrush"/>
+        <converters:NoiseTypeToEnabledConverter x:Key="NoiseTypeToEnabled"/>
     </Application.Resources>
 
     <Application.Styles>

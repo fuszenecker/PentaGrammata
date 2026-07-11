@@ -55,10 +55,36 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private double frequency;
 
     [ObservableProperty]
-    private double volume;
+    private double volumeDb;
 
     [ObservableProperty]
     private int beepRampMs;
+
+    [ObservableProperty]
+    private NoiseType selectedNoiseType;
+
+    public NoiseType[] NoiseTypeOptions { get; } = [NoiseType.None, NoiseType.Gaussian, NoiseType.Uniform, NoiseType.Pink];
+
+    [ObservableProperty]
+    private double noiseLevelDb;
+
+    [ObservableProperty]
+    private double noiseBandwidthHz;
+
+    [ObservableProperty]
+    private bool agcEnabled;
+
+    [ObservableProperty]
+    private double agcDelaySeconds;
+
+    [ObservableProperty]
+    private bool apfEnabled;
+
+    [ObservableProperty]
+    private double apfBandwidthHz;
+
+    [ObservableProperty]
+    private double apfPeakGainDb;
 
     [ObservableProperty]
     private double errorThreshold;
@@ -85,8 +111,16 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         WpmLocked = config.Practice.CharacterWpm == config.Practice.AverageWpm;
         SelectedSampleRate = config.Audio.SampleRate;
         Frequency = config.Audio.Frequency;
-        Volume = config.Audio.Volume;
+        VolumeDb = config.Audio.VolumeDb;
         BeepRampMs = config.Audio.BeepRampMs;
+        SelectedNoiseType = config.Audio.Noise.Type;
+        NoiseLevelDb = config.Audio.Noise.LevelDb;
+        NoiseBandwidthHz = config.Audio.Noise.BandwidthHz;
+        AgcEnabled = config.Audio.Noise.AgcEnabled;
+        AgcDelaySeconds = config.Audio.Noise.AgcDelaySeconds;
+        ApfEnabled = config.Audio.Noise.ApfEnabled;
+        ApfBandwidthHz = config.Audio.Noise.ApfBandwidthHz;
+        ApfPeakGainDb = config.Audio.Noise.ApfPeakGainDb;
         ErrorThreshold = config.Practice.ErrorThreshold;
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
@@ -159,8 +193,19 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
             {
                 SampleRate = SelectedSampleRate,
                 Frequency = Frequency,
-                Volume = Volume,
+                VolumeDb = VolumeDb,
                 BeepRampMs = BeepRampMs,
+                Noise = new NoiseSettings
+                {
+                    Type = SelectedNoiseType,
+                    LevelDb = NoiseLevelDb,
+                    BandwidthHz = NoiseBandwidthHz,
+                    AgcEnabled = AgcEnabled,
+                    AgcDelaySeconds = AgcDelaySeconds,
+                    ApfEnabled = ApfEnabled,
+                    ApfBandwidthHz = ApfBandwidthHz,
+                    ApfPeakGainDb = ApfPeakGainDb,
+                },
             },
             CharacterSets = characterSets,
         };

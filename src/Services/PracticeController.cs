@@ -127,8 +127,16 @@ public class PracticeController : IPracticeController
                     AverageWpm = practice.AverageWpm,
                     SampleRate = audio.SampleRate,
                     Frequency = audio.Frequency,
-                    Volume = audio.Volume,
+                    VolumeDb = audio.VolumeDb,
                     BeepRampMs = audio.BeepRampMs,
+                    NoiseType = audio.Noise.Type,
+                    NoiseLevelDb = audio.Noise.LevelDb,
+                    NoiseBandwidthHz = audio.Noise.BandwidthHz,
+                    AgcEnabled = audio.Noise.AgcEnabled,
+                    AgcDelaySeconds = audio.Noise.AgcDelaySeconds,
+                    ApfEnabled = audio.Noise.ApfEnabled,
+                    ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
+                    ApfPeakGainDb = audio.Noise.ApfPeakGainDb,
                 };
 
                 await _morsePlayer.PlayMorseCodeAsync(
@@ -181,8 +189,9 @@ public class PracticeController : IPracticeController
         config.Practice.AverageWpm = settings.Practice.AverageWpm;
         config.Audio.SampleRate = settings.Audio.SampleRate;
         config.Audio.Frequency = settings.Audio.Frequency;
-        config.Audio.Volume = settings.Audio.Volume;
+        config.Audio.VolumeDb = settings.Audio.VolumeDb;
         config.Audio.BeepRampMs = settings.Audio.BeepRampMs;
+        config.Audio.Noise = settings.Audio.Noise.Clone();
         config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
         config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
 

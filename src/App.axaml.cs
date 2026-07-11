@@ -52,6 +52,7 @@ public partial class App : Application
         services.AddSingleton<IDialogViewModelFactory, DialogViewModelFactory>();
         services.AddSingleton<IWindowContext, WindowContext>();
         services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
+        services.AddSingleton<INoiseGeneratorFactory, NoiseGeneratorFactory>();
         services.AddSingleton<IMorsePlayer, MorsePlayer>();
         services.AddSingleton<IMorseGenerator, MorseGenerator>();
 

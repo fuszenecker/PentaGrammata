@@ -1,6 +1,8 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NSubstitute;
+using PentaGrammata.Configuration;
 using PentaGrammata.Services;
 
 namespace PentaGrammata.Tests.Services;
@@ -14,7 +16,7 @@ public sealed class MorsePlayerTests
         AverageWpm = averageWpm,
         SampleRate = 8000,
         Frequency = 600,
-        Volume = 0.5,
+        VolumeDb = -6,
         BeepRampMs = 2,
     };
 
@@ -28,7 +30,7 @@ public sealed class MorsePlayerTests
             .PlayAudioAsync(Arg.Do<short[]>(a => captured = a), Arg.Do<int>(r => capturedRate = r), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var sut = new MorsePlayer(audioPlayer);
+        var sut = new MorsePlayer(audioPlayer, new NoiseGeneratorFactory());
         await sut.PlayMorseCodeAsync(text, settings, CancellationToken.None);
 
         return (captured, capturedRate);
@@ -91,10 +93,67 @@ public sealed class MorsePlayerTests
     }
 
     [TestMethod]
+    public async Task PlayMorseCodeAsync_WithNoiseNone_LeavesSilentGapsSilent()
+    {
+        var (audio, _) = await PlayAndCaptureAsync("e", Settings() with { NoiseType = NoiseType.None });
+
+        // With noise disabled the trailing inter-character silence must be pure zeros.
+        Assert.IsTrue(audio.Any(s => s != 0), "expected the beep to produce non-zero samples");
+        Assert.AreEqual(0, audio[^1]);
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_WithGaussianNoise_FillsSilentGapsWithSignal()
+    {
+        var settings = Settings() with
+        {
+            NoiseType = NoiseType.Gaussian,
+            NoiseLevelDb = -6,
+            NoiseBandwidthHz = 500,
+        };
+
+        var (audio, _) = await PlayAndCaptureAsync("e", settings);
+
+        // Continuous noise means the tail (former silence) now carries signal.
+        int nonZeroInTail = audio.Skip(audio.Length - 50).Count(s => s != 0);
+        Assert.IsGreaterThan(0, nonZeroInTail);
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_ReceiverChain_DoesNotClipToRails()
+    {
+        // A well-behaved AGC/filter chain should not slam most samples to the 16-bit
+        // rails; runaway gain would show up as a buffer full of +/-32767.
+        var settings = Settings() with
+        {
+            NoiseType = NoiseType.Gaussian,
+            NoiseLevelDb = -6,
+            NoiseBandwidthHz = 500,
+        };
+
+        var (audio, _) = await PlayAndCaptureAsync("PARIS", settings);
+
+        int railed = audio.Count(s => s == short.MaxValue || s == short.MinValue);
+        Assert.IsLessThan(audio.Length / 10, railed, "receiver chain should not clip most samples to the rails");
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_NoiseDoesNotChangeBufferLength()
+    {
+        var clean = Settings() with { NoiseType = NoiseType.None };
+        var noisy = Settings() with { NoiseType = NoiseType.Pink, NoiseLevelDb = -3 };
+
+        var (cleanAudio, _) = await PlayAndCaptureAsync("PARIS", clean);
+        var (noisyAudio, _) = await PlayAndCaptureAsync("PARIS", noisy);
+
+        Assert.AreEqual(cleanAudio.Length, noisyAudio.Length);
+    }
+
+    [TestMethod]
     public async Task PlayMorseCodeAsync_WhenCancelledBeforeStart_ThrowsAndDoesNotPlay()
     {
         var audioPlayer = Substitute.For<IAudioPlayer>();
-        var sut = new MorsePlayer(audioPlayer);
+        var sut = new MorsePlayer(audioPlayer, new NoiseGeneratorFactory());
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();

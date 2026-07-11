@@ -81,8 +81,16 @@ All packaging scripts read the version from `version.txt` by default and accept 
 |---|---|---|---|
 | `Audio` | `SampleRate` | `44100` | Audio sample rate (Hz) |
 | `Audio` | `Frequency` | `523.25` | Tone frequency (Hz) |
-| `Audio` | `Volume` | `0.7` | Volume (0–1) |
+| `Audio` | `VolumeDb` | `-3.0` | CW signal level (dBFS; 0 = full scale) |
 | `Audio` | `BeepRampMs` | `4` | Envelope ramp time (ms) |
+| `Audio.Noise` | `Type` | `None` | Background noise: `None`, `Gaussian`, `Uniform`, `Pink` |
+| `Audio.Noise` | `LevelDb` | `-10.0` | Noise level relative to the signal (dB) |
+| `Audio.Noise` | `BandwidthHz` | `500.0` | Shared receiver filter width (Hz) |
+| `Audio.Noise` | `AgcEnabled` | `true` | Automatic gain control on/off |
+| `Audio.Noise` | `AgcDelaySeconds` | `0.4` | AGC release/delay (s) |
+| `Audio.Noise` | `ApfEnabled` | `true` | Audio peak filter on/off |
+| `Audio.Noise` | `ApfBandwidthHz` | `120.0` | Audio peak filter width (Hz) |
+| `Audio.Noise` | `ApfPeakGainDb` | `-9.0` | Peak amplification blended in (dB) |
 | `Practice` | `DefaultDurationMins` | `1` | Session length (minutes) |
 | `Practice` | `CharacterWpm` | `18` | Character speed (WPM) |
 | `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |

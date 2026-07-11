@@ -19,8 +19,16 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Practice.ErrorThreshold, clone.Practice.ErrorThreshold);
         Assert.AreEqual(original.Audio.SampleRate, clone.Audio.SampleRate);
         Assert.AreEqual(original.Audio.Frequency, clone.Audio.Frequency);
-        Assert.AreEqual(original.Audio.Volume, clone.Audio.Volume);
+        Assert.AreEqual(original.Audio.VolumeDb, clone.Audio.VolumeDb);
         Assert.AreEqual(original.Audio.BeepRampMs, clone.Audio.BeepRampMs);
+        Assert.AreEqual(original.Audio.Noise.Type, clone.Audio.Noise.Type);
+        Assert.AreEqual(original.Audio.Noise.LevelDb, clone.Audio.Noise.LevelDb);
+        Assert.AreEqual(original.Audio.Noise.BandwidthHz, clone.Audio.Noise.BandwidthHz);
+        Assert.AreEqual(original.Audio.Noise.AgcEnabled, clone.Audio.Noise.AgcEnabled);
+        Assert.AreEqual(original.Audio.Noise.AgcDelaySeconds, clone.Audio.Noise.AgcDelaySeconds);
+        Assert.AreEqual(original.Audio.Noise.ApfEnabled, clone.Audio.Noise.ApfEnabled);
+        Assert.AreEqual(original.Audio.Noise.ApfBandwidthHz, clone.Audio.Noise.ApfBandwidthHz);
+        Assert.AreEqual(original.Audio.Noise.ApfPeakGainDb, clone.Audio.Noise.ApfPeakGainDb);
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontSize, clone.UiPreferences.ReceivedTextFontSize);
         Assert.AreEqual(original.UiPreferences.RevealSentTextAfterPractice, clone.UiPreferences.RevealSentTextAfterPractice);
         CollectionAssert.AreEqual(original.UiPreferences.SuppressedDialogs, clone.UiPreferences.SuppressedDialogs);
@@ -39,6 +47,7 @@ public sealed class AppConfigurationCloneTests
 
         Assert.AreNotSame(original.Practice, clone.Practice);
         Assert.AreNotSame(original.Audio, clone.Audio);
+        Assert.AreNotSame(original.Audio.Noise, clone.Audio.Noise);
         Assert.AreNotSame(original.UiPreferences, clone.UiPreferences);
         Assert.AreNotSame(original.CharacterSets, clone.CharacterSets);
         Assert.AreNotSame(original.UiPreferences.SuppressedDialogs, clone.UiPreferences.SuppressedDialogs);
@@ -91,8 +100,19 @@ public sealed class AppConfigurationCloneTests
             {
                 SampleRate = 44100,
                 Frequency = 523.25,
-                Volume = 0.7,
+                VolumeDb = -3,
                 BeepRampMs = 4,
+                Noise = new NoiseSettings
+                {
+                    Type = NoiseType.Pink,
+                    LevelDb = -12.5,
+                    BandwidthHz = 400,
+                    AgcEnabled = false,
+                    AgcDelaySeconds = 0.8,
+                    ApfEnabled = false,
+                    ApfBandwidthHz = 90,
+                    ApfPeakGainDb = -6,
+                },
             },
             CharacterSets = new CharacterSets
             {
