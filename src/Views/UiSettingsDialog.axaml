@@ -11,7 +11,7 @@
     <Grid RowDefinitions="*,Auto" Margin="10">
 
         <GroupBox Grid.Row="0" Header="Text display" Margin="0,0,0,10"
-                  CornerRadius="10" Background="#101010">
+                  CornerRadius="0" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Received text font size (pt)"/>
                 <NumericUpDown Minimum="8" Maximum="72" Increment="1" FormatString="0"

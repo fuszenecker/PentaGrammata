@@ -12,7 +12,7 @@
     <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,*" Margin="10">
 
         <GroupBox Grid.Row="0" Grid.Column="0" Header="Practice" Margin="0,0,10,10"
-                CornerRadius="10" Background="#101010">
+                CornerRadius="0" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Character WPM"/>
                 <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
@@ -36,7 +36,7 @@
         </GroupBox>
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Audio" Margin="0,0,0,10"
-                CornerRadius="10" Background="#101010">
+                CornerRadius="0" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
                 <TextBlock Text="Frequency (Hz)"/>
                 <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"/>
@@ -50,7 +50,7 @@
         </GroupBox>
 
         <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Character sets" Margin="0,5,0,0"
-                CornerRadius="10" Background="#101010">
+                CornerRadius="0" Background="#101010">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
