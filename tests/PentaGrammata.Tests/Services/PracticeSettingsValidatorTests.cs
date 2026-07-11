@@ -47,15 +47,103 @@ public sealed class PracticeSettingsValidatorTests
     }
 
     [TestMethod]
-    public void TryValidate_VolumeOutOfRange_ReturnsFalse()
+    public void TryValidate_VolumeAboveFullScale_ReturnsFalse()
     {
         var settings = CreateValidSettings();
-        settings.Audio.Volume = 1.01;
+        settings.Audio.VolumeDb = 0.5;
 
         var success = _validator.TryValidate(settings, out var error);
 
         Assert.IsFalse(success);
-        Assert.AreEqual("Volume must be between 0 and 1.", error);
+        Assert.AreEqual("Volume must be 0 dBFS or lower.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_NoiseEnabledWithNonPositiveBandwidth_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.BandwidthHz = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("Noise filter width must be greater than 0.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_AgcEnabledWithNonPositiveDelay_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.AgcEnabled = true;
+        settings.Audio.Noise.AgcDelaySeconds = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("AGC delay must be greater than 0.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_ApfEnabledWithNonPositiveBandwidth_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.ApfEnabled = true;
+        settings.Audio.Noise.ApfBandwidthHz = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("APF bandwidth must be greater than 0.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_ApfEnabledWithNegativePeakGainDb_ReturnsTrue()
+    {
+        // Peak amplification is now in decibels; negative values simply attenuate the
+        // blended peak and are perfectly valid.
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.ApfEnabled = true;
+        settings.Audio.Noise.ApfPeakGainDb = -20;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
+    public void TryValidate_DisabledStagesWithBadValues_ReturnsTrue()
+    {
+        // AGC/APF params are only validated when their stage is enabled.
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.AgcEnabled = false;
+        settings.Audio.Noise.AgcDelaySeconds = 0;
+        settings.Audio.Noise.ApfEnabled = false;
+        settings.Audio.Noise.ApfBandwidthHz = 0;
+        settings.Audio.Noise.ApfPeakGainDb = -5;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
+    public void TryValidate_NoiseNoneWithZeroBandwidth_ReturnsTrue()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.None;
+        settings.Audio.Noise.BandwidthHz = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
     }
 
     [TestMethod]
@@ -86,7 +174,7 @@ public sealed class PracticeSettingsValidatorTests
             {
                 SampleRate = 44100,
                 Frequency = 523.25,
-                Volume = 0.7,
+                VolumeDb = -3,
                 BeepRampMs = 4,
             },
             CharacterSets = new CharacterSets

@@ -4,11 +4,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using PentaGrammata.Configuration;
+
 namespace PentaGrammata.Services;
 
-public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
+public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseGeneratorFactory) : IMorsePlayer
 {
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
+    private readonly INoiseGeneratorFactory _noiseGeneratorFactory = noiseGeneratorFactory;
 
     public async Task PlayMorseCodeAsync(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken)
     {
@@ -51,13 +54,16 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
         return new short[sampleCount]; // 16-bit audio silence
     }
 
-    private static short[] GenerateAudioData(string morseCode, MorsePlaybackSettings settings)
+    /// <summary>Converts a decibel value to a linear amplitude ratio (0 dB == 1.0).</summary>
+    private static double DecibelsToLinear(double decibels) => Math.Pow(10.0, decibels / 20.0);
+
+    private short[] GenerateAudioData(string morseCode, MorsePlaybackSettings settings)
     {
         int charWpm = settings.CharacterWpm;
         int averageWpm = settings.AverageWpm;
         int sampleRate = settings.SampleRate;
         double frequency = settings.Frequency;
-        double volume = settings.Volume;
+        double volume = DecibelsToLinear(settings.VolumeDb);
         int beepRampMs = settings.BeepRampMs;
 
         if (averageWpm > charWpm)
@@ -126,7 +132,103 @@ public class MorsePlayer(IAudioPlayer audioPlayer) : IMorsePlayer
             audioData.AddRange(GenerateSilence(sampleRate, extraTimePerCharMs));
         }
 
-        return [.. audioData];
+        var samples = audioData.ToArray();
+        ApplyReceiverChain(samples, settings);
+        return samples;
+    }
+
+    /// <summary>
+    /// Passes the rendered Morse signal through a model of a receiver's audio chain so
+    /// it sounds like it came off the air: broadband background noise is mixed with the
+    /// clean tone <em>first</em>, then both are pushed through the SAME band-pass filter
+    /// (a real "filter width" knob), optionally emphasized by an audio peak filter, and
+    /// optionally levelled by an AGC whose slow release lets the noise floor breathe up
+    /// in the gaps and duck under the signal. No-ops when noise is disabled, leaving the
+    /// clean tone untouched.
+    /// </summary>
+    private void ApplyReceiverChain(short[] samples, MorsePlaybackSettings settings)
+    {
+        if (samples.Length == 0)
+        {
+            return;
+        }
+
+        var generator = _noiseGeneratorFactory.Create(settings.NoiseType);
+        if (generator is null)
+        {
+            return;
+        }
+
+        // 1. Broadband (unfiltered) noise, scaled so its level sits NoiseLevelDb relative
+        //    to the volume-corrected tone. We normalize by the generator's own RMS so the
+        //    requested dB means the same thing for Gaussian, uniform and pink alike.
+        var noise = new double[samples.Length];
+        double noiseSumSquares = 0.0;
+        for (int i = 0; i < noise.Length; i++)
+        {
+            double n = generator.Next();
+            noise[i] = n;
+            noiseSumSquares += n * n;
+        }
+
+        double rawNoiseRms = Math.Sqrt(noiseSumSquares / noise.Length);
+        if (rawNoiseRms <= double.Epsilon)
+        {
+            return;
+        }
+
+        double volumeLinear = DecibelsToLinear(settings.VolumeDb);
+        double toneRms = (short.MaxValue * volumeLinear) / Math.Sqrt(2.0);
+        double targetNoiseRms = toneRms * DecibelsToLinear(settings.NoiseLevelDb);
+        double noiseGain = targetNoiseRms / rawNoiseRms;
+
+        // 2. Combine tone + noise, then run the sum through the shared receiver passband.
+        //    Because the tone sits inside the passband it passes almost untouched while
+        //    the broadband noise is trimmed to the band, so a narrower "bandwidth"
+        //    genuinely improves the copy (as on a real filter).
+        var passband = new BandPassFilter(settings.Frequency, settings.NoiseBandwidthHz, settings.SampleRate);
+
+        // 3. AGC (optional): aim to restore the signal to the volume level, with a fast
+        //    attack and a slow release ("delay") so the noise floor swells between
+        //    characters and ducks under a tone. maxGain caps how far quiet passages are
+        //    boosted. The AGC sees only the passband signal (see step 4).
+        double target = short.MaxValue * volumeLinear;
+        AutomaticGainControl? agc = settings.AgcEnabled
+            ? new AutomaticGainControl(settings.SampleRate, target, maxGain: 8.0, releaseSeconds: settings.AgcDelaySeconds)
+            : null;
+
+        // 4. APF (optional): a resonant peak at the tone, added AFTER the AGC and driven
+        //    by the AGC-leveled signal. Placing it downstream of the AGC keeps the AGC
+        //    from riding over (and thus fighting) the peak filter's contribution.
+        BandPassFilter? peakFilter = null;
+        double peakBlend = 0.0;
+        if (settings.ApfEnabled)
+        {
+            // Cap the peak width to the main passband so it always peaks rather than
+            // merely repeating the passband.
+            double peakWidth = Math.Min(settings.ApfBandwidthHz, settings.NoiseBandwidthHz);
+            peakFilter = new BandPassFilter(settings.Frequency, peakWidth, settings.SampleRate);
+            peakBlend = DecibelsToLinear(settings.ApfPeakGainDb);
+        }
+
+        var receiverOutput = new double[samples.Length];
+        for (int i = 0; i < samples.Length; i++)
+        {
+            double mixed = samples[i] + noise[i] * noiseGain;
+            double filtered = passband.Process(mixed);
+            double leveled = agc is not null ? agc.Process(filtered) : filtered;
+            if (peakFilter is not null)
+            {
+                leveled += peakBlend * peakFilter.Process(leveled);
+            }
+
+            receiverOutput[i] = leveled;
+        }
+
+        for (int i = 0; i < samples.Length; i++)
+        {
+            samples[i] = (short)Math.Clamp(receiverOutput[i], short.MinValue, short.MaxValue);
+        }
     }
 
     private static string CharToMorse(string morseChar)

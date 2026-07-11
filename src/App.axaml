@@ -8,29 +8,34 @@
     <Application.Resources>
         <converters:StatusLevelToBrushConverter x:Key="StatusLevelToBrush"/>
         <converters:DiffSegmentKindToBrushConverter x:Key="DiffSegmentKindToBrush"/>
+        <converters:NoiseTypeToEnabledConverter x:Key="NoiseTypeToEnabled"/>
+
+        <!-- Monospace font that clearly distinguishes 0 from O. Cascadia Mono uses a
+             slashed zero; the fallbacks are also unambiguous where it is unavailable. -->
+        <FontFamily x:Key="MonospaceFont">Cascadia Mono, Consolas, DejaVu Sans Mono, monospace</FontFamily>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
 
         <Style Selector="Button">
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="CornerRadius" Value="0" />
         </Style>
 
         <Style Selector="ToggleButton">
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="CornerRadius" Value="0" />
         </Style>
 
         <Style Selector="TextBox">
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="CornerRadius" Value="0" />
         </Style>
 
         <Style Selector="ComboBox">
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="CornerRadius" Value="0" />
         </Style>
 
         <Style Selector="NumericUpDown">
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="CornerRadius" Value="0" />
         </Style>
     </Application.Styles>
 </Application>

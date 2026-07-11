@@ -113,7 +113,7 @@ public sealed class MorseSettingsDialogViewModelTests
             AverageWpm = 17,
             SelectedSampleRate = 48000,
             Frequency = 700,
-            Volume = 0.5,
+            VolumeDb = -6,
             BeepRampMs = 8,
             ErrorThreshold = 12.5,
             CharacterSetsText = "Alpha = ABCDE\nBeta = FGHIJ",
@@ -127,11 +127,77 @@ public sealed class MorseSettingsDialogViewModelTests
         Assert.AreEqual(17, settings.Practice.AverageWpm);
         Assert.AreEqual(48000, settings.Audio.SampleRate);
         Assert.AreEqual(700, settings.Audio.Frequency);
-        Assert.AreEqual(0.5, settings.Audio.Volume);
+        Assert.AreEqual(-6, settings.Audio.VolumeDb);
         Assert.AreEqual(8, settings.Audio.BeepRampMs);
         Assert.AreEqual(12.5, settings.Practice.ErrorThreshold);
         Assert.AreEqual("Alpha", settings.Practice.DefaultCharacterSet);
         Assert.HasCount(2, settings.CharacterSets);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_CarriesNoiseSettingsThrough()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        {
+            SelectedNoiseType = NoiseType.Pink,
+            NoiseLevelDb = -14,
+            NoiseBandwidthHz = 250,
+            AgcEnabled = false,
+            AgcDelaySeconds = 0.6,
+            ApfEnabled = false,
+            ApfBandwidthHz = 100,
+            ApfPeakGainDb = -2,
+            CharacterSetsText = "Default = ABCDE",
+        };
+
+        var success = sut.TryBuildSettings(out var settings);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(NoiseType.Pink, settings.Audio.Noise.Type);
+        Assert.AreEqual(-14, settings.Audio.Noise.LevelDb);
+        Assert.AreEqual(250, settings.Audio.Noise.BandwidthHz);
+        Assert.IsFalse(settings.Audio.Noise.AgcEnabled);
+        Assert.AreEqual(0.6, settings.Audio.Noise.AgcDelaySeconds);
+        Assert.IsFalse(settings.Audio.Noise.ApfEnabled);
+        Assert.AreEqual(100, settings.Audio.Noise.ApfBandwidthHz);
+        Assert.AreEqual(-2, settings.Audio.Noise.ApfPeakGainDb);
+    }
+
+    [TestMethod]
+    public void Constructor_ReadsNoiseSettingsFromConfig()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        var config = CreateConfig(20, 15, "Default");
+        config.Audio.Noise = new NoiseSettings
+        {
+            Type = NoiseType.Uniform,
+            LevelDb = -5,
+            BandwidthHz = 600,
+            AgcEnabled = false,
+            AgcDelaySeconds = 0.25,
+            ApfEnabled = false,
+            ApfBandwidthHz = 150,
+            ApfPeakGainDb = -1,
+        };
+
+        var sut = new MorseSettingsDialogViewModel(config, validator);
+
+        Assert.AreEqual(NoiseType.Uniform, sut.SelectedNoiseType);
+        Assert.AreEqual(-5, sut.NoiseLevelDb);
+        Assert.AreEqual(600, sut.NoiseBandwidthHz);
+        Assert.IsFalse(sut.AgcEnabled);
+        Assert.AreEqual(0.25, sut.AgcDelaySeconds);
+        Assert.IsFalse(sut.ApfEnabled);
+        Assert.AreEqual(150, sut.ApfBandwidthHz);
+        Assert.AreEqual(-1, sut.ApfPeakGainDb);
     }
 
     [TestMethod]
@@ -188,7 +254,7 @@ public sealed class MorseSettingsDialogViewModelTests
             {
                 SampleRate = 44100,
                 Frequency = 523.25,
-                Volume = 0.7,
+                VolumeDb = -3,
                 BeepRampMs = 4,
             },
             CharacterSets = new CharacterSets

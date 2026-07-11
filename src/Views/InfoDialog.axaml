@@ -30,7 +30,7 @@
                  Text="{Binding DetailMessage}"
                  IsReadOnly="True"
                  TextWrapping="Wrap"
-                 FontFamily="Consolas, monospace"
+                 FontFamily="{StaticResource MonospaceFont}"
                  MinHeight="70"
                  VerticalContentAlignment="Top"
                  HorizontalAlignment="Stretch"/>

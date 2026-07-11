@@ -81,13 +81,24 @@ All packaging scripts read the version from `version.txt` by default and accept 
 |---|---|---|---|
 | `Audio` | `SampleRate` | `44100` | Audio sample rate (Hz) |
 | `Audio` | `Frequency` | `523.25` | Tone frequency (Hz) |
-| `Audio` | `Volume` | `0.7` | Volume (0–1) |
+| `Audio` | `VolumeDb` | `-3.0` | CW signal level (dBFS; 0 = full scale) |
 | `Audio` | `BeepRampMs` | `4` | Envelope ramp time (ms) |
+| `Audio.Noise` | `Type` | `None` | Background noise: `None`, `Gaussian`, `Uniform`, `Pink` |
+| `Audio.Noise` | `LevelDb` | `-15.0` | Noise level relative to the signal (dB) |
+| `Audio.Noise` | `BandwidthHz` | `500.0` | Shared receiver filter width (Hz) |
+| `Audio.Noise` | `AgcEnabled` | `true` | Automatic gain control on/off |
+| `Audio.Noise` | `AgcDelaySeconds` | `0.4` | AGC release/delay (s) |
+| `Audio.Noise` | `ApfEnabled` | `true` | Audio peak filter on/off |
+| `Audio.Noise` | `ApfBandwidthHz` | `120.0` | Audio peak filter width (Hz) |
+| `Audio.Noise` | `ApfPeakGainDb` | `-9.0` | Blend gain of the narrow-peak signal added on top of the passband, in dB relative to the passband level after AGC (0 dB = peak as loud as the passband; negative = subtler ring) |
 | `Practice` | `DefaultDurationMins` | `1` | Session length (minutes) |
 | `Practice` | `CharacterWpm` | `18` | Character speed (WPM) |
 | `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
+| `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
+| `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
+| `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |
 | `CharacterSets` | _(named sets)_ | see below | Named sets selectable in the UI |
 
 Default character sets:
@@ -144,6 +155,15 @@ The Koch-LCWO sets follow the [LCWO](https://lcwo.net/) character introduction o
 Lesson 13 (`.`) is intentionally omitted because that character was deemed not useful for practice.
 
 All settings are editable at runtime through the in-app Settings dialog.
+
+### Noise simulation and signal chain
+
+When a noise type other than `None` is selected, the audio passes through a four-stage receiver simulation:
+
+1. **Mix** — the Morse tone and the generated noise are summed, with the noise level set by `LevelDb` (dB relative to the tone).
+2. **Receiver filter** — a biquad band-pass filter centred on the tone frequency and `BandwidthHz` wide removes out-of-band noise, emulating a CW receiver's IF or audio filter. Narrower = tighter filter, less noise, easier copy.
+3. **AGC** — an automatic gain control rides the combined level so the noise floor breathes up in the gaps and ducks under the tone, simulating the characteristic swelling of a real receiver. `AgcDelaySeconds` controls how slowly the gain recovers after a tone ends; larger values keep the floor suppressed longer between characters. Disable with `AgcEnabled = false` for a flat level.
+4. **APF (audio peak filter)** — a second, narrower band-pass filter (`ApfBandwidthHz`) is run over the AGC-levelled signal and its output is *added* on top, creating a resonant peak at the tone frequency. This produces the characteristic CW "ring" that makes individual tones easier to distinguish in noise. `ApfPeakGainDb` sets the blend level relative to the passband signal after AGC: 0 dB adds the peak at full passband amplitude (very prominent ring); −9 dB (default) blends it at ≈ 35 % for a subtle ring. The APF runs after the AGC so the gain control never fights the peak contribution.
 
 ## Project structure
 

@@ -23,7 +23,7 @@
     </Window.Styles>
 
     <Grid RowDefinitions="*,Auto" Margin="12">
-        <Border Grid.Row="0" BorderBrush="#2c2c2c" BorderThickness="1" CornerRadius="4">
+        <Border Grid.Row="0" BorderBrush="#2c2c2c" BorderThickness="1" CornerRadius="0">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Background="#1a1a1a" Margin="0,0,0,1">
                     <TextBlock Grid.Column="0" Text="Sent groups" FontWeight="Bold" Margin="10,8"/>
@@ -36,8 +36,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,1" Background="#111">
-                                    <TextBlock Grid.Column="0" Margin="10,6" Text="{Binding SentGroup}" TextWrapping="Wrap" FontFamily="Consolas, monospace"/>
-                                    <TextBlock Grid.Column="1" Margin="10,6" Text="{Binding ReceivedGroup}" TextWrapping="Wrap" FontFamily="Consolas, monospace"/>
+                                    <TextBlock Grid.Column="0" Margin="10,6" Text="{Binding SentGroup}" TextWrapping="Wrap" FontFamily="{StaticResource MonospaceFont}"/>
+                                    <TextBlock Grid.Column="1" Margin="10,6" Text="{Binding ReceivedGroup}" TextWrapping="Wrap" FontFamily="{StaticResource MonospaceFont}"/>
                                     <ItemsControl Grid.Column="2" Margin="10,6" ItemsSource="{Binding DifferenceSegments}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -46,7 +46,7 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Text}" Foreground="{Binding Kind, Converter={StaticResource DiffSegmentKindToBrush}}" FontFamily="Consolas, monospace"/>
+                                                <TextBlock Text="{Binding Text}" Foreground="{Binding Kind, Converter={StaticResource DiffSegmentKindToBrush}}" FontFamily="{StaticResource MonospaceFont}"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -59,7 +59,7 @@
         </Border>
 
         <Grid Grid.Row="1" Margin="0,10,0,0" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-            <Border Grid.Column="0" Padding="10" Background="#101010" CornerRadius="4">
+            <Border Grid.Column="0" Padding="10" Background="#101010" CornerRadius="0">
                 <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
                     <TextBlock Grid.Column="0" Text="Character count:" FontWeight="Bold"/>
                     <TextBlock Grid.Column="1" Text="{Binding CharacterCountText}"/>

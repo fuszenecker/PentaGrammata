@@ -1,4 +1,5 @@
 using System.Linq;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
@@ -38,9 +39,9 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             return false;
         }
 
-        if (settings.Audio.Volume < 0 || settings.Audio.Volume > 1)
+        if (settings.Audio.VolumeDb > 0)
         {
-            error = "Volume must be between 0 and 1.";
+            error = "Volume must be 0 dBFS or lower.";
             return false;
         }
 
@@ -48,6 +49,29 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
         {
             error = "Beep ramp must be 0 or greater.";
             return false;
+        }
+
+        if (settings.Audio.Noise.Type != NoiseType.None)
+        {
+            var noise = settings.Audio.Noise;
+
+            if (noise.BandwidthHz <= 0)
+            {
+                error = "Noise filter width must be greater than 0.";
+                return false;
+            }
+
+            if (noise.AgcEnabled && noise.AgcDelaySeconds <= 0)
+            {
+                error = "AGC delay must be greater than 0.";
+                return false;
+            }
+
+            if (noise.ApfEnabled && noise.ApfBandwidthHz <= 0)
+            {
+                error = "APF bandwidth must be greater than 0.";
+                return false;
+            }
         }
 
         if (settings.Practice.ErrorThreshold < 0 || settings.Practice.ErrorThreshold > 100)

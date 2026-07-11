@@ -383,7 +383,7 @@ public sealed class MainWindowViewModelTests
             {
                 SampleRate = 44100,
                 Frequency = 523.25,
-                Volume = 0.7,
+                VolumeDb = -3,
                 BeepRampMs = 4,
             },
             CharacterSets = new CharacterSets

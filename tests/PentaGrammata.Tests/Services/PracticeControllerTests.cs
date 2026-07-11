@@ -30,6 +30,14 @@ public sealed class PracticeControllerTests
         config.Practice.CharacterWpm = 24;
         config.CharacterSets["Letters"] = "ABCDE";
         config.Practice.DefaultCharacterSet = "Letters";
+        config.Audio.Noise.Type = NoiseType.Gaussian;
+        config.Audio.Noise.LevelDb = -6;
+        config.Audio.Noise.BandwidthHz = 400;
+        config.Audio.Noise.AgcEnabled = false;
+        config.Audio.Noise.AgcDelaySeconds = 0.75;
+        config.Audio.Noise.ApfEnabled = false;
+        config.Audio.Noise.ApfBandwidthHz = 80;
+        config.Audio.Noise.ApfPeakGainDb = -6;
         configService.Current.Returns(config);
 
         morseGenerator.GenerateGroupsOf5("ABCDE", 28).Returns("ABCDE FGHIJ");
@@ -48,8 +56,16 @@ public sealed class PracticeControllerTests
                 s.AverageWpm == 20 &&
                 s.SampleRate == config.Audio.SampleRate &&
                 s.Frequency == config.Audio.Frequency &&
-                s.Volume == config.Audio.Volume &&
-                s.BeepRampMs == config.Audio.BeepRampMs),
+                s.VolumeDb == config.Audio.VolumeDb &&
+                s.BeepRampMs == config.Audio.BeepRampMs &&
+                s.NoiseType == NoiseType.Gaussian &&
+                s.NoiseLevelDb == -6 &&
+                s.NoiseBandwidthHz == 400 &&
+                s.AgcEnabled == false &&
+                s.AgcDelaySeconds == 0.75 &&
+                s.ApfEnabled == false &&
+                s.ApfBandwidthHz == 80 &&
+                s.ApfPeakGainDb == -6),
             Arg.Any<CancellationToken>());
     }
 
@@ -146,8 +162,19 @@ public sealed class PracticeControllerTests
             {
                 SampleRate = 48000,
                 Frequency = 700,
-                Volume = 0.3,
+                VolumeDb = -10,
                 BeepRampMs = 6,
+                Noise = new NoiseSettings
+                {
+                    Type = NoiseType.Uniform,
+                    LevelDb = -8,
+                    BandwidthHz = 350,
+                    AgcEnabled = false,
+                    AgcDelaySeconds = 0.9,
+                    ApfEnabled = false,
+                    ApfBandwidthHz = 70,
+                    ApfPeakGainDb = -4,
+                },
             },
             CharacterSets = new CharacterSets
             {
@@ -168,8 +195,16 @@ public sealed class PracticeControllerTests
         Assert.AreEqual(12.5, loadedConfig.Practice.ErrorThreshold);
         Assert.AreEqual(48000, loadedConfig.Audio.SampleRate);
         Assert.AreEqual(700, loadedConfig.Audio.Frequency);
-        Assert.AreEqual(0.3, loadedConfig.Audio.Volume);
+        Assert.AreEqual(-10, loadedConfig.Audio.VolumeDb);
         Assert.AreEqual(6, loadedConfig.Audio.BeepRampMs);
+        Assert.AreEqual(NoiseType.Uniform, loadedConfig.Audio.Noise.Type);
+        Assert.AreEqual(-8, loadedConfig.Audio.Noise.LevelDb);
+        Assert.AreEqual(350, loadedConfig.Audio.Noise.BandwidthHz);
+        Assert.IsFalse(loadedConfig.Audio.Noise.AgcEnabled);
+        Assert.AreEqual(0.9, loadedConfig.Audio.Noise.AgcDelaySeconds);
+        Assert.IsFalse(loadedConfig.Audio.Noise.ApfEnabled);
+        Assert.AreEqual(70, loadedConfig.Audio.Noise.ApfBandwidthHz);
+        Assert.AreEqual(-4, loadedConfig.Audio.Noise.ApfPeakGainDb);
         Assert.HasCount(1, loadedConfig.CharacterSets);
         Assert.AreEqual("ABCDE", loadedConfig.CharacterSets["Custom"]);
     }
@@ -212,7 +247,7 @@ public sealed class PracticeControllerTests
             {
                 SampleRate = 44100,
                 Frequency = 523.25,
-                Volume = 0.7,
+                VolumeDb = -3,
                 BeepRampMs = 4,
             },
             CharacterSets = new CharacterSets

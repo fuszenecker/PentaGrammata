@@ -7,7 +7,7 @@
         x:Class="PentaGrammata.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="560" Height="400"
-        MinWidth="500" MinHeight="300"
+        MinWidth="560" MinHeight="300"
         Icon="/Assets/pentagrammata-icon.ico"
         Title="PentaGrammata">
 
@@ -110,6 +110,7 @@
             <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding ReceivedText}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"
                 Padding="8,6" TextWrapping="WrapWithOverflow"
+                FontFamily="{Binding ReceivedTextFontFamily}"
                 FontSize="{Binding ReceivedTextFontSize}"/>
 
             <!-- Fourth row: Check result button -->
