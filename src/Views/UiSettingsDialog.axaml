@@ -3,8 +3,8 @@
         xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.UiSettingsDialog"
         x:DataType="vm:UiSettingsDialogViewModel"
-        Width="360" Height="200"
-        CanResize="False"
+        Width="420" Height="230"
+        MinWidth="420" MinHeight="230"
         WindowStartupLocation="CenterOwner"
         Title="UI Settings">
 
@@ -13,9 +13,16 @@
         <GroupBox Grid.Row="0" Header="Text display" Margin="0,0,0,10"
                   CornerRadius="0" Background="#101010">
             <StackPanel Margin="10" Spacing="8">
-                <TextBlock Text="Received text font size (pt)"/>
-                <NumericUpDown Minimum="8" Maximum="72" Increment="1" FormatString="0"
-                               Value="{Binding ReceivedTextFontSize}"/>
+                <TextBlock Text="Received text font"/>
+                <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+                    <ComboBox Grid.Column="0" Margin="0,0,6,0"
+                              ItemsSource="{Binding AvailableFonts}"
+                              SelectedItem="{Binding ReceivedTextFontFamily}"
+                              HorizontalAlignment="Stretch"/>
+                    <NumericUpDown Grid.Column="1" Width="120"
+                                   Minimum="6" Maximum="72" Increment="1" FormatString="0"
+                                   Value="{Binding ReceivedTextFontSize}"/>
+                </Grid>
                 <CheckBox Content="Reveal sent text after practice"
                           IsChecked="{Binding RevealSentTextAfterPractice}"/>
             </StackPanel>

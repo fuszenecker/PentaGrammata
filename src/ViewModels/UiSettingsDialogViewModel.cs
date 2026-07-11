@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -13,10 +15,15 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     private readonly List<string> _suppressedDialogs;
 
     [ObservableProperty]
+    private string receivedTextFontFamily = string.Empty;
+
+    [ObservableProperty]
     private double receivedTextFontSize;
 
     [ObservableProperty]
     private bool revealSentTextAfterPractice;
+
+    public IReadOnlyList<string> AvailableFonts { get; }
 
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
@@ -26,8 +33,11 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     public UiSettingsDialogViewModel(UiPreferences prefs)
     {
         _suppressedDialogs = [.. prefs.SuppressedDialogs];
+        ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
         ReceivedTextFontSize = prefs.ReceivedTextFontSize;
         RevealSentTextAfterPractice = prefs.RevealSentTextAfterPractice;
+
+        AvailableFonts = [.. FontManager.Current.SystemFonts.Select(f => f.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
         SaveCommand = new RelayCommand(() => CloseRequested?.Invoke(true));
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(false));
@@ -36,6 +46,7 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     public UiPreferences BuildPreferences() => new UiPreferences
     {
         SuppressedDialogs = [.. _suppressedDialogs],
+        ReceivedTextFontFamily = ReceivedTextFontFamily,
         ReceivedTextFontSize = ReceivedTextFontSize,
         RevealSentTextAfterPractice = RevealSentTextAfterPractice,
     };

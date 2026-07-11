@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -54,7 +55,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private int practiceDuration = 5;
 
     [ObservableProperty]
-    private double receivedTextFontSize = 24.0;
+    private FontFamily receivedTextFontFamily = FontFamily.Default;
+
+    [ObservableProperty]
+    private double receivedTextFontSize = 20.0;
 
     public MainWindowViewModel(
         IPracticeController practiceController,
@@ -76,6 +80,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PracticeDuration = _practiceController.PracticeDurationMins;
         CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
         SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        ReceivedTextFontFamily = new FontFamily(_configurationService.Current.UiPreferences.ReceivedTextFontFamily);
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
@@ -210,6 +215,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _configurationService.Current.UiPreferences = newPrefs.Clone();
         await _configurationService.SaveAsync();
+        ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
 

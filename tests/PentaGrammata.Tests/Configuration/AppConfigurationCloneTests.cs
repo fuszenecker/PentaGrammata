@@ -29,6 +29,7 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Audio.Noise.ApfEnabled, clone.Audio.Noise.ApfEnabled);
         Assert.AreEqual(original.Audio.Noise.ApfBandwidthHz, clone.Audio.Noise.ApfBandwidthHz);
         Assert.AreEqual(original.Audio.Noise.ApfPeakGainDb, clone.Audio.Noise.ApfPeakGainDb);
+        Assert.AreEqual(original.UiPreferences.ReceivedTextFontFamily, clone.UiPreferences.ReceivedTextFontFamily);
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontSize, clone.UiPreferences.ReceivedTextFontSize);
         Assert.AreEqual(original.UiPreferences.RevealSentTextAfterPractice, clone.UiPreferences.RevealSentTextAfterPractice);
         CollectionAssert.AreEqual(original.UiPreferences.SuppressedDialogs, clone.UiPreferences.SuppressedDialogs);
@@ -75,11 +76,13 @@ public sealed class AppConfigurationCloneTests
     {
         // Regression guard: an earlier hand-written snapshot dropped UiPreferences.
         var original = CreateSample();
+        original.UiPreferences.ReceivedTextFontFamily = "Ubuntu Mono";
         original.UiPreferences.ReceivedTextFontSize = 42.0;
         original.UiPreferences.RevealSentTextAfterPractice = false;
 
         var clone = original.Clone();
 
+        Assert.AreEqual("Ubuntu Mono", clone.UiPreferences.ReceivedTextFontFamily);
         Assert.AreEqual(42.0, clone.UiPreferences.ReceivedTextFontSize);
         Assert.IsFalse(clone.UiPreferences.RevealSentTextAfterPractice);
     }
@@ -121,7 +124,8 @@ public sealed class AppConfigurationCloneTests
             UiPreferences = new UiPreferences
             {
                 SuppressedDialogs = { "ResultsSaved" },
-                ReceivedTextFontSize = 24.0,
+                ReceivedTextFontFamily = "Cascadia Mono",
+                ReceivedTextFontSize = 20.0,
                 RevealSentTextAfterPractice = true,
             },
         };
