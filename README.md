@@ -84,7 +84,7 @@ All packaging scripts read the version from `version.txt` by default and accept 
 | `Audio` | `VolumeDb` | `-3.0` | CW signal level (dBFS; 0 = full scale) |
 | `Audio` | `BeepRampMs` | `4` | Envelope ramp time (ms) |
 | `Audio.Noise` | `Type` | `None` | Background noise: `None`, `Gaussian`, `Uniform`, `Pink` |
-| `Audio.Noise` | `LevelDb` | `-10.0` | Noise level relative to the signal (dB) |
+| `Audio.Noise` | `LevelDb` | `-15.0` | Noise level relative to the signal (dB) |
 | `Audio.Noise` | `BandwidthHz` | `500.0` | Shared receiver filter width (Hz) |
 | `Audio.Noise` | `AgcEnabled` | `true` | Automatic gain control on/off |
 | `Audio.Noise` | `AgcDelaySeconds` | `0.4` | AGC release/delay (s) |

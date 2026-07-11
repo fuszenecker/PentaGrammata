@@ -21,7 +21,7 @@ public sealed record MorsePlaybackSettings
     public NoiseType NoiseType { get; init; } = NoiseType.None;
 
     /// <summary>Noise level relative to the tone (<see cref="VolumeDb"/>), in decibels.</summary>
-    public double NoiseLevelDb { get; init; } = -10.0;
+    public double NoiseLevelDb { get; init; } = -15.0;
 
     /// <summary>Width of the shared receiver filter centered on <see cref="Frequency"/>, in Hz.</summary>
     public double NoiseBandwidthHz { get; init; } = 500.0;

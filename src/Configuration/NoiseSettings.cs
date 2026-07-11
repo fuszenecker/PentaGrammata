@@ -1,0 +1,61 @@
+namespace PentaGrammata.Configuration;
+
+/// <summary>
+/// Background-noise parameters mixed under the Morse tone. By default there is no
+/// noise (<see cref="Type"/> == <see cref="NoiseType.None"/>).
+/// </summary>
+public sealed class NoiseSettings
+{
+    /// <summary>Which noise generator to use, or <see cref="NoiseType.None"/> for a clean signal.</summary>
+    public NoiseType Type { get; set; } = NoiseType.None;
+
+    /// <summary>
+    /// Noise level relative to the Morse tone, in decibels. Negative values place the
+    /// noise below the tone. The reference tone level already accounts for the audio
+    /// volume (loudness) setting.
+    /// </summary>
+    public double LevelDb { get; set; } = -15.0;
+
+    /// <summary>Width, in Hz, of the shared receiver filter, centered on the tone frequency.</summary>
+    public double BandwidthHz { get; set; } = 500.0;
+
+    /// <summary>
+    /// When true, an automatic gain control rides the combined signal so the noise floor
+    /// breathes up in the gaps and ducks under the tone. When false the level is left flat.
+    /// </summary>
+    public bool AgcEnabled { get; set; } = true;
+
+    /// <summary>
+    /// AGC release ("delay"), in seconds: how slowly the gain recovers after a signal
+    /// ends. Larger values keep the noise floor suppressed longer between characters.
+    /// </summary>
+    public double AgcDelaySeconds { get; set; } = 0.4;
+
+    /// <summary>
+    /// When true, an audio peak filter (APF) adds a resonant peak at the tone for the
+    /// characteristic CW "ring". When false the tone passes through the wider filter only.
+    /// </summary>
+    public bool ApfEnabled { get; set; } = true;
+
+    /// <summary>Width, in Hz, of the audio peak filter's resonant peak at the tone.</summary>
+    public double ApfBandwidthHz { get; set; } = 120.0;
+
+    /// <summary>
+    /// Peak amplification of the peak-filtered signal blended in, in decibels. 0 dB blends
+    /// the peak in at unity; negative values ring more subtly, positive values more
+    /// prominently above the passband.
+    /// </summary>
+    public double ApfPeakGainDb { get; set; } = -9.0;
+
+    public NoiseSettings Clone() => new()
+    {
+        Type = Type,
+        LevelDb = LevelDb,
+        BandwidthHz = BandwidthHz,
+        AgcEnabled = AgcEnabled,
+        AgcDelaySeconds = AgcDelaySeconds,
+        ApfEnabled = ApfEnabled,
+        ApfBandwidthHz = ApfBandwidthHz,
+        ApfPeakGainDb = ApfPeakGainDb,
+    };
+}
