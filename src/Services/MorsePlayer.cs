@@ -182,44 +182,47 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
         double targetNoiseRms = toneRms * DecibelsToLinear(settings.NoiseLevelDb);
         double noiseGain = targetNoiseRms / rawNoiseRms;
 
-        // 2. Combine tone + noise, then run the sum through the shared receiver passband
-        //    and (optionally) a narrower audio peak filter. Because the tone sits inside
-        //    the passband it passes almost untouched while the broadband noise is trimmed
-        //    to the band, so a narrower "bandwidth" genuinely improves the copy (as on a
-        //    real filter).
+        // 2. Combine tone + noise, then run the sum through the shared receiver passband.
+        //    Because the tone sits inside the passband it passes almost untouched while
+        //    the broadband noise is trimmed to the band, so a narrower "bandwidth"
+        //    genuinely improves the copy (as on a real filter).
         var passband = new BandPassFilter(settings.Frequency, settings.NoiseBandwidthHz, settings.SampleRate);
-
-        BandPassFilter? peakFilter = null;
-        double peakBlend = 0.0;
-        if (settings.ApfEnabled)
-        {
-            // The APF is a resonant peak at the tone; cap its width to the main passband
-            // so it always peaks rather than merely repeating the passband.
-            double peakWidth = Math.Min(settings.ApfBandwidthHz, settings.NoiseBandwidthHz);
-            peakFilter = new BandPassFilter(settings.Frequency, peakWidth, settings.SampleRate);
-            peakBlend = DecibelsToLinear(settings.ApfPeakGainDb);
-        }
 
         // 3. AGC (optional): aim to restore the signal to the volume level, with a fast
         //    attack and a slow release ("delay") so the noise floor swells between
         //    characters and ducks under a tone. maxGain caps how far quiet passages are
-        //    boosted.
+        //    boosted. The AGC sees only the passband signal (see step 4).
         double target = short.MaxValue * volumeLinear;
         AutomaticGainControl? agc = settings.AgcEnabled
             ? new AutomaticGainControl(settings.SampleRate, target, maxGain: 8.0, releaseSeconds: settings.AgcDelaySeconds)
             : null;
+
+        // 4. APF (optional): a resonant peak at the tone, added AFTER the AGC and driven
+        //    by the AGC-leveled signal. Placing it downstream of the AGC keeps the AGC
+        //    from riding over (and thus fighting) the peak filter's contribution.
+        BandPassFilter? peakFilter = null;
+        double peakBlend = 0.0;
+        if (settings.ApfEnabled)
+        {
+            // Cap the peak width to the main passband so it always peaks rather than
+            // merely repeating the passband.
+            double peakWidth = Math.Min(settings.ApfBandwidthHz, settings.NoiseBandwidthHz);
+            peakFilter = new BandPassFilter(settings.Frequency, peakWidth, settings.SampleRate);
+            peakBlend = DecibelsToLinear(settings.ApfPeakGainDb);
+        }
 
         var receiverOutput = new double[samples.Length];
         for (int i = 0; i < samples.Length; i++)
         {
             double mixed = samples[i] + noise[i] * noiseGain;
             double filtered = passband.Process(mixed);
+            double leveled = agc is not null ? agc.Process(filtered) : filtered;
             if (peakFilter is not null)
             {
-                filtered += peakBlend * peakFilter.Process(mixed);
+                leveled += peakBlend * peakFilter.Process(leveled);
             }
 
-            receiverOutput[i] = agc is not null ? agc.Process(filtered) : filtered;
+            receiverOutput[i] = leveled;
         }
 
         for (int i = 0; i < samples.Length; i++)
