@@ -41,9 +41,12 @@ public sealed class NoiseSettings
     public double ApfBandwidthHz { get; set; } = 120.0;
 
     /// <summary>
-    /// Peak amplification of the peak-filtered signal blended in, in decibels. 0 dB blends
-    /// the peak in at unity; negative values ring more subtly, positive values more
-    /// prominently above the passband.
+    /// Blend gain of the narrow-peak-filtered signal added on top of the passband, in
+    /// decibels relative to the passband signal level after AGC. The APF output is scaled
+    /// by <c>10^(ApfPeakGainDb/20)</c> and added to the passband: 0 dB adds the peak at
+    /// the same amplitude as the passband (very prominent ring); −6 dB at half amplitude;
+    /// −9 dB (default) at ~35 % for a subtle CW ring. Positive values make the peak
+    /// dominate above the passband.
     /// </summary>
     public double ApfPeakGainDb { get; set; } = -9.0;
 

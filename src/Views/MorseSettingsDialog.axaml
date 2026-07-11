@@ -4,7 +4,7 @@
         x:Class="PentaGrammata.Views.MorseSettingsDialog"
         x:DataType="vm:MorseSettingsDialogViewModel"
         Width="640" Height="480"
-        MinWidth="640" MinHeight="380"
+        MinWidth="640" MinHeight="400"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">
@@ -97,7 +97,7 @@
                                            IsEnabled="{Binding ApfEnabled}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Peak amplification (dB)"/>
+                            <TextBlock Text="Peak blend gain (dB re passband)"/>
                             <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
                                            Value="{Binding ApfPeakGainDb}"
                                            IsEnabled="{Binding ApfEnabled}"/>
@@ -105,7 +105,7 @@
                     </Grid>
 
                     <TextBlock Foreground="#9aa0a6" TextWrapping="Wrap"
-                            Text="Signal and noise pass through a shared receiver filter (narrower = tighter CW filter). AGC makes the noise floor breathe; the audio peak filter (APF) rings the tone. Select &quot;None&quot; for a clean signal."/>
+                            Text="Signal and noise pass through a shared receiver filter (narrower = tighter CW filter). AGC makes the noise floor breathe; the audio peak filter (APF) rings the tone. Peak blend gain is relative to the passband level after AGC: 0 dB = peak as loud as the passband, negative = subtler ring. Select &quot;None&quot; for a clean signal."/>
                 </StackPanel>
             </TabItem>
 
