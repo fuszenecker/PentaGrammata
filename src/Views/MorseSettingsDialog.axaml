@@ -3,8 +3,8 @@
         xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.MorseSettingsDialog"
         x:DataType="vm:MorseSettingsDialogViewModel"
-        Width="560" Height="480"
-        MinWidth="480" MinHeight="380"
+        Width="640" Height="480"
+        MinWidth="640" MinHeight="380"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">
