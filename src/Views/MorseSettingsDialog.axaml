@@ -97,7 +97,7 @@
                                            IsEnabled="{Binding ApfEnabled}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Peak blend gain (dB re passband)"/>
+                            <TextBlock Text="Peak blend gain (dB)"/>
                             <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
                                            Value="{Binding ApfPeakGainDb}"
                                            IsEnabled="{Binding ApfEnabled}"/>
