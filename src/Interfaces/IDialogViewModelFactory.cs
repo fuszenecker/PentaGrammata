@@ -19,7 +19,8 @@ public interface IDialogViewModelFactory
         PracticeResult result,
         int characterWpm,
         int averageWpm,
-        bool alreadySaved);
+        bool alreadySaved,
+        NoiseSettings noise);
 
     UiSettingsDialogViewModel CreateUiSettings(UiPreferences current);
 

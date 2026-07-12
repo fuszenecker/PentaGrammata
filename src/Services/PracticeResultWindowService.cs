@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
@@ -19,7 +20,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
         _viewModelFactory = viewModelFactory;
     }
 
-    public async Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved)
+    public async Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved, NoiseSettings noise)
     {
         var owner = _windowContext.MainWindow;
         if (owner is null)
@@ -27,7 +28,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             return false;
         }
 
-        var viewModel = _viewModelFactory.CreatePracticeResult(result, characterWpm, averageWpm, alreadySaved);
+        var viewModel = _viewModelFactory.CreatePracticeResult(result, characterWpm, averageWpm, alreadySaved, noise);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = viewModel

@@ -31,10 +31,11 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         PracticeResult result,
         int characterWpm,
         int averageWpm,
-        bool alreadySaved)
+        bool alreadySaved,
+        NoiseSettings noise)
     {
         return new PracticeResultWindowViewModel(
-            result, characterWpm, averageWpm, alreadySaved, _statisticsStore, _infoDialogService);
+            result, characterWpm, averageWpm, alreadySaved, noise, _statisticsStore, _infoDialogService);
     }
 
     public UiSettingsDialogViewModel CreateUiSettings(UiPreferences current)

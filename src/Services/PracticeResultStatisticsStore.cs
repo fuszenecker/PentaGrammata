@@ -62,7 +62,15 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 average_wpm,
                 character_count,
                 error_count,
-                error_rate_percent
+                error_rate_percent,
+                noise_type,
+                noise_level_db,
+                noise_bandwidth_hz,
+                agc_enabled,
+                agc_delay_seconds,
+                apf_enabled,
+                apf_bandwidth_hz,
+                apf_peak_gain_db
             )
             VALUES (
                 $recorded_at,
@@ -70,7 +78,15 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 $average_wpm,
                 $character_count,
                 $error_count,
-                $error_rate_percent
+                $error_rate_percent,
+                $noise_type,
+                $noise_level_db,
+                $noise_bandwidth_hz,
+                $agc_enabled,
+                $agc_delay_seconds,
+                $apf_enabled,
+                $apf_bandwidth_hz,
+                $apf_peak_gain_db
             );
             """;
 
@@ -80,6 +96,14 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$character_count", record.CharacterCount);
         insertCommand.Parameters.AddWithValue("$error_count", record.ErrorCount);
         insertCommand.Parameters.AddWithValue("$error_rate_percent", record.ErrorRatePercent);
+        insertCommand.Parameters.AddWithValue("$noise_type", record.NoiseType.ToString());
+        insertCommand.Parameters.AddWithValue("$noise_level_db", record.NoiseLevelDb);
+        insertCommand.Parameters.AddWithValue("$noise_bandwidth_hz", record.NoiseBandwidthHz);
+        insertCommand.Parameters.AddWithValue("$agc_enabled", record.AgcEnabled ? 1 : 0);
+        insertCommand.Parameters.AddWithValue("$agc_delay_seconds", record.AgcDelaySeconds);
+        insertCommand.Parameters.AddWithValue("$apf_enabled", record.ApfEnabled ? 1 : 0);
+        insertCommand.Parameters.AddWithValue("$apf_bandwidth_hz", record.ApfBandwidthHz);
+        insertCommand.Parameters.AddWithValue("$apf_peak_gain_db", record.ApfPeakGainDb);
 
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -109,7 +133,15 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     average_wpm INTEGER NOT NULL,
                     character_count INTEGER NOT NULL,
                     error_count INTEGER NOT NULL,
-                    error_rate_percent REAL NOT NULL
+                    error_rate_percent REAL NOT NULL,
+                    noise_type TEXT NOT NULL,
+                    noise_level_db REAL NOT NULL,
+                    noise_bandwidth_hz REAL NOT NULL,
+                    agc_enabled INTEGER NOT NULL,
+                    agc_delay_seconds REAL NOT NULL,
+                    apf_enabled INTEGER NOT NULL,
+                    apf_bandwidth_hz REAL NOT NULL,
+                    apf_peak_gain_db REAL NOT NULL
                 );
                 """;
 

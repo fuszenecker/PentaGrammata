@@ -194,7 +194,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var result = _practiceController.BuildResult(ReceivedText);
         var settings = _practiceController.CreateSettingsSnapshot();
         var saved = await _practiceResultWindowService.ShowPracticeResultAsync(
-            result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm, _practiceController.IsResultSaved);
+            result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm, _practiceController.IsResultSaved, settings.Audio.Noise);
         if (saved)
         {
             _practiceController.IsResultSaved = true;

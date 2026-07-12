@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
@@ -55,6 +56,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         int characterWpm,
         int averageWpm,
         bool alreadySaved,
+        NoiseSettings noise,
         IPracticeResultStatisticsStore statisticsStore,
         IInfoDialogService infoDialogService)
     {
@@ -81,7 +83,15 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             AverageWpm = averageWpm,
             CharacterCount = result.CharacterCount,
             ErrorCount = result.ErrorCount,
-            ErrorRatePercent = result.ErrorRatePercent
+            ErrorRatePercent = result.ErrorRatePercent,
+            NoiseType = noise.Type,
+            NoiseLevelDb = noise.LevelDb,
+            NoiseBandwidthHz = noise.BandwidthHz,
+            AgcEnabled = noise.AgcEnabled,
+            AgcDelaySeconds = noise.AgcDelaySeconds,
+            ApfEnabled = noise.ApfEnabled,
+            ApfBandwidthHz = noise.ApfBandwidthHz,
+            ApfPeakGainDb = noise.ApfPeakGainDb
         };
 
         SaveResultsCommand = new AsyncRelayCommand(SaveResultsAsync, CanSaveResults);
