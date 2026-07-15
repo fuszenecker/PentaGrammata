@@ -56,6 +56,7 @@ public partial class App : Application
         services.AddSingleton<IMorsePlayer, MorsePlayer>();
         services.AddSingleton<IMorseGenerator, MorseGenerator>();
 
+        services.AddSingleton<IAppPaths, AppPaths>();
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();

@@ -170,7 +170,7 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
         var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
         {
@@ -180,7 +180,7 @@ public sealed class MainWindowViewModelTests
         await sut.OpenResultWindowAsync();
 
         practiceController.Received(1).BuildResult("RX");
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false);
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]
@@ -203,7 +203,7 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false).Returns(Task.FromResult(true));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(true));
 
         var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
         {
@@ -235,7 +235,7 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
         var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
         {
@@ -244,7 +244,7 @@ public sealed class MainWindowViewModelTests
 
         await sut.OpenResultWindowAsync();
 
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true);
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]

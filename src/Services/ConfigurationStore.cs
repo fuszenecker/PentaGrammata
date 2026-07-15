@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
@@ -14,13 +13,15 @@ namespace PentaGrammata.Services;
 public sealed class ConfigurationStore : IConfigurationStore
 {
     private readonly ILogger<ConfigurationStore> _logger;
+    private readonly IAppPaths _appPaths;
     private readonly string? _userConfigPath;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
-    public ConfigurationStore(ILogger<ConfigurationStore> logger)
+    public ConfigurationStore(IAppPaths appPaths, ILogger<ConfigurationStore> logger)
     {
         _logger = logger;
-        _userConfigPath = ConfigurationPaths.GetPreferredPerUserConfigPath();
+        _appPaths = appPaths;
+        _userConfigPath = appPaths.PreferredUserConfigPath;
     }
 
     public AppConfig Load()
@@ -29,7 +30,7 @@ public sealed class ConfigurationStore : IConfigurationStore
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
 
-        foreach (var userConfigPath in ConfigurationPaths.GetPerUserConfigPaths())
+        foreach (var userConfigPath in _appPaths.UserConfigPaths)
         {
             builder.AddJsonFile(userConfigPath, optional: true, reloadOnChange: false);
         }

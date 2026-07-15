@@ -128,6 +128,7 @@ public sealed class MorsePlayerTests
     }
 
     [TestMethod]
+    public async Task PlayMorseCodeAsync_WithNoiseNone_LeavesTrailingSilenceZero()
     {
         var (audio, _) = await PlayAndCaptureAsync("e", Settings() with { NoiseType = NoiseType.None });
 
