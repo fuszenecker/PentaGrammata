@@ -182,8 +182,9 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
         double targetNoiseRms = toneRms * DecibelsToLinear(settings.NoiseLevelDb);
 
         // 2. Scale the noise so its level sits NoiseLevelDb relative to the tone AFTER the
-        //    shared passband — i.e. NoiseLevelDb is the signal-to-noise ratio actually
-        //    heard, not a pre-filter figure that silently improves as the band narrows.
+        //    shared passband — i.e. -NoiseLevelDb is the in-band signal-to-noise ratio
+        //    actually heard (what the UI exposes), not a pre-filter figure that silently
+        //    improves as the band narrows.
         //    We measure the noise's post-filter RMS with a throwaway filter identical to
         //    the chain's. Because the biquad is linear, filter(tone + g·noise) =
         //    filter(tone) + g·filter(noise), so this measured noise component is exactly
