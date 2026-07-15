@@ -20,7 +20,11 @@ public sealed record MorsePlaybackSettings
     /// <summary>Background-noise type; defaults to <see cref="NoiseType.None"/> (clean signal).</summary>
     public NoiseType NoiseType { get; init; } = NoiseType.None;
 
-    /// <summary>Noise level relative to the tone (<see cref="VolumeDb"/>), in decibels.</summary>
+    /// <summary>
+    /// Noise level relative to the tone (<see cref="VolumeDb"/>), in decibels, measured
+    /// after the shared passband — i.e. the in-band signal-to-noise ratio actually heard,
+    /// independent of <see cref="NoiseBandwidthHz"/>.
+    /// </summary>
     public double NoiseLevelDb { get; init; } = -15.0;
 
     /// <summary>Width of the shared receiver filter centered on <see cref="Frequency"/>, in Hz.</summary>

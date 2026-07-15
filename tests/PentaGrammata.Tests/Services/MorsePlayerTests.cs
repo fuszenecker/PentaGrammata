@@ -21,7 +21,11 @@ public sealed class MorsePlayerTests
     };
 
     /// <summary>Plays the given text and returns the audio buffer handed to the player.</summary>
-    private static async Task<(short[] Audio, int SampleRate)> PlayAndCaptureAsync(string text, MorsePlaybackSettings settings)
+    private static Task<(short[] Audio, int SampleRate)> PlayAndCaptureAsync(string text, MorsePlaybackSettings settings)
+        => PlayAndCaptureAsync(text, settings, new NoiseGeneratorFactory());
+
+    private static async Task<(short[] Audio, int SampleRate)> PlayAndCaptureAsync(
+        string text, MorsePlaybackSettings settings, INoiseGeneratorFactory noiseFactory)
     {
         var audioPlayer = Substitute.For<IAudioPlayer>();
         short[] captured = [];
@@ -30,10 +34,31 @@ public sealed class MorsePlayerTests
             .PlayAudioAsync(Arg.Do<short[]>(a => captured = a), Arg.Do<int>(r => capturedRate = r), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var sut = new MorsePlayer(audioPlayer, new NoiseGeneratorFactory());
+        var sut = new MorsePlayer(audioPlayer, noiseFactory);
         await sut.PlayMorseCodeAsync(text, settings, CancellationToken.None);
 
         return (captured, capturedRate);
+    }
+
+    /// <summary>
+    /// A factory that hands out Gaussian generators seeded identically on every call, so two
+    /// separate playbacks see the exact same raw noise sequence and can be compared directly.
+    /// </summary>
+    private sealed class SeededGaussianNoiseFactory(int seed) : INoiseGeneratorFactory
+    {
+        public INoiseGenerator? Create(NoiseType type) => new GaussianNoiseGenerator(new System.Random(seed));
+    }
+
+    /// <summary>RMS over a window, used to measure the residual noise floor in a silent gap.</summary>
+    private static double Rms(short[] samples, int start, int count)
+    {
+        double sumSquares = 0.0;
+        for (int i = start; i < start + count; i++)
+        {
+            sumSquares += (double)samples[i] * samples[i];
+        }
+
+        return System.Math.Sqrt(sumSquares / count);
     }
 
     [TestMethod]
@@ -152,6 +177,65 @@ public sealed class MorsePlayerTests
         // Continuous noise means the tail (former silence) now carries signal.
         int nonZeroInTail = audio.Skip(audio.Length - 50).Count(s => s != 0);
         Assert.IsGreaterThan(0, nonZeroInTail);
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_NoiseFloor_IsInvariantToBandwidth()
+    {
+        // The point of measuring NoiseLevelDb AFTER the passband: the audible in-band noise
+        // floor must be the same whether the filter is wide or narrow. A narrower filter
+        // removes out-of-band noise but must not change the in-band SNR the operator set.
+        // AGC/APF are nonlinear, so disable them to read the raw scaled+filtered noise.
+        var baseSettings = Settings() with
+        {
+            NoiseType = NoiseType.Gaussian,
+            NoiseLevelDb = -6,
+            AgcEnabled = false,
+            ApfEnabled = false,
+            SampleRate = 8000,
+        };
+        var factory = new SeededGaussianNoiseFactory(1234);
+
+        var (wide, _)   = await PlayAndCaptureAsync("e", baseSettings with { NoiseBandwidthHz = 1500 }, factory);
+        var (narrow, _) = await PlayAndCaptureAsync("e", baseSettings with { NoiseBandwidthHz = 300 },  factory);
+
+        // Measure the noise floor in the trailing gap (well clear of the single dit beep).
+        int window = 800;
+        double wideFloor   = Rms(wide,   wide.Length   - window, window);
+        double narrowFloor = Rms(narrow, narrow.Length - window, window);
+
+        Assert.IsGreaterThan(0.0, wideFloor);
+        // Within 12% despite a 5x bandwidth difference. (Pre-fix, the narrow floor would be
+        // far lower because the level was set before the filter trimmed the noise.)
+        double ratio = narrowFloor / wideFloor;
+        Assert.IsTrue(ratio is > 0.88 and < 1.12, $"noise floor drifted with bandwidth: ratio={ratio:F3}");
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_NoiseFloor_TracksNoiseLevelDb()
+    {
+        // Raising NoiseLevelDb by 6 dB must raise the in-band noise floor by ~6 dB
+        // (a linear amplitude factor of ~2), confirming the dB scaling is applied correctly.
+        var baseSettings = Settings() with
+        {
+            NoiseType = NoiseType.Gaussian,
+            NoiseBandwidthHz = 500,
+            AgcEnabled = false,
+            ApfEnabled = false,
+            SampleRate = 8000,
+        };
+        var factory = new SeededGaussianNoiseFactory(4321);
+
+        var (quiet, _) = await PlayAndCaptureAsync("e", baseSettings with { NoiseLevelDb = -12 }, factory);
+        var (loud, _)  = await PlayAndCaptureAsync("e", baseSettings with { NoiseLevelDb = -6 },  factory);
+
+        int window = 800;
+        double quietFloor = Rms(quiet, quiet.Length - window, window);
+        double loudFloor  = Rms(loud,  loud.Length  - window, window);
+
+        double ratio = loudFloor / quietFloor;
+        // +6 dB == 10^(6/20) == ~1.995x amplitude.
+        Assert.IsTrue(ratio is > 1.8 and < 2.2, $"expected ~2x floor for +6 dB, got ratio={ratio:F3}");
     }
 
     [TestMethod]

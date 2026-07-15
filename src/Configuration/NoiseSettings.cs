@@ -12,7 +12,9 @@ public sealed class NoiseSettings
     /// <summary>
     /// Noise level relative to the Morse tone, in decibels. Negative values place the
     /// noise below the tone. The reference tone level already accounts for the audio
-    /// volume (loudness) setting.
+    /// volume (loudness) setting. This is the in-band level heard after the receiver
+    /// filter, so it is a true signal-to-noise ratio and does not drift as
+    /// <see cref="BandwidthHz"/> changes.
     /// </summary>
     public double LevelDb { get; set; } = -15.0;
 

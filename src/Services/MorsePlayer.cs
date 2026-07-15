@@ -169,45 +169,60 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
             return;
         }
 
-        // 1. Broadband (unfiltered) noise, scaled so its level sits NoiseLevelDb relative
-        //    to the volume-corrected tone. We normalize by the generator's own RMS so the
-        //    requested dB means the same thing for Gaussian, uniform and pink alike.
+        // 1. Broadband noise from the generator. Its raw amplitude is arbitrary; step 2
+        //    rescales it, so here we only capture the samples.
         var noise = new double[samples.Length];
-        double noiseSumSquares = 0.0;
         for (int i = 0; i < noise.Length; i++)
         {
-            double n = generator.Next();
-            noise[i] = n;
-            noiseSumSquares += n * n;
-        }
-
-        double rawNoiseRms = Math.Sqrt(noiseSumSquares / noise.Length);
-        if (rawNoiseRms <= double.Epsilon)
-        {
-            return;
+            noise[i] = generator.Next();
         }
 
         double volumeLinear = DecibelsToLinear(settings.VolumeDb);
         double toneRms = (short.MaxValue * volumeLinear) / Math.Sqrt(2.0);
         double targetNoiseRms = toneRms * DecibelsToLinear(settings.NoiseLevelDb);
-        double noiseGain = targetNoiseRms / rawNoiseRms;
 
-        // 2. Combine tone + noise, then run the sum through the shared receiver passband.
+        // 2. Scale the noise so its level sits NoiseLevelDb relative to the tone AFTER the
+        //    shared passband — i.e. NoiseLevelDb is the signal-to-noise ratio actually
+        //    heard, not a pre-filter figure that silently improves as the band narrows.
+        //    We measure the noise's post-filter RMS with a throwaway filter identical to
+        //    the chain's. Because the biquad is linear, filter(tone + g·noise) =
+        //    filter(tone) + g·filter(noise), so this measured noise component is exactly
+        //    what reaches the output. The tone sits at the passband center (unity gain),
+        //    so filter(tone) keeps toneRms as the reference. Normalizing by the noise's own
+        //    post-filter RMS also makes the requested dB mean the same thing for Gaussian,
+        //    uniform and pink alike.
+        var noiseMeasurementFilter = new BandPassFilter(settings.Frequency, settings.NoiseBandwidthHz, settings.SampleRate);
+        double filteredNoiseSumSquares = 0.0;
+        for (int i = 0; i < noise.Length; i++)
+        {
+            double filtered = noiseMeasurementFilter.Process(noise[i]);
+            filteredNoiseSumSquares += filtered * filtered;
+        }
+
+        double filteredNoiseRms = Math.Sqrt(filteredNoiseSumSquares / noise.Length);
+        if (filteredNoiseRms <= double.Epsilon)
+        {
+            return;
+        }
+
+        double noiseGain = targetNoiseRms / filteredNoiseRms;
+
+        // 3. Combine tone + noise, then run the sum through the shared receiver passband.
         //    Because the tone sits inside the passband it passes almost untouched while
-        //    the broadband noise is trimmed to the band, so a narrower "bandwidth"
-        //    genuinely improves the copy (as on a real filter).
+        //    the broadband noise is trimmed to the band, so a narrower "bandwidth" removes
+        //    out-of-band noise (the in-band SNR set in step 2 is preserved regardless).
         var passband = new BandPassFilter(settings.Frequency, settings.NoiseBandwidthHz, settings.SampleRate);
 
-        // 3. AGC (optional): aim to restore the signal to the volume level, with a fast
+        // 4. AGC (optional): aim to restore the signal to the volume level, with a fast
         //    attack and a slow release ("delay") so the noise floor swells between
         //    characters and ducks under a tone. maxGain caps how far quiet passages are
-        //    boosted. The AGC sees only the passband signal (see step 4).
+        //    boosted. The AGC sees only the passband signal (see the step 6 loop).
         double target = short.MaxValue * volumeLinear;
         AutomaticGainControl? agc = settings.AgcEnabled
             ? new AutomaticGainControl(settings.SampleRate, target, maxGain: 8.0, releaseSeconds: settings.AgcDelaySeconds)
             : null;
 
-        // 4. APF (optional): a resonant peak at the tone, added AFTER the AGC and driven
+        // 5. APF (optional): a resonant peak at the tone, added AFTER the AGC and driven
         //    by the AGC-leveled signal. Placing it downstream of the AGC keeps the AGC
         //    from riding over (and thus fighting) the peak filter's contribution.
         BandPassFilter? peakFilter = null;
@@ -221,6 +236,8 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
             peakBlend = DecibelsToLinear(settings.ApfPeakGainDb);
         }
 
+        // 6. Run the tone + scaled noise through the chain: shared passband, then AGC,
+        //    then the optional APF blend.
         var receiverOutput = new double[samples.Length];
         for (int i = 0; i < samples.Length; i++)
         {
