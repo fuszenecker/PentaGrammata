@@ -35,6 +35,9 @@ public sealed class TrendsTimelineChart : Control
     private const double LeftAxisWidth = 52;
     private const double RightAxisWidth = 58;
     private const double TopPadding = 10;
+    // Reserved band above the plot for the "WPM" / "Percent" axis titles, which are
+    // drawn just above chartRect.Top and would otherwise be clipped off the top edge.
+    private const double AxisTitleHeight = 18;
     private const double BottomPadding = 8;
     private const double NoiseBandHeight = 34;
     private const double TimeAxisHeight = 26;
@@ -116,9 +119,9 @@ public sealed class TrendsTimelineChart : Control
 
         var chartRect = new Rect(
             LeftAxisWidth,
-            TopPadding,
+            TopPadding + AxisTitleHeight,
             Math.Max(1, bounds.Width - LeftAxisWidth - RightAxisWidth),
-            Math.Max(1, bounds.Height - TopPadding - BottomPadding - NoiseBandHeight - TimeAxisHeight));
+            Math.Max(1, bounds.Height - TopPadding - AxisTitleHeight - BottomPadding - NoiseBandHeight - TimeAxisHeight));
 
         var noiseRect = new Rect(
             chartRect.Left,
@@ -349,13 +352,19 @@ public sealed class TrendsTimelineChart : Control
 
         if (!ShowNoiseSeries || visible.Count == 0)
         {
-            var muted = CreateText("Noise hidden", 10, "#9CA3AF");
-            context.DrawText(muted, new Point(noiseRect.Left + 6, noiseRect.Top + 2));
+            var muted = CreateText("SNR (dB)", 10.5, "#6B7280");
+            context.DrawText(
+                muted,
+                new Point(
+                    Math.Max(0, noiseRect.Left - muted.Width - 8),
+                    noiseRect.Top + (noiseRect.Height - muted.Height) / 2));
             return;
         }
 
-        var min = visible.Min(x => x.NoiseLevelDb);
-        var max = visible.Max(x => x.NoiseLevelDb);
+        // Stored noise_level_db is relative to the CW signal; the UI shows the
+        // signal-to-noise ratio, which is its negation (SNR = -NoiseLevelDb).
+        var min = visible.Min(x => -x.NoiseLevelDb);
+        var max = visible.Max(x => -x.NoiseLevelDb);
         var range = Math.Max(0.001, max - min);
 
         var fillGeometry = new StreamGeometry();
@@ -366,9 +375,9 @@ public sealed class TrendsTimelineChart : Control
 
             for (var i = 0; i < visible.Count; i++)
             {
-                var point = visible[i];
+                var snr = -visible[i].NoiseLevelDb;
                 var x = noiseRect.Left + (double)i / Math.Max(1, visible.Count - 1) * noiseRect.Width;
-                var normalized = (point.NoiseLevelDb - min) / range;
+                var normalized = (snr - min) / range;
                 var y = noiseRect.Bottom - normalized * (noiseRect.Height - 6);
                 gc.LineTo(new Point(x, y));
             }
@@ -382,8 +391,14 @@ public sealed class TrendsTimelineChart : Control
             new Pen(new SolidColorBrush(NoiseColor), 1.4),
             fillGeometry);
 
-        var label = CreateText($"Noise {min:0.0}..{max:0.0} dB", 10, "#BBF7D0");
-        context.DrawText(label, new Point(noiseRect.Left + 6, noiseRect.Top + 2));
+        // Axis title in the left gutter, matching the "WPM"/"Percent" titles rather
+        // than overlaying a value readout on the band itself.
+        var title = CreateText("SNR (dB)", 10.5, "#BBF7D0");
+        context.DrawText(
+            title,
+            new Point(
+                Math.Max(0, noiseRect.Left - title.Width - 8),
+                noiseRect.Top + (noiseRect.Height - title.Height) / 2));
     }
 
     private static void DrawTimeAxis(
@@ -473,7 +488,7 @@ public sealed class TrendsTimelineChart : Control
 
         if (ShowNoiseSeries)
         {
-            lines.Add($"Noise: {point.NoiseLevelDb:0.##} dB");
+            lines.Add($"SNR: {-point.NoiseLevelDb:0.##} dB");
         }
 
         var texts = lines.Select(line => CreateText(line, 11, "#F9FAFB")).ToArray();

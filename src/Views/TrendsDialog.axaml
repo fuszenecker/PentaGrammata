@@ -38,7 +38,7 @@
             <CheckBox IsChecked="{Binding ShowNoiseSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Width="14" Height="8" CornerRadius="2" Background="#16A34A" VerticalAlignment="Center"/>
-                    <TextBlock Text="Noise" VerticalAlignment="Center"/>
+                    <TextBlock Text="SNR" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
         </WrapPanel>
