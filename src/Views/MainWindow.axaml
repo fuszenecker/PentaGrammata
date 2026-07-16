@@ -23,8 +23,8 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
 
             <MenuItem Header="_Settings">
-                <MenuItem Header="_Morse settings..." Command="{Binding OpenSettingsCommand}"/>
-                <MenuItem Header="_UI settings..." Command="{Binding OpenUiSettingsCommand}"/>
+                <MenuItem Header="_Morse settings" Command="{Binding OpenSettingsCommand}"/>
+                <MenuItem Header="_UI settings" Command="{Binding OpenUiSettingsCommand}"/>
             </MenuItem>
             <MenuItem Header="_Analysis">
                 <MenuItem Header="_Trends" Command="{Binding OpenTrendsCommand}"/>
