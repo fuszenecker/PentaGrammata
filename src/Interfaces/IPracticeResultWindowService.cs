@@ -6,5 +6,11 @@ namespace PentaGrammata.Interfaces;
 
 public interface IPracticeResultWindowService
 {
-    Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved, NoiseSettings noise);
+    Task<bool> ShowPracticeResultAsync(
+        PracticeResult result,
+        int characterWpm,
+        int averageWpm,
+        bool alreadySaved,
+        double errorThresholdPercent,
+        NoiseSettings noise);
 }

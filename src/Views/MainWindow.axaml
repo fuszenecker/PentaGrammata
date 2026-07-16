@@ -26,6 +26,10 @@
                 <MenuItem Header="_Morse settings..." Command="{Binding OpenSettingsCommand}"/>
                 <MenuItem Header="_UI settings..." Command="{Binding OpenUiSettingsCommand}"/>
             </MenuItem>
+            <MenuItem Header="_Analysis">
+                <MenuItem Header="_Trends" Command="{Binding OpenTrendsCommand}"/>
+                <MenuItem Header="_Confusions" Command="{Binding OpenConfusionsCommand}"/>
+            </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" Command="{Binding OpenAboutCommand}"/>
             </MenuItem>

@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
@@ -56,6 +57,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         int characterWpm,
         int averageWpm,
         bool alreadySaved,
+        double errorThresholdPercent,
         NoiseSettings noise,
         IPracticeResultStatisticsStore statisticsStore,
         IInfoDialogService infoDialogService)
@@ -76,14 +78,17 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
         ResultStatus = result.IsSuccessful ? StatusLevel.Success : StatusLevel.Error;
+        var recordedAt = DateTimeOffset.Now;
+
         _record = new PracticeResultStatisticsRecord
         {
-            RecordedAt = DateTimeOffset.Now,
+            RecordedAt = recordedAt,
             CharacterWpm = characterWpm,
             AverageWpm = averageWpm,
             CharacterCount = result.CharacterCount,
             ErrorCount = result.ErrorCount,
             ErrorRatePercent = result.ErrorRatePercent,
+            ErrorThresholdPercent = errorThresholdPercent,
             NoiseType = noise.Type,
             NoiseLevelDb = noise.LevelDb,
             NoiseBandwidthHz = noise.BandwidthHz,
@@ -91,7 +96,8 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             AgcDelaySeconds = noise.AgcDelaySeconds,
             ApfEnabled = noise.ApfEnabled,
             ApfBandwidthHz = noise.ApfBandwidthHz,
-            ApfPeakGainDb = noise.ApfPeakGainDb
+            ApfPeakGainDb = noise.ApfPeakGainDb,
+            Confusions = LevenshteinConfusionExtractor.Extract(result.Rows, recordedAt)
         };
 
         SaveResultsCommand = new AsyncRelayCommand(SaveResultsAsync, CanSaveResults);

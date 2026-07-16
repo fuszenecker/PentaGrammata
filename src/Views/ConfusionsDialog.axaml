@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+        xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
+        x:Class="PentaGrammata.Views.ConfusionsDialog"
+        x:DataType="vm:ConfusionsDialogViewModel"
+        Width="980" Height="680"
+        MinWidth="780" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Title="Confusion Matrix">
+
+    <Grid RowDefinitions="*,Auto" Margin="10" RowSpacing="8">
+        <oxy:PlotView Grid.Row="0"
+                      Model="{Binding PlotModel}"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding SummaryText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"/>
+
+            <Button Grid.Column="1"
+                    Content="Close"
+                    MinWidth="100"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Background="#1D4ED8"
+                    Foreground="White"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PentaGrammata.Configuration;
 
 namespace PentaGrammata.Models;
@@ -11,6 +12,7 @@ public sealed class PracticeResultStatisticsRecord
     public int CharacterCount { get; init; }
     public int ErrorCount { get; init; }
     public double ErrorRatePercent { get; init; }
+    public double ErrorThresholdPercent { get; init; }
 
     public NoiseType NoiseType { get; init; }
     public double NoiseLevelDb { get; init; }
@@ -20,4 +22,6 @@ public sealed class PracticeResultStatisticsRecord
     public bool ApfEnabled { get; init; }
     public double ApfBandwidthHz { get; init; }
     public double ApfPeakGainDb { get; init; }
+
+    public IReadOnlyList<ConfusionObservation> Confusions { get; init; } = [];
 }

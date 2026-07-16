@@ -59,16 +59,8 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
 
     private static string BuildDifferenceText(string expected, string actual)
     {
-        if (string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
-        {
-            return string.Concat(Enumerable.Repeat(".", expected.Length));
-        }
-
-        var matrix = BuildLevenshteinMatrix(expected, actual);
+        var edits = LevenshteinAlignment.Align(expected, actual);
         var tokensReversed = new List<string>();
-
-        var i = expected.Length;
-        var j = actual.Length;
 
         var insertedReversed = new StringBuilder();
         var deletedReversed = new StringBuilder();
@@ -90,56 +82,33 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
             }
         }
 
-        while (i > 0 || j > 0)
+        for (var editIndex = edits.Count - 1; editIndex >= 0; editIndex--)
         {
-            if (i > 0 && j > 0 && AreEqualIgnoreCase(expected[i - 1], actual[j - 1]) && matrix[i, j] == matrix[i - 1, j - 1])
+            var edit = edits[editIndex];
+
+            if (edit.Kind == LevenshteinEditKind.Match)
             {
                 FlushEditBuffers();
                 tokensReversed.Add(".");
-                i--;
-                j--;
                 continue;
             }
 
-            if (i > 0 && j > 0 && matrix[i, j] == matrix[i - 1, j - 1] + 1)
+            if (edit.Kind == LevenshteinEditKind.Substitute)
             {
                 FlushEditBuffers();
-                tokensReversed.Add(expected[i - 1].ToString());
-                i--;
-                j--;
+                tokensReversed.Add(edit.Expected.ToString());
                 continue;
             }
 
-            if (i > 0 && matrix[i, j] == matrix[i - 1, j] + 1)
+            if (edit.Kind == LevenshteinEditKind.Delete)
             {
-                deletedReversed.Append(expected[i - 1]);
-                i--;
+                deletedReversed.Append(edit.Expected);
                 continue;
             }
 
-            if (j > 0 && matrix[i, j] == matrix[i, j - 1] + 1)
+            if (edit.Kind == LevenshteinEditKind.Insert)
             {
-                insertedReversed.Append(actual[j - 1]);
-                j--;
-                continue;
-            }
-
-            if (i > 0 && j > 0)
-            {
-                FlushEditBuffers();
-                tokensReversed.Add(expected[i - 1].ToString());
-                i--;
-                j--;
-            }
-            else if (i > 0)
-            {
-                deletedReversed.Append(expected[i - 1]);
-                i--;
-            }
-            else
-            {
-                insertedReversed.Append(actual[j - 1]);
-                j--;
+                insertedReversed.Append(edit.Actual);
             }
         }
 
@@ -150,45 +119,6 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
 
     private static int GetLevenshteinDistance(string expected, string actual)
     {
-        var matrix = BuildLevenshteinMatrix(expected, actual);
-        return matrix[expected.Length, actual.Length];
-    }
-
-    private static int[,] BuildLevenshteinMatrix(string expected, string actual)
-    {
-        var rows = expected.Length + 1;
-        var columns = actual.Length + 1;
-        var matrix = new int[rows, columns];
-
-        for (var i = 0; i < rows; i++)
-        {
-            matrix[i, 0] = i;
-        }
-
-        for (var j = 0; j < columns; j++)
-        {
-            matrix[0, j] = j;
-        }
-
-        for (var i = 1; i < rows; i++)
-        {
-            for (var j = 1; j < columns; j++)
-            {
-                var substitutionCost = AreEqualIgnoreCase(expected[i - 1], actual[j - 1]) ? 0 : 1;
-
-                matrix[i, j] = Math.Min(
-                    Math.Min(
-                        matrix[i - 1, j] + 1,
-                        matrix[i, j - 1] + 1),
-                    matrix[i - 1, j - 1] + substitutionCost);
-            }
-        }
-
-        return matrix;
-    }
-
-    private static bool AreEqualIgnoreCase(char left, char right)
-    {
-        return char.ToUpperInvariant(left) == char.ToUpperInvariant(right);
+        return LevenshteinAlignment.GetDistance(expected, actual);
     }
 }

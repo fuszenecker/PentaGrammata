@@ -20,6 +20,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IUiSettingsDialogService _uiSettingsDialogService;
     private readonly IPracticeResultWindowService _practiceResultWindowService;
     private readonly IAboutDialogService _aboutDialogService;
+    private readonly ITrendsDialogService _trendsDialogService;
+    private readonly IConfusionsDialogService _confusionsDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     [ObservableProperty]
@@ -35,6 +37,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand OpenUiSettingsCommand { get; }
     public IAsyncRelayCommand CheckResultCommand { get; }
     public IAsyncRelayCommand OpenAboutCommand { get; }
+    public IAsyncRelayCommand OpenTrendsCommand { get; }
+    public IAsyncRelayCommand OpenConfusionsCommand { get; }
 
     [ObservableProperty]
     private string receivedText = string.Empty;
@@ -67,6 +71,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IUiSettingsDialogService uiSettingsDialogService,
         IPracticeResultWindowService practiceResultWindowService,
         IAboutDialogService aboutDialogService,
+        ITrendsDialogService trendsDialogService,
+        IConfusionsDialogService confusionsDialogService,
         ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
@@ -75,6 +81,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _uiSettingsDialogService = uiSettingsDialogService;
         _practiceResultWindowService = practiceResultWindowService;
         _aboutDialogService = aboutDialogService;
+        _trendsDialogService = trendsDialogService;
+        _confusionsDialogService = confusionsDialogService;
         _logger = logger;
 
         PracticeDuration = _practiceController.PracticeDurationMins;
@@ -89,6 +97,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync);
         CheckResultCommand = new AsyncRelayCommand(OpenResultWindowAsync, CanCheckResult);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
+        OpenTrendsCommand = new AsyncRelayCommand(OpenTrendsAsync);
+        OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
         UpdateCommandStates();
     }
 
@@ -194,7 +204,12 @@ public partial class MainWindowViewModel : ViewModelBase
         var result = _practiceController.BuildResult(ReceivedText);
         var settings = _practiceController.CreateSettingsSnapshot();
         var saved = await _practiceResultWindowService.ShowPracticeResultAsync(
-            result, settings.Practice.CharacterWpm, settings.Practice.AverageWpm, _practiceController.IsResultSaved, settings.Audio.Noise);
+            result,
+            settings.Practice.CharacterWpm,
+            settings.Practice.AverageWpm,
+            _practiceController.IsResultSaved,
+            settings.Practice.ErrorThreshold,
+            settings.Audio.Noise);
         if (saved)
         {
             _practiceController.IsResultSaved = true;
@@ -204,6 +219,16 @@ public partial class MainWindowViewModel : ViewModelBase
     public Task OpenAboutAsync()
     {
         return _aboutDialogService.ShowAboutAsync();
+    }
+
+    public Task OpenTrendsAsync()
+    {
+        return _trendsDialogService.ShowTrendsAsync();
+    }
+
+    public Task OpenConfusionsAsync()
+    {
+        return _confusionsDialogService.ShowConfusionsAsync();
     }
 
     public async Task OpenUiSettingsDialogAsync()
