@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PentaGrammata.ViewModels"
-        xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
         x:Class="PentaGrammata.Views.ConfusionsDialog"
         x:DataType="vm:ConfusionsDialogViewModel"
         Width="980" Height="680"
@@ -10,10 +9,53 @@
         Title="Confusion Matrix">
 
     <Grid RowDefinitions="*,Auto" Margin="10" RowSpacing="8">
-        <oxy:PlotView Grid.Row="0"
-                      Model="{Binding PlotModel}"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch"/>
+        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Border Width="36" Height="24" Background="Transparent"/>
+                    <ItemsControl ItemsSource="{Binding ColumnHeaders}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="34" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
+                                    <TextBlock Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Border Width="36" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
+                                    <TextBlock Text="{Binding ExpectedSymbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding Cells}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="34" Height="24" Background="{Binding Background}" BorderBrush="#374151" BorderThickness="1">
+                                                <TextBlock Text="{Binding DisplayText}" Foreground="{Binding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <TextBlock Grid.Column="0"

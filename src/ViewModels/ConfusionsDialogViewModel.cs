@@ -1,13 +1,11 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.Input;
-using OxyPlot;
-using OxyPlot.Axes;
-using OxyPlot.Series;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -19,18 +17,15 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private const double DecayWindowDays = 30d;
 
     private readonly IPracticeResultStatisticsStore _statisticsStore;
-    private PlotModel _plotModel;
     private string _summaryText = "Loading confusion matrix...";
 
     public event Action? CloseRequested;
 
     public IRelayCommand CloseCommand { get; }
 
-    public PlotModel PlotModel
-    {
-        get => _plotModel;
-        private set => SetProperty(ref _plotModel, value);
-    }
+    public ObservableCollection<string> ColumnHeaders { get; } = [];
+
+    public ObservableCollection<ConfusionMatrixRowViewModel> Rows { get; } = [];
 
     public string SummaryText
     {
@@ -41,16 +36,17 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public ConfusionsDialogViewModel(IPracticeResultStatisticsStore statisticsStore)
     {
         _statisticsStore = statisticsStore;
-        _plotModel = CreateEmptyModel("Loading confusion matrix...");
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
     }
 
     public async Task InitializeAsync()
     {
+        ColumnHeaders.Clear();
+        Rows.Clear();
+
         var observations = await _statisticsStore.GetConfusionObservationsAsync().ConfigureAwait(false);
         if (observations.Count == 0)
         {
-            PlotModel = CreateEmptyModel("No confusion data yet. Save at least one result first.");
             SummaryText = "No confusion data yet.";
             return;
         }
@@ -68,7 +64,6 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
 
         if (weighted.Length == 0)
         {
-            PlotModel = CreateEmptyModel("No confusion data after weighting.");
             SummaryText = "No visible confusion data after weighting.";
             return;
         }
@@ -96,11 +91,14 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToArray();
 
-        var symbolIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i < symbols.Length; i++)
+        foreach (var symbol in symbols)
         {
-            symbolIndex[symbols[i]] = i;
+            ColumnHeaders.Add(symbol);
         }
+
+        var symbolIndex = symbols
+            .Select((symbol, index) => new { symbol, index })
+            .ToDictionary(x => x.symbol, x => x.index, StringComparer.Ordinal);
 
         var matrix = new double[symbols.Length, symbols.Length];
         var totalScore = 0d;
@@ -117,84 +115,42 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             totalScore += item.Score;
         }
 
-        var maxCellScore = matrix.Cast<double>().DefaultIfEmpty(0).Max();
-        if (maxCellScore <= 0)
+        var maxScore = matrix.Cast<double>().DefaultIfEmpty(0).Max();
+        if (maxScore <= 0)
         {
-            PlotModel = CreateEmptyModel("No confusion data after filtering.");
             SummaryText = "No visible confusion data after filtering.";
             return;
         }
 
-        var plot = new PlotModel
+        for (var row = 0; row < symbols.Length; row++)
         {
-            Title = "Confusion Matrix",
-            Subtitle = "Vertical = expected, horizontal = received. '_' means insertion/deletion gap."
-        };
+            var rowVm = new ConfusionMatrixRowViewModel
+            {
+                ExpectedSymbol = symbols[row]
+            };
 
-        plot.Axes.Add(new LinearAxis
-        {
-            Position = AxisPosition.Bottom,
-            Minimum = -0.5,
-            Maximum = symbols.Length - 0.5,
-            MajorStep = 1,
-            MinorStep = 1,
-            IsZoomEnabled = false,
-            IsPanEnabled = false,
-            Title = "Received",
-            LabelFormatter = value => FormatSymbolLabel(value, symbols)
-        });
+            for (var column = 0; column < symbols.Length; column++)
+            {
+                var score = matrix[row, column];
+                var normalized = score / maxScore;
+                rowVm.Cells.Add(new ConfusionMatrixCellViewModel
+                {
+                    Score = score,
+                    DisplayText = score <= 0.01 ? string.Empty : score.ToString("0.0", CultureInfo.InvariantCulture),
+                    Background = BuildHeatBrush(normalized),
+                    Foreground = normalized > 0.65 ? Brushes.White : Brushes.LightGray
+                });
+            }
 
-        plot.Axes.Add(new LinearAxis
-        {
-            Position = AxisPosition.Left,
-            Minimum = -0.5,
-            Maximum = symbols.Length - 0.5,
-            MajorStep = 1,
-            MinorStep = 1,
-            IsZoomEnabled = false,
-            IsPanEnabled = false,
-            Title = "Expected",
-            LabelFormatter = value => FormatSymbolLabel(value, symbols)
-        });
+            Rows.Add(rowVm);
+        }
 
-        plot.Axes.Add(new LinearColorAxis
-        {
-            Position = AxisPosition.Right,
-            Palette = OxyPalette.Interpolate(256, OxyColors.Black, OxyColor.Parse("#F97316"), OxyColor.Parse("#DC2626")),
-            Minimum = 0,
-            Maximum = maxCellScore,
-            Title = "Weighted confusion"
-        });
-
-        plot.Series.Add(new HeatMapSeries
-        {
-            X0 = -0.5,
-            X1 = symbols.Length - 0.5,
-            Y0 = -0.5,
-            Y1 = symbols.Length - 0.5,
-            Interpolate = false,
-            RenderMethod = HeatMapRenderMethod.Rectangles,
-            Data = matrix
-        });
-
-        PlotModel = plot;
         SummaryText = string.Format(
             CultureInfo.InvariantCulture,
-            "{0} weighted observations across {1} symbols (decay window: {2} days).",
+            "{0:0.0} weighted observations across {1} symbols (decay window: {2} days).",
             totalScore,
             symbols.Length,
             DecayWindowDays);
-    }
-
-    private static string FormatSymbolLabel(double axisValue, IReadOnlyList<string> symbols)
-    {
-        var index = (int)Math.Round(axisValue, MidpointRounding.AwayFromZero);
-        if (index < 0 || index >= symbols.Count)
-        {
-            return string.Empty;
-        }
-
-        return symbols[index];
     }
 
     private static double CalculateScore(ConfusionObservation observation, DateTimeOffset now)
@@ -210,11 +166,40 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         return observation.Count * decay * distanceFactor;
     }
 
-    private static PlotModel CreateEmptyModel(string title)
+    private static IBrush BuildHeatBrush(double normalized)
     {
-        return new PlotModel
+        var clamped = Math.Clamp(normalized, 0, 1);
+        var baseColor = Color.Parse("#0B1020");
+        var hotColor = Color.Parse("#DC2626");
+
+        byte Blend(byte from, byte to)
         {
-            Title = title
-        };
+            return (byte)(from + (to - from) * clamped);
+        }
+
+        var color = Color.FromRgb(
+            Blend(baseColor.R, hotColor.R),
+            Blend(baseColor.G, hotColor.G),
+            Blend(baseColor.B, hotColor.B));
+
+        return new SolidColorBrush(color);
     }
+}
+
+public sealed class ConfusionMatrixRowViewModel
+{
+    public string ExpectedSymbol { get; init; } = string.Empty;
+
+    public ObservableCollection<ConfusionMatrixCellViewModel> Cells { get; } = [];
+}
+
+public sealed class ConfusionMatrixCellViewModel
+{
+    public double Score { get; init; }
+
+    public string DisplayText { get; init; } = string.Empty;
+
+    public IBrush Background { get; init; } = Brushes.Transparent;
+
+    public IBrush Foreground { get; init; } = Brushes.White;
 }

@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PentaGrammata.ViewModels"
-        xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
+    xmlns:controls="using:PentaGrammata.Views.Controls"
         x:Class="PentaGrammata.Views.TrendsDialog"
         x:DataType="vm:TrendsDialogViewModel"
         Width="980" Height="600"
@@ -9,13 +9,26 @@
         WindowStartupLocation="CenterOwner"
         Title="Performance Trends">
 
-    <Grid RowDefinitions="*,Auto" Margin="10" RowSpacing="8">
-        <oxy:PlotView Grid.Row="0"
-                      Model="{Binding PlotModel}"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch"/>
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
+        <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
+            <CheckBox Content="Character speed" IsChecked="{Binding ShowCharacterSeries}"/>
+            <CheckBox Content="Average speed" IsChecked="{Binding ShowAverageSeries}"/>
+            <CheckBox Content="Error rate" IsChecked="{Binding ShowErrorSeries}"/>
+            <CheckBox Content="Error limit" IsChecked="{Binding ShowLimitSeries}"/>
+            <CheckBox Content="Noise" IsChecked="{Binding ShowNoiseSeries}"/>
+        </WrapPanel>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <controls:TrendsTimelineChart Grid.Row="1"
+                                      Items="{Binding Points}"
+                                      ShowCharacterSeries="{Binding ShowCharacterSeries}"
+                                      ShowAverageSeries="{Binding ShowAverageSeries}"
+                                      ShowErrorSeries="{Binding ShowErrorSeries}"
+                                      ShowLimitSeries="{Binding ShowLimitSeries}"
+                                      ShowNoiseSeries="{Binding ShowNoiseSeries}"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"/>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <TextBlock Grid.Column="0"
                        Text="{Binding SummaryText}"
                        VerticalAlignment="Center"
