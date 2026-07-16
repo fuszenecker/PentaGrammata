@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
@@ -24,11 +23,11 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 
     public string DatabasePath => _databasePath;
 
-    public PracticeResultStatisticsStore(ILogger<PracticeResultStatisticsStore> logger)
+    public PracticeResultStatisticsStore(IAppPaths appPaths, ILogger<PracticeResultStatisticsStore> logger)
     {
         _logger = logger;
 
-        var appDirectory = ConfigurationPaths.GetAppDataDirectory();
+        var appDirectory = appPaths.AppDataDirectory;
         Directory.CreateDirectory(appDirectory);
         _databasePath = Path.Combine(appDirectory, "practice-results.db");
     }

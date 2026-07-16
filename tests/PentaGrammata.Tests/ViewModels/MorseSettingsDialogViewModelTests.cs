@@ -148,7 +148,7 @@ public sealed class MorseSettingsDialogViewModelTests
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
         {
             SelectedNoiseType = NoiseType.Pink,
-            NoiseLevelDb = -14,
+            NoiseSnrDb = 14,
             NoiseBandwidthHz = 250,
             AgcEnabled = false,
             AgcDelaySeconds = 0.6,
@@ -162,6 +162,7 @@ public sealed class MorseSettingsDialogViewModelTests
 
         Assert.IsTrue(success);
         Assert.AreEqual(NoiseType.Pink, settings.Audio.Noise.Type);
+        // SNR of +14 dB is stored as a noise level 14 dB below the signal.
         Assert.AreEqual(-14, settings.Audio.Noise.LevelDb);
         Assert.AreEqual(250, settings.Audio.Noise.BandwidthHz);
         Assert.IsFalse(settings.Audio.Noise.AgcEnabled);
@@ -191,7 +192,8 @@ public sealed class MorseSettingsDialogViewModelTests
         var sut = new MorseSettingsDialogViewModel(config, validator);
 
         Assert.AreEqual(NoiseType.Uniform, sut.SelectedNoiseType);
-        Assert.AreEqual(-5, sut.NoiseLevelDb);
+        // Config stores level -5 dB rel. signal, shown to the user as a +5 dB SNR.
+        Assert.AreEqual(5, sut.NoiseSnrDb);
         Assert.AreEqual(600, sut.NoiseBandwidthHz);
         Assert.IsFalse(sut.AgcEnabled);
         Assert.AreEqual(0.25, sut.AgcDelaySeconds);

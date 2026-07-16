@@ -65,8 +65,10 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
 
     public NoiseType[] NoiseTypeOptions { get; } = [NoiseType.None, NoiseType.Gaussian, NoiseType.Uniform, NoiseType.Pink];
 
+    // Shown to the user as a signal-to-noise ratio (higher = cleaner). Stored config keeps
+    // the noise level relative to the CW signal, which is the negation: SNR = -LevelDb.
     [ObservableProperty]
-    private double noiseLevelDb;
+    private double noiseSnrDb;
 
     [ObservableProperty]
     private double noiseBandwidthHz;
@@ -114,7 +116,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         VolumeDb = config.Audio.VolumeDb;
         BeepRampMs = config.Audio.BeepRampMs;
         SelectedNoiseType = config.Audio.Noise.Type;
-        NoiseLevelDb = config.Audio.Noise.LevelDb;
+        NoiseSnrDb = -config.Audio.Noise.LevelDb;
         NoiseBandwidthHz = config.Audio.Noise.BandwidthHz;
         AgcEnabled = config.Audio.Noise.AgcEnabled;
         AgcDelaySeconds = config.Audio.Noise.AgcDelaySeconds;
@@ -198,7 +200,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 Noise = new NoiseSettings
                 {
                     Type = SelectedNoiseType,
-                    LevelDb = NoiseLevelDb,
+                    LevelDb = -NoiseSnrDb,
                     BandwidthHz = NoiseBandwidthHz,
                     AgcEnabled = AgcEnabled,
                     AgcDelaySeconds = AgcDelaySeconds,

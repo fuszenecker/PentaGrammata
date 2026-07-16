@@ -9,12 +9,12 @@
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">
 
-    <Grid RowDefinitions="*,Auto" Margin="10">
+    <Grid RowDefinitions="*,Auto">
 
-        <TabControl Grid.Row="0">
+        <TabControl Grid.Row="0" Background="#101010">
 
             <TabItem Header="Practice">
-                <StackPanel Margin="10" Spacing="8">
+                <StackPanel Margin="6" Spacing="8">
                     <TextBlock Text="Character WPM"/>
                     <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
                     <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="0,0,0,0">
@@ -37,7 +37,7 @@
             </TabItem>
 
             <TabItem Header="Audio">
-                <StackPanel Margin="10" Spacing="8">
+                <StackPanel Margin="6" Spacing="8">
                     <TextBlock Text="Frequency (Hz)"/>
                     <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"/>
                     <TextBlock Text="Volume (dBFS)"/>
@@ -50,7 +50,7 @@
             </TabItem>
 
             <TabItem Header="Noise">
-                <StackPanel Margin="10" Spacing="12">
+                <StackPanel Margin="6" Spacing="12">
                     <!-- Noise source -->
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
                         <StackPanel Grid.Column="0" Spacing="8">
@@ -59,9 +59,9 @@
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="Noise level (dB rel. signal)"/>
-                            <NumericUpDown Minimum="-80" Maximum="20" Increment="1" FormatString="0.##"
-                                           Value="{Binding NoiseLevelDb}"
+                            <TextBlock Text="Signal-to-noise ratio (dB)"/>
+                            <NumericUpDown Minimum="-20" Maximum="80" Increment="1" FormatString="0.##"
+                                           Value="{Binding NoiseSnrDb}"
                                            IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="8">
@@ -110,7 +110,7 @@
             </TabItem>
 
             <TabItem Header="Character sets">
-                <Grid Margin="10" RowDefinitions="Auto,*">
+                <Grid Margin="6" RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Margin="0,0,0,8" Foreground="#9aa0a6"
                             Text="Format: name = characters (one character set per line)."/>
 
@@ -129,7 +129,7 @@
 
         </TabControl>
 
-        <Grid Grid.Row="1" Margin="0,10,0,0">
+        <Grid Grid.Row="1" Margin="10,10,10,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
