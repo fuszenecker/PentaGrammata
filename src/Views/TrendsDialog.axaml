@@ -32,7 +32,7 @@
             <CheckBox IsChecked="{Binding ShowLimitSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Width="14" Height="8" CornerRadius="2" Background="#F59E0B" VerticalAlignment="Center"/>
-                    <TextBlock Text="Error limit" VerticalAlignment="Center"/>
+                    <TextBlock Text="Error threshold" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowNoiseSeries}">

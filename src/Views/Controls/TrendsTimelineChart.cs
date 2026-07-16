@@ -156,20 +156,32 @@ public sealed class TrendsTimelineChart : Control
             return;
         }
 
-        var zoomFactor = delta > 0 ? 0.85 : 1.15;
-        var oldSpan = _viewSpan;
+        // Ctrl + wheel zooms (anchored at the cursor); plain wheel pans. This keeps a
+        // touchpad's fast wheel bursts from zooming by accident.
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            var zoomFactor = delta > 0 ? 0.85 : 1.15;
+            var oldSpan = _viewSpan;
 
-        // Don't allow zooming in past two visible samples: a narrower window can fall
-        // between sparse sessions and select no points, which used to blank the chart.
-        var count = Items?.Count ?? 0;
-        var minSpan = count > 2 ? Math.Min(1.0, 2.0 / count) : 1.0;
-        var newSpan = Math.Clamp(_viewSpan * zoomFactor, minSpan, 1.0);
-        var cursorX = e.GetPosition(this).X;
-        var ratio = Bounds.Width > 0 ? Math.Clamp(cursorX / Bounds.Width, 0, 1) : 0.5;
+            // Don't allow zooming in past two visible samples: a narrower window can fall
+            // between sparse sessions and select no points, which used to blank the chart.
+            var count = Items?.Count ?? 0;
+            var minSpan = count > 2 ? Math.Min(1.0, 2.0 / count) : 1.0;
+            var newSpan = Math.Clamp(_viewSpan * zoomFactor, minSpan, 1.0);
+            var cursorX = e.GetPosition(this).X;
+            var ratio = Bounds.Width > 0 ? Math.Clamp(cursorX / Bounds.Width, 0, 1) : 0.5;
 
-        var pivot = _viewStart + oldSpan * ratio;
-        _viewSpan = newSpan;
-        _viewStart = Math.Clamp(pivot - _viewSpan * ratio, 0, 1 - _viewSpan);
+            var pivot = _viewStart + oldSpan * ratio;
+            _viewSpan = newSpan;
+            _viewStart = Math.Clamp(pivot - _viewSpan * ratio, 0, 1 - _viewSpan);
+        }
+        else
+        {
+            // Pan by a fraction of the visible span so the step feels the same at any zoom.
+            // Wheel up scrolls toward earlier sessions, wheel down toward later ones.
+            var panStep = _viewSpan * 0.15 * (delta > 0 ? -1 : 1);
+            _viewStart = Math.Clamp(_viewStart + panStep, 0, 1 - _viewSpan);
+        }
 
         InvalidateVisual();
     }
@@ -456,7 +468,7 @@ public sealed class TrendsTimelineChart : Control
 
         if (ShowLimitSeries)
         {
-            lines.Add($"Error limit: {point.ErrorThresholdPercent:0.##}%");
+            lines.Add($"Error threshold: {point.ErrorThresholdPercent:0.##}%");
         }
 
         if (ShowNoiseSeries)
