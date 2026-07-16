@@ -3,13 +3,24 @@
         xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.ConfusionsDialog"
         x:DataType="vm:ConfusionsDialogViewModel"
-        Width="980" Height="680"
-        MinWidth="780" MinHeight="500"
+        Width="720" Height="520"
+        MinWidth="480" MinHeight="360"
         WindowStartupLocation="CenterOwner"
         Title="Confusion Matrix">
 
-    <Grid RowDefinitions="*,Auto" Margin="10" RowSpacing="8">
-        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="Retention half-life (days)" VerticalAlignment="Center"
+                       ToolTip.Tip="Felezési idő: older confusions weigh less. An observation this many days old counts half as much as a fresh one."/>
+            <NumericUpDown Width="130"
+                           Minimum="{Binding MinHalfLife}"
+                           Maximum="{Binding MaxHalfLife}"
+                           Increment="1"
+                           FormatString="0"
+                           Value="{Binding HalfLifeDays}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="4">
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <Border Width="36" Height="24" Background="Transparent"/>
@@ -57,7 +68,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <TextBlock Grid.Column="0"
                        Text="{Binding SummaryText}"
                        VerticalAlignment="Center"

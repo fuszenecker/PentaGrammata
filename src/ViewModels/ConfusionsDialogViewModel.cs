@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
@@ -14,10 +15,18 @@ namespace PentaGrammata.ViewModels;
 
 public sealed class ConfusionsDialogViewModel : ViewModelBase
 {
-    private const double DecayWindowDays = 30d;
+    // The half-life is how many days it takes for an observation's weight to halve.
+    // Default and bounds for the user-facing control.
+    private const double DefaultHalfLifeDays = 7d;
+    private const double MinHalfLifeDays = 1d;
+    private const double MaxHalfLifeDays = 365d;
 
     private readonly IPracticeResultStatisticsStore _statisticsStore;
     private string _summaryText = "Loading confusion matrix...";
+    private double _halfLifeDays = DefaultHalfLifeDays;
+
+    // Cached so adjusting the half-life recomputes the matrix without re-querying.
+    private IReadOnlyList<ConfusionObservation> _observations = [];
 
     public event Action? CloseRequested;
 
@@ -26,6 +35,28 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public ObservableCollection<string> ColumnHeaders { get; } = [];
 
     public ObservableCollection<ConfusionMatrixRowViewModel> Rows { get; } = [];
+
+    public double MinHalfLife => MinHalfLifeDays;
+
+    public double MaxHalfLife => MaxHalfLifeDays;
+
+    /// <summary>
+    /// Retention half-life ("felezési idő") in days: older confusions weigh less, and an
+    /// observation this many days old counts for half of a fresh one. Setting it recomputes
+    /// the matrix from the already-loaded observations.
+    /// </summary>
+    public double HalfLifeDays
+    {
+        get => _halfLifeDays;
+        set
+        {
+            var clamped = Math.Clamp(value, MinHalfLifeDays, MaxHalfLifeDays);
+            if (SetProperty(ref _halfLifeDays, clamped))
+            {
+                Rebuild();
+            }
+        }
+    }
 
     public string SummaryText
     {
@@ -41,10 +72,16 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        _observations = await _statisticsStore.GetConfusionObservationsAsync().ConfigureAwait(false);
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
         ColumnHeaders.Clear();
         Rows.Clear();
 
-        var observations = await _statisticsStore.GetConfusionObservationsAsync().ConfigureAwait(false);
+        var observations = _observations;
         if (observations.Count == 0)
         {
             SummaryText = "No confusion data yet.";
@@ -57,7 +94,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             {
                 observation.ExpectedSymbol,
                 observation.ActualSymbol,
-                Score = CalculateScore(observation, now)
+                Score = CalculateScore(observation, now, _halfLifeDays)
             })
             .Where(x => x.Score > 0)
             .ToArray();
@@ -147,13 +184,13 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
 
         SummaryText = string.Format(
             CultureInfo.InvariantCulture,
-            "{0:0.0} weighted observations across {1} symbols (decay window: {2} days).",
+            "{0:0.0} weighted observations across {1} symbols (half-life: {2:0} days).",
             totalScore,
             symbols.Length,
-            DecayWindowDays);
+            _halfLifeDays);
     }
 
-    private static double CalculateScore(ConfusionObservation observation, DateTimeOffset now)
+    private static double CalculateScore(ConfusionObservation observation, DateTimeOffset now, double halfLifeDays)
     {
         if (observation.Count <= 0)
         {
@@ -161,7 +198,8 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         }
 
         var ageDays = Math.Max(0, (now - observation.RecordedAt).TotalDays);
-        var decay = Math.Exp(-ageDays / DecayWindowDays);
+        // Half-life decay: weight halves every halfLifeDays.
+        var decay = Math.Pow(2.0, -ageDays / halfLifeDays);
         var distanceFactor = 1d / Math.Max(1, observation.Distance);
         return observation.Count * decay * distanceFactor;
     }
