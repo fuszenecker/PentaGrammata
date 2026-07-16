@@ -36,7 +36,6 @@ public sealed class TrendsTimelineChart : Control
     private const double RightAxisWidth = 58;
     private const double TopPadding = 10;
     private const double BottomPadding = 8;
-    private const double LegendHeight = 30;
     private const double NoiseBandHeight = 34;
     private const double TimeAxisHeight = 26;
 
@@ -115,17 +114,11 @@ public sealed class TrendsTimelineChart : Control
             return;
         }
 
-        var legendRect = new Rect(
+        var chartRect = new Rect(
             LeftAxisWidth,
             TopPadding,
             Math.Max(1, bounds.Width - LeftAxisWidth - RightAxisWidth),
-            LegendHeight - 8);
-
-        var chartRect = new Rect(
-            LeftAxisWidth,
-            TopPadding + LegendHeight,
-            Math.Max(1, bounds.Width - LeftAxisWidth - RightAxisWidth),
-            Math.Max(1, bounds.Height - TopPadding - BottomPadding - LegendHeight - NoiseBandHeight - TimeAxisHeight));
+            Math.Max(1, bounds.Height - TopPadding - BottomPadding - NoiseBandHeight - TimeAxisHeight));
 
         var noiseRect = new Rect(
             chartRect.Left,
@@ -134,8 +127,6 @@ public sealed class TrendsTimelineChart : Control
             NoiseBandHeight - 6);
 
         var xAxisY = noiseRect.Bottom + 4;
-
-        DrawLegend(context, legendRect);
 
         if (!AnySeriesEnabled())
         {
@@ -167,7 +158,12 @@ public sealed class TrendsTimelineChart : Control
 
         var zoomFactor = delta > 0 ? 0.85 : 1.15;
         var oldSpan = _viewSpan;
-        var newSpan = Math.Clamp(_viewSpan * zoomFactor, 0.05, 1.0);
+
+        // Don't allow zooming in past two visible samples: a narrower window can fall
+        // between sparse sessions and select no points, which used to blank the chart.
+        var count = Items?.Count ?? 0;
+        var minSpan = count > 2 ? Math.Min(1.0, 2.0 / count) : 1.0;
+        var newSpan = Math.Clamp(_viewSpan * zoomFactor, minSpan, 1.0);
         var cursorX = e.GetPosition(this).X;
         var ratio = Bounds.Width > 0 ? Math.Clamp(cursorX / Bounds.Width, 0, 1) : 0.5;
 
@@ -263,28 +259,6 @@ public sealed class TrendsTimelineChart : Control
             || ShowErrorSeries
             || ShowLimitSeries
             || ShowNoiseSeries;
-    }
-
-    private static void DrawLegend(DrawingContext context, Rect legendRect)
-    {
-        var items = new (string Label, Color Color)[]
-        {
-            ("Character speed", CharacterColor),
-            ("Average speed", AverageColor),
-            ("Error rate", ErrorColor),
-            ("Error limit", LimitColor),
-            ("Noise", NoiseColor)
-        };
-
-        var x = legendRect.Left;
-        foreach (var item in items)
-        {
-            context.FillRectangle(new SolidColorBrush(item.Color), new Rect(x, legendRect.Top + 6, 14, 8));
-
-            var label = CreateText(item.Label, 11, "#E5E7EB");
-            context.DrawText(label, new Point(x + 18, legendRect.Top));
-            x += 18 + label.Width + 16;
-        }
     }
 
     private void DrawAxes(DrawingContext context, Rect chartRect)
@@ -538,17 +512,24 @@ public sealed class TrendsTimelineChart : Control
             return ordered;
         }
 
-        var minTime = ordered[0].RecordedAt;
-        var maxTime = ordered[^1].RecordedAt;
-        var totalTicks = Math.Max(1, (maxTime - minTime).Ticks);
+        // Slice by index rather than by absolute time. The series are drawn evenly spaced
+        // by index, so slicing the same way keeps zoom/pan consistent and — crucially —
+        // always yields at least two points, even when the window lands in a time gap
+        // between sparse sessions (which previously blanked the chart).
+        var lastIndex = ordered.Count - 1;
+        var startIndex = (int)Math.Floor(_viewStart * lastIndex);
+        var endIndex = (int)Math.Ceiling((_viewStart + _viewSpan) * lastIndex);
 
-        var fromTicks = (long)(_viewStart * totalTicks);
-        var toTicks = (long)((_viewStart + _viewSpan) * totalTicks);
+        startIndex = Math.Clamp(startIndex, 0, lastIndex - 1);
+        endIndex = Math.Clamp(endIndex, startIndex + 1, lastIndex);
 
-        var from = minTime + TimeSpan.FromTicks(fromTicks);
-        var to = minTime + TimeSpan.FromTicks(toTicks);
+        var slice = new PracticeTrendPoint[endIndex - startIndex + 1];
+        for (var i = 0; i < slice.Length; i++)
+        {
+            slice[i] = ordered[startIndex + i];
+        }
 
-        return ordered.Where(x => x.RecordedAt >= from && x.RecordedAt <= to).ToArray();
+        return slice;
     }
 
     private static void DrawLineSeries(

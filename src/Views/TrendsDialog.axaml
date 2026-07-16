@@ -11,11 +11,36 @@
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
-            <CheckBox Content="Character speed" IsChecked="{Binding ShowCharacterSeries}"/>
-            <CheckBox Content="Average speed" IsChecked="{Binding ShowAverageSeries}"/>
-            <CheckBox Content="Error rate" IsChecked="{Binding ShowErrorSeries}"/>
-            <CheckBox Content="Error limit" IsChecked="{Binding ShowLimitSeries}"/>
-            <CheckBox Content="Noise" IsChecked="{Binding ShowNoiseSeries}"/>
+            <CheckBox IsChecked="{Binding ShowCharacterSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#1D4ED8" VerticalAlignment="Center"/>
+                    <TextBlock Text="Character speed" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowAverageSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#0891B2" VerticalAlignment="Center"/>
+                    <TextBlock Text="Average speed" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowErrorSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#DC2626" VerticalAlignment="Center"/>
+                    <TextBlock Text="Error rate" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowLimitSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#F59E0B" VerticalAlignment="Center"/>
+                    <TextBlock Text="Error limit" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowNoiseSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#16A34A" VerticalAlignment="Center"/>
+                    <TextBlock Text="Noise" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
         </WrapPanel>
 
         <controls:TrendsTimelineChart Grid.Row="1"
