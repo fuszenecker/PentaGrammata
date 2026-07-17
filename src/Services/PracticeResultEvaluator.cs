@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
@@ -62,21 +61,23 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
         var edits = LevenshteinAlignment.Align(expected, actual);
         var tokensReversed = new List<string>();
 
-        var insertedReversed = new StringBuilder();
-        var deletedReversed = new StringBuilder();
+        var insertedReversed = new List<string>();
+        var deletedReversed = new List<string>();
 
         void FlushEditBuffers()
         {
-            if (insertedReversed.Length > 0)
+            if (insertedReversed.Count > 0)
             {
-                var inserted = new string(insertedReversed.ToString().Reverse().ToArray());
+                insertedReversed.Reverse();
+                var inserted = string.Concat(insertedReversed);
                 tokensReversed.Add($"[+{inserted}]");
                 insertedReversed.Clear();
             }
 
-            if (deletedReversed.Length > 0)
+            if (deletedReversed.Count > 0)
             {
-                var deleted = new string(deletedReversed.ToString().Reverse().ToArray());
+                deletedReversed.Reverse();
+                var deleted = string.Concat(deletedReversed);
                 tokensReversed.Add($"[-{deleted}]");
                 deletedReversed.Clear();
             }
@@ -96,19 +97,19 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
             if (edit.Kind == LevenshteinEditKind.Substitute)
             {
                 FlushEditBuffers();
-                tokensReversed.Add(edit.Expected.ToString());
+                tokensReversed.Add(edit.Expected);
                 continue;
             }
 
             if (edit.Kind == LevenshteinEditKind.Delete)
             {
-                deletedReversed.Append(edit.Expected);
+                deletedReversed.Add(edit.Expected);
                 continue;
             }
 
             if (edit.Kind == LevenshteinEditKind.Insert)
             {
-                insertedReversed.Append(edit.Actual);
+                insertedReversed.Add(edit.Actual);
             }
         }
 

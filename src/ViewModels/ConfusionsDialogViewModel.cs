@@ -99,10 +99,10 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         ColumnHeaders.Clear();
         Rows.Clear();
 
-        var observations = _observations;
+        var observations = GetSubstitutionObservations();
         if (observations.Count == 0)
         {
-            SummaryText = "No confusion data yet.";
+            SummaryText = "No substitution confusion data yet.";
             PracticeConfusionsCommand.NotifyCanExecuteChanged();
             return;
         }
@@ -284,7 +284,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         var now = DateTimeOffset.UtcNow;
         var result = new Dictionary<string, double>(StringComparer.Ordinal);
 
-        foreach (var observation in _observations)
+        foreach (var observation in GetSubstitutionObservations())
         {
             var score = CalculateScore(observation, now, _halfLifeDays);
             if (score <= 0)
@@ -297,6 +297,14 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         }
 
         return result;
+    }
+
+    private IReadOnlyList<ConfusionObservation> GetSubstitutionObservations()
+    {
+        return _observations
+            .Where(observation => !string.Equals(observation.ExpectedSymbol, GapSymbol, StringComparison.Ordinal)
+                && !string.Equals(observation.ActualSymbol, GapSymbol, StringComparison.Ordinal))
+            .ToArray();
     }
 
     private static void AddWeightedSymbol(IDictionary<string, double> counts, string symbol, double score)

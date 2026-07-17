@@ -96,9 +96,25 @@ public static class LevenshteinConfusionExtractor
         counts[key] = increment;
     }
 
-    private static string NormalizeSymbol(char value)
+    private static string NormalizeSymbol(string value)
     {
-        return char.ToUpperInvariant(value).ToString(CultureInfo.InvariantCulture);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        if (value.Length >= 3 && value[0] == '<' && value[^1] == '>')
+        {
+            var inner = value[1..^1].ToLowerInvariant();
+            return $"<{inner}>";
+        }
+
+        if (value.Length == 1)
+        {
+            return char.ToUpperInvariant(value[0]).ToString(CultureInfo.InvariantCulture);
+        }
+
+        return value.ToUpperInvariant();
     }
 
     private sealed class StringTupleComparer : IEqualityComparer<(string Expected, string Actual, int Distance)>
