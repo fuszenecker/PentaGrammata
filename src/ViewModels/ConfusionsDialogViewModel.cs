@@ -17,7 +17,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
 {
     // The half-life is how many days it takes for an observation's weight to halve.
     // Default and bounds for the user-facing control.
-    private const double DefaultHalfLifeDays = 7d;
+    private const double DefaultHalfLifeDays = 1d;
     private const double MinHalfLifeDays = 1d;
     private const double MaxHalfLifeDays = 365d;
 
