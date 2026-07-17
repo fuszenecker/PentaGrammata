@@ -28,13 +28,14 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private readonly IConfigurationService _configurationService;
     private string _summaryText = "Loading confusion matrix...";
     private double _halfLifeDays = DefaultHalfLifeDays;
+    private bool _halfLifeDirty;
 
     // Cached so adjusting the half-life recomputes the matrix without re-querying.
     private IReadOnlyList<ConfusionObservation> _observations = [];
 
     public event Action? CloseRequested;
 
-    public IRelayCommand CloseCommand { get; }
+    public IAsyncRelayCommand CloseCommand { get; }
     public IAsyncRelayCommand PracticeConfusionsCommand { get; }
 
     public ObservableCollection<string> ColumnHeaders { get; } = [];
@@ -58,6 +59,8 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             var clamped = Math.Clamp(value, MinHalfLifeDays, MaxHalfLifeDays);
             if (SetProperty(ref _halfLifeDays, clamped))
             {
+                _configurationService.Current.Analytics.ConfusionsHalfLifeDays = clamped;
+                _halfLifeDirty = true;
                 Rebuild();
             }
         }
@@ -75,7 +78,13 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     {
         _statisticsStore = statisticsStore;
         _configurationService = configurationService;
-        CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
+        var configuredHalfLife = Math.Clamp(
+            _configurationService.Current.Analytics.ConfusionsHalfLifeDays,
+            MinHalfLifeDays,
+            MaxHalfLifeDays);
+        _halfLifeDays = configuredHalfLife;
+        _configurationService.Current.Analytics.ConfusionsHalfLifeDays = configuredHalfLife;
+        CloseCommand = new AsyncRelayCommand(CloseAsync);
         PracticeConfusionsCommand = new AsyncRelayCommand(CreatePracticeConfusionsAsync, CanCreatePracticeConfusions);
     }
 
@@ -238,7 +247,36 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         _configurationService.Current.CharacterSets[PracticeConfusionsSetName] = characterSet;
         _configurationService.Current.Practice.DefaultCharacterSet = PracticeConfusionsSetName;
         await _configurationService.SaveAsync();
+        _halfLifeDirty = false;
         CloseRequested?.Invoke();
+    }
+
+    public void OnDialogClosed()
+    {
+        if (!_halfLifeDirty)
+        {
+            return;
+        }
+
+        _halfLifeDirty = false;
+        _configurationService.RequestSave();
+    }
+
+    private async Task CloseAsync()
+    {
+        await SaveHalfLifeOnCloseAsync();
+        CloseRequested?.Invoke();
+    }
+
+    private async Task SaveHalfLifeOnCloseAsync()
+    {
+        if (!_halfLifeDirty)
+        {
+            return;
+        }
+
+        _halfLifeDirty = false;
+        await _configurationService.SaveAsync();
     }
 
     private Dictionary<string, double> BuildWeightedSymbolCounts()

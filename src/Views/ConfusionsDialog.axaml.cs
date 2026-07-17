@@ -47,6 +47,7 @@ public partial class ConfusionsDialog : Window
         if (_viewModel is not null)
         {
             _viewModel.CloseRequested -= OnCloseRequested;
+            _viewModel.OnDialogClosed();
         }
 
         base.OnClosed(e);
