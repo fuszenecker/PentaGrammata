@@ -86,9 +86,7 @@
                     MinWidth="100"
                     Command="{Binding CloseCommand}"
                     HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Background="#374151"
-                    Foreground="White"/>
+                    VerticalContentAlignment="Center"/>
                 </StackPanel>
         </Grid>
     </Grid>
