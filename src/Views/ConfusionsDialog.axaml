@@ -74,14 +74,22 @@
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"/>
 
-            <Button Grid.Column="1"
-                    Content="Close"
-                    MinWidth="100"
-                    Command="{Binding CloseCommand}"
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="Practice confusions"
+                    MinWidth="170"
+                    Command="{Binding PracticeConfusionsCommand}"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Background="#1D4ED8"
                     Foreground="White"/>
+                <Button Content="Close"
+                    MinWidth="100"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Background="#374151"
+                    Foreground="White"/>
+                </StackPanel>
         </Grid>
     </Grid>
 </Window>

@@ -1,6 +1,7 @@
 using System;
 
 using Avalonia.Controls;
+using Avalonia.Threading;
 
 using PentaGrammata.ViewModels;
 
@@ -32,7 +33,13 @@ public partial class ConfusionsDialog : Window
 
     private void OnCloseRequested()
     {
-        Close();
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            Close();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(Close);
     }
 
     protected override void OnClosed(EventArgs e)

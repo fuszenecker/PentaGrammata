@@ -11,15 +11,18 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultStatisticsStore _statisticsStore;
     private readonly IInfoDialogService _infoDialogService;
+    private readonly IConfigurationService _configurationService;
 
     public DialogViewModelFactory(
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultStatisticsStore statisticsStore,
-        IInfoDialogService infoDialogService)
+        IInfoDialogService infoDialogService,
+        IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
         _statisticsStore = statisticsStore;
         _infoDialogService = infoDialogService;
+        _configurationService = configurationService;
     }
 
     public MorseSettingsDialogViewModel CreateMorseSettings(AppConfig currentSettings)
@@ -63,6 +66,6 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public ConfusionsDialogViewModel CreateConfusions()
     {
-        return new ConfusionsDialogViewModel(_statisticsStore);
+        return new ConfusionsDialogViewModel(_statisticsStore, _configurationService);
     }
 }

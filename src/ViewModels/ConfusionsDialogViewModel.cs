@@ -20,8 +20,12 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private const double DefaultHalfLifeDays = 1d;
     private const double MinHalfLifeDays = 1d;
     private const double MaxHalfLifeDays = 365d;
+    private const string PracticeConfusionsSetName = "Practice confusions";
+    private const string GapSymbol = "_";
+    private const int PracticeSetTargetSymbolCount = 200;
 
     private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IConfigurationService _configurationService;
     private string _summaryText = "Loading confusion matrix...";
     private double _halfLifeDays = DefaultHalfLifeDays;
 
@@ -31,6 +35,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public event Action? CloseRequested;
 
     public IRelayCommand CloseCommand { get; }
+    public IAsyncRelayCommand PracticeConfusionsCommand { get; }
 
     public ObservableCollection<string> ColumnHeaders { get; } = [];
 
@@ -64,15 +69,19 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         private set => SetProperty(ref _summaryText, value);
     }
 
-    public ConfusionsDialogViewModel(IPracticeResultStatisticsStore statisticsStore)
+    public ConfusionsDialogViewModel(
+        IPracticeResultStatisticsStore statisticsStore,
+        IConfigurationService configurationService)
     {
         _statisticsStore = statisticsStore;
+        _configurationService = configurationService;
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
+        PracticeConfusionsCommand = new AsyncRelayCommand(CreatePracticeConfusionsAsync, CanCreatePracticeConfusions);
     }
 
     public async Task InitializeAsync()
     {
-        _observations = await _statisticsStore.GetConfusionObservationsAsync().ConfigureAwait(false);
+        _observations = await _statisticsStore.GetConfusionObservationsAsync();
         Rebuild();
     }
 
@@ -85,6 +94,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         if (observations.Count == 0)
         {
             SummaryText = "No confusion data yet.";
+            PracticeConfusionsCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -102,6 +112,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         if (weighted.Length == 0)
         {
             SummaryText = "No visible confusion data after weighting.";
+            PracticeConfusionsCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -156,6 +167,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         if (maxScore <= 0)
         {
             SummaryText = "No visible confusion data after filtering.";
+            PracticeConfusionsCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -188,6 +200,81 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             totalScore,
             symbols.Length,
             _halfLifeDays);
+        PracticeConfusionsCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanCreatePracticeConfusions()
+    {
+        return BuildWeightedSymbolCounts().Count > 0;
+    }
+
+    private async Task CreatePracticeConfusionsAsync()
+    {
+        var weightedCounts = BuildWeightedSymbolCounts();
+        if (weightedCounts.Count == 0)
+        {
+            return;
+        }
+
+        var totalWeight = weightedCounts.Values.Sum();
+        var targetSymbols = Math.Max(weightedCounts.Count, PracticeSetTargetSymbolCount);
+        var scaledCounts = weightedCounts
+            .ToDictionary(
+                kv => kv.Key,
+                kv => Math.Max(1, (int)Math.Round((kv.Value / totalWeight) * targetSymbols, MidpointRounding.AwayFromZero)),
+                StringComparer.Ordinal);
+
+        var orderedSymbols = scaledCounts
+            .OrderByDescending(kv => kv.Value)
+            .ThenBy(kv => kv.Key, StringComparer.Ordinal)
+            .ToArray();
+
+        var characterSet = string.Concat(orderedSymbols.Select(kv => string.Concat(Enumerable.Repeat(kv.Key, kv.Value))));
+        if (string.IsNullOrWhiteSpace(characterSet))
+        {
+            return;
+        }
+
+        _configurationService.Current.CharacterSets[PracticeConfusionsSetName] = characterSet;
+        _configurationService.Current.Practice.DefaultCharacterSet = PracticeConfusionsSetName;
+        await _configurationService.SaveAsync();
+        CloseRequested?.Invoke();
+    }
+
+    private Dictionary<string, double> BuildWeightedSymbolCounts()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var result = new Dictionary<string, double>(StringComparer.Ordinal);
+
+        foreach (var observation in _observations)
+        {
+            var score = CalculateScore(observation, now, _halfLifeDays);
+            if (score <= 0)
+            {
+                continue;
+            }
+
+            AddWeightedSymbol(result, observation.ExpectedSymbol, score);
+            AddWeightedSymbol(result, observation.ActualSymbol, score);
+        }
+
+        return result;
+    }
+
+    private static void AddWeightedSymbol(IDictionary<string, double> counts, string symbol, double score)
+    {
+        if (string.IsNullOrWhiteSpace(symbol) || string.Equals(symbol, GapSymbol, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (counts.TryGetValue(symbol, out var existing))
+        {
+            counts[symbol] = existing + score;
+            return;
+        }
+
+        counts[symbol] = score;
     }
 
     private static double CalculateScore(ConfusionObservation observation, DateTimeOffset now, double halfLifeDays)

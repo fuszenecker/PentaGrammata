@@ -226,9 +226,11 @@ public partial class MainWindowViewModel : ViewModelBase
         return _trendsDialogService.ShowTrendsAsync();
     }
 
-    public Task OpenConfusionsAsync()
+    public async Task OpenConfusionsAsync()
     {
-        return _confusionsDialogService.ShowConfusionsAsync();
+        await _confusionsDialogService.ShowConfusionsAsync();
+        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
+        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
     }
 
     public async Task OpenUiSettingsDialogAsync()
