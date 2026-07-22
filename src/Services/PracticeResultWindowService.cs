@@ -20,7 +20,13 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
         _viewModelFactory = viewModelFactory;
     }
 
-    public async Task<bool> ShowPracticeResultAsync(PracticeResult result, int characterWpm, int averageWpm, bool alreadySaved, NoiseSettings noise)
+    public async Task<bool> ShowPracticeResultAsync(
+        PracticeResult result,
+        int characterWpm,
+        int averageWpm,
+        bool alreadySaved,
+        double errorThresholdPercent,
+        NoiseSettings noise)
     {
         var owner = _windowContext.MainWindow;
         if (owner is null)
@@ -28,7 +34,13 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             return false;
         }
 
-        var viewModel = _viewModelFactory.CreatePracticeResult(result, characterWpm, averageWpm, alreadySaved, noise);
+        var viewModel = _viewModelFactory.CreatePracticeResult(
+            result,
+            characterWpm,
+            averageWpm,
+            alreadySaved,
+            errorThresholdPercent,
+            noise);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = viewModel

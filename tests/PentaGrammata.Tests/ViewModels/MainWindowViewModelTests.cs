@@ -33,7 +33,7 @@ public sealed class MainWindowViewModelTests
         practiceController.StartAsync().Returns(Task.CompletedTask);
         practiceController.LastGeneratedText.Returns(string.Empty);
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
         sut.ReceivedText = "TO_BE_CLEARED";
 
         await sut.StartPracticeAsync();
@@ -66,7 +66,7 @@ public sealed class MainWindowViewModelTests
         practiceController.SelectedCharacterSet.Returns("Default");
         practiceController.StartAsync().Returns(_ => throw new InvalidOperationException("boom"));
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
 
         await sut.StartPracticeAsync();
 
@@ -102,7 +102,7 @@ public sealed class MainWindowViewModelTests
                 return false;
             });
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
 
         await sut.OpenSettingsDialogAsync();
 
@@ -141,7 +141,7 @@ public sealed class MainWindowViewModelTests
                 return true;
             });
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
 
         await sut.OpenSettingsDialogAsync();
 
@@ -170,17 +170,15 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
-        {
-            ReceivedText = "RX",
-        };
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        sut.ReceivedText = "RX";
 
         await sut.OpenResultWindowAsync();
 
         practiceController.Received(1).BuildResult("RX");
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]
@@ -203,12 +201,10 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(true));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(true));
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
-        {
-            ReceivedText = "RX",
-        };
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        sut.ReceivedText = "RX";
 
         await sut.OpenResultWindowAsync();
 
@@ -235,16 +231,14 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger)
-        {
-            ReceivedText = "RX",
-        };
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        sut.ReceivedText = "RX";
 
         await sut.OpenResultWindowAsync();
 
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]
@@ -264,7 +258,7 @@ public sealed class MainWindowViewModelTests
         practiceController.SelectedCharacterSet.Returns("Default");
         aboutDialogService.ShowAboutAsync().Returns(Task.CompletedTask);
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
 
         await sut.OpenAboutAsync();
 
@@ -289,7 +283,7 @@ public sealed class MainWindowViewModelTests
         practiceController.StartAsync().Returns(Task.CompletedTask);
         practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: true), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: true);
 
         await sut.StartPracticeAsync();
 
@@ -314,7 +308,7 @@ public sealed class MainWindowViewModelTests
         practiceController.StartAsync().Returns(Task.CompletedTask);
         practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: false), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: false);
 
         await sut.StartPracticeAsync();
 
@@ -344,7 +338,7 @@ public sealed class MainWindowViewModelTests
             await Task.Yield();
         });
 
-        var sut = new MainWindowViewModel(practiceController, CreateConfigService(revealSentText: true), settingsDialogService, Substitute.For<IUiSettingsDialogService>(), resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: true);
 
         var startTask = sut.StartPracticeAsync();
         // At this point StartAsync has yielded; set ReceivedText to simulate user input
@@ -352,6 +346,26 @@ public sealed class MainWindowViewModelTests
         await startTask;
 
         Assert.AreEqual("MY COPY", sut.ReceivedText);
+    }
+
+    private static MainWindowViewModel CreateSut(
+        IPracticeController practiceController,
+        IMorseSettingsDialogService settingsDialogService,
+        IPracticeResultWindowService resultWindowService,
+        IAboutDialogService aboutDialogService,
+        ILogger<MainWindowViewModel> logger,
+        bool revealSentText = true)
+    {
+        return new MainWindowViewModel(
+            practiceController,
+            CreateConfigService(revealSentText),
+            settingsDialogService,
+            Substitute.For<IUiSettingsDialogService>(),
+            resultWindowService,
+            aboutDialogService,
+            Substitute.For<ITrendsDialogService>(),
+            Substitute.For<IConfusionsDialogService>(),
+            logger);
     }
 
     private static IConfigurationService CreateConfigService(bool revealSentText = true)

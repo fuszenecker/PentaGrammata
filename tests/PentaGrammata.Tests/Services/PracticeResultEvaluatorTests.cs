@@ -46,4 +46,22 @@ public sealed class PracticeResultEvaluatorTests
         Assert.HasCount(2, result.Rows);
         Assert.AreEqual("[+EFGH]", result.Rows[1].Difference);
     }
+
+    [TestMethod]
+    public void Evaluate_SpecialTokenSubstitution_KeepsTokenIntactInDiff()
+    {
+        var result = _evaluator.Evaluate("<bk>", "X", errorThresholdPercent: 100);
+
+        Assert.AreEqual(1, result.ErrorCount);
+        Assert.AreEqual("<bk>", result.Rows[0].Difference);
+    }
+
+    [TestMethod]
+    public void Evaluate_SpecialTokenDeletion_ReportsSingleDeletedToken()
+    {
+        var result = _evaluator.Evaluate("<bk>", string.Empty, errorThresholdPercent: 100);
+
+        Assert.AreEqual(1, result.ErrorCount);
+        Assert.AreEqual("[-<bk>]", result.Rows[0].Difference);
+    }
 }

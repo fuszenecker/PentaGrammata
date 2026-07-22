@@ -20,9 +20,14 @@ public interface IDialogViewModelFactory
         int characterWpm,
         int averageWpm,
         bool alreadySaved,
+        double errorThresholdPercent,
         NoiseSettings noise);
 
     UiSettingsDialogViewModel CreateUiSettings(UiPreferences current);
 
     AboutWindowViewModel CreateAbout();
+
+    TrendsDialogViewModel CreateTrends();
+
+    ConfusionsDialogViewModel CreateConfusions();
 }

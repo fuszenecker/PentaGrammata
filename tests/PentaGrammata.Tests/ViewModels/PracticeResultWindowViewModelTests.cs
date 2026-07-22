@@ -32,7 +32,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
 
         Assert.HasCount(1, sut.Rows);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
@@ -65,7 +65,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
         Assert.HasCount(5, segments);
@@ -100,7 +100,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
 
         Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
 
@@ -130,7 +130,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
 
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
@@ -153,7 +153,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, true, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, true, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
 
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));

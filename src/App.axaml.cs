@@ -69,6 +69,8 @@ public partial class App : Application
         services.AddSingleton<IUiSettingsDialogService, UiSettingsDialogService>();
         services.AddSingleton<IPracticeResultWindowService, PracticeResultWindowService>();
         services.AddSingleton<IAboutDialogService, AboutDialogService>();
+        services.AddSingleton<ITrendsDialogService, TrendsDialogService>();
+        services.AddSingleton<IConfusionsDialogService, ConfusionsDialogService>();
 
         services.AddSingleton<MainWindowViewModel>();
     }

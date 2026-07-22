@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+    xmlns:controls="using:PentaGrammata.Views.Controls"
+        x:Class="PentaGrammata.Views.TrendsDialog"
+        x:DataType="vm:TrendsDialogViewModel"
+        Width="980" Height="600"
+        MinWidth="760" MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        Title="Performance Trends">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
+        <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
+            <CheckBox IsChecked="{Binding ShowCharacterSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#1D4ED8" VerticalAlignment="Center"/>
+                    <TextBlock Text="Character speed" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowAverageSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#0891B2" VerticalAlignment="Center"/>
+                    <TextBlock Text="Average speed" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowErrorSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#DC2626" VerticalAlignment="Center"/>
+                    <TextBlock Text="Error rate" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowLimitSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#F59E0B" VerticalAlignment="Center"/>
+                    <TextBlock Text="Error threshold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowNoiseSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#16A34A" VerticalAlignment="Center"/>
+                    <TextBlock Text="SNR" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+        </WrapPanel>
+
+        <controls:TrendsTimelineChart Grid.Row="1"
+                                      Items="{Binding Points}"
+                                      ShowCharacterSeries="{Binding ShowCharacterSeries}"
+                                      ShowAverageSeries="{Binding ShowAverageSeries}"
+                                      ShowErrorSeries="{Binding ShowErrorSeries}"
+                                      ShowLimitSeries="{Binding ShowLimitSeries}"
+                                      ShowNoiseSeries="{Binding ShowNoiseSeries}"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"/>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding SummaryText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"/>
+
+            <Button Grid.Column="1"
+                    Content="Close"
+                    MinWidth="100"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Background="#1D4ED8"
+                    Foreground="White"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -17,6 +17,7 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Practice.AverageWpm, clone.Practice.AverageWpm);
         Assert.AreEqual(original.Practice.DefaultCharacterSet, clone.Practice.DefaultCharacterSet);
         Assert.AreEqual(original.Practice.ErrorThreshold, clone.Practice.ErrorThreshold);
+        Assert.AreEqual(original.Analytics.ConfusionsHalfLifeDays, clone.Analytics.ConfusionsHalfLifeDays);
         Assert.AreEqual(original.Audio.SampleRate, clone.Audio.SampleRate);
         Assert.AreEqual(original.Audio.Frequency, clone.Audio.Frequency);
         Assert.AreEqual(original.Audio.VolumeDb, clone.Audio.VolumeDb);
@@ -47,6 +48,7 @@ public sealed class AppConfigurationCloneTests
         var clone = original.Clone();
 
         Assert.AreNotSame(original.Practice, clone.Practice);
+        Assert.AreNotSame(original.Analytics, clone.Analytics);
         Assert.AreNotSame(original.Audio, clone.Audio);
         Assert.AreNotSame(original.Audio.Noise, clone.Audio.Noise);
         Assert.AreNotSame(original.UiPreferences, clone.UiPreferences);
@@ -64,11 +66,13 @@ public sealed class AppConfigurationCloneTests
         clone.CharacterSets["Default"] = "CHANGED";
         clone.UiPreferences.SuppressedDialogs.Add("AnotherDialog");
         clone.Practice.CharacterWpm = 99;
+        clone.Analytics.ConfusionsHalfLifeDays = 99;
 
         Assert.HasCount(1, original.CharacterSets);
         Assert.AreEqual("ABCDE", original.CharacterSets["Default"]);
         CollectionAssert.AreEqual(new[] { "ResultsSaved" }, original.UiPreferences.SuppressedDialogs);
         Assert.AreEqual(20, original.Practice.CharacterWpm);
+        Assert.AreEqual(7, original.Analytics.ConfusionsHalfLifeDays);
     }
 
     [TestMethod]
@@ -98,6 +102,10 @@ public sealed class AppConfigurationCloneTests
                 AverageWpm = 15,
                 DefaultCharacterSet = "Default",
                 ErrorThreshold = 10,
+            },
+            Analytics = new Analytics
+            {
+                ConfusionsHalfLifeDays = 7,
             },
             Audio = new Audio
             {

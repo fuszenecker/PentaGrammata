@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+        x:Class="PentaGrammata.Views.ConfusionsDialog"
+        x:DataType="vm:ConfusionsDialogViewModel"
+        Width="720" Height="520"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Title="Confusion Matrix">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="Retention half-life (days)" VerticalAlignment="Center"
+                       ToolTip.Tip="Felezési idő: older confusions weigh less. An observation this many days old counts half as much as a fresh one."/>
+            <NumericUpDown Width="130"
+                           Minimum="{Binding MinHalfLife}"
+                           Maximum="{Binding MaxHalfLife}"
+                           Increment="1"
+                           FormatString="0"
+                           Value="{Binding HalfLifeDays}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Border Width="36" Height="24" Background="Transparent"/>
+                    <ItemsControl ItemsSource="{Binding ColumnHeaders}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="34" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
+                                    <TextBlock Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Border Width="36" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
+                                    <TextBlock Text="{Binding ExpectedSymbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding Cells}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="34" Height="24" Background="{Binding Background}" BorderBrush="#374151" BorderThickness="1">
+                                                <TextBlock Text="{Binding DisplayText}" Foreground="{Binding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding SummaryText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="Practice confusions"
+                    MinWidth="170"
+                    Command="{Binding PracticeConfusionsCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Background="#1D4ED8"
+                    Foreground="White"/>
+                <Button Content="Close"
+                    MinWidth="100"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"/>
+                </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

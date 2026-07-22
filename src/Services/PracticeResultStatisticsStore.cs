@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,98 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         }
     }
 
+    public async Task<IReadOnlyList<PracticeTrendPoint>> GetTrendPointsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+            await connection.OpenAsync(cancellationToken);
+
+            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT
+                    recorded_at,
+                    character_wpm,
+                    average_wpm,
+                    error_rate_percent,
+                    error_threshold_percent,
+                    noise_level_db
+                FROM practice_result_statistics
+                ORDER BY recorded_at ASC;
+                """;
+
+            var points = new List<PracticeTrendPoint>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                points.Add(new PracticeTrendPoint
+                {
+                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
+                    CharacterWpm = reader.GetInt32(1),
+                    AverageWpm = reader.GetInt32(2),
+                    ErrorRatePercent = reader.GetDouble(3),
+                    ErrorThresholdPercent = reader.GetDouble(4),
+                    NoiseLevelDb = reader.GetDouble(5)
+                });
+            }
+
+            return points;
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Failed to read trend points from {DatabasePath}", _databasePath);
+            throw new StatisticsStoreException("Could not read trend points.", ex);
+        }
+    }
+
+    public async Task<IReadOnlyList<ConfusionObservation>> GetConfusionObservationsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+            await connection.OpenAsync(cancellationToken);
+
+            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT
+                    recorded_at,
+                    expected_symbol,
+                    actual_symbol,
+                    distance,
+                    count
+                FROM practice_confusions
+                ORDER BY recorded_at ASC;
+                """;
+
+            var observations = new List<ConfusionObservation>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                observations.Add(new ConfusionObservation
+                {
+                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
+                    ExpectedSymbol = reader.GetString(1),
+                    ActualSymbol = reader.GetString(2),
+                    Distance = reader.GetInt32(3),
+                    Count = reader.GetInt32(4)
+                });
+            }
+
+            return observations;
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Failed to read confusion observations from {DatabasePath}", _databasePath);
+            throw new StatisticsStoreException("Could not read confusion observations.", ex);
+        }
+    }
+
     private async Task SaveCoreAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection($"Data Source={_databasePath}");
@@ -52,7 +145,10 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 
         await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
 
+        using var transaction = connection.BeginTransaction();
+
         var insertCommand = connection.CreateCommand();
+        insertCommand.Transaction = transaction;
         insertCommand.CommandText =
             """
             INSERT INTO practice_result_statistics (
@@ -62,6 +158,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 character_count,
                 error_count,
                 error_rate_percent,
+                error_threshold_percent,
                 noise_type,
                 noise_level_db,
                 noise_bandwidth_hz,
@@ -78,6 +175,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 $character_count,
                 $error_count,
                 $error_rate_percent,
+                $error_threshold_percent,
                 $noise_type,
                 $noise_level_db,
                 $noise_bandwidth_hz,
@@ -95,6 +193,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$character_count", record.CharacterCount);
         insertCommand.Parameters.AddWithValue("$error_count", record.ErrorCount);
         insertCommand.Parameters.AddWithValue("$error_rate_percent", record.ErrorRatePercent);
+        insertCommand.Parameters.AddWithValue("$error_threshold_percent", record.ErrorThresholdPercent);
         insertCommand.Parameters.AddWithValue("$noise_type", record.NoiseType.ToString());
         insertCommand.Parameters.AddWithValue("$noise_level_db", record.NoiseLevelDb);
         insertCommand.Parameters.AddWithValue("$noise_bandwidth_hz", record.NoiseBandwidthHz);
@@ -104,7 +203,59 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$apf_bandwidth_hz", record.ApfBandwidthHz);
         insertCommand.Parameters.AddWithValue("$apf_peak_gain_db", record.ApfPeakGainDb);
 
-        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        var idCommand = connection.CreateCommand();
+        idCommand.Transaction = transaction;
+        idCommand.CommandText = "SELECT last_insert_rowid();";
+        var result = await idCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        var statisticsId = Convert.ToInt64(result);
+
+        if (record.Confusions.Count > 0)
+        {
+            var confusionInsertCommand = connection.CreateCommand();
+            confusionInsertCommand.Transaction = transaction;
+            confusionInsertCommand.CommandText =
+                """
+                INSERT INTO practice_confusions (
+                    statistics_id,
+                    recorded_at,
+                    expected_symbol,
+                    actual_symbol,
+                    distance,
+                    count
+                )
+                VALUES (
+                    $statistics_id,
+                    $recorded_at,
+                    $expected_symbol,
+                    $actual_symbol,
+                    $distance,
+                    $count
+                );
+                """;
+
+            var statisticsIdParameter = confusionInsertCommand.Parameters.Add("$statistics_id", SqliteType.Integer);
+            var recordedAtParameter = confusionInsertCommand.Parameters.Add("$recorded_at", SqliteType.Text);
+            var expectedSymbolParameter = confusionInsertCommand.Parameters.Add("$expected_symbol", SqliteType.Text);
+            var actualSymbolParameter = confusionInsertCommand.Parameters.Add("$actual_symbol", SqliteType.Text);
+            var distanceParameter = confusionInsertCommand.Parameters.Add("$distance", SqliteType.Integer);
+            var countParameter = confusionInsertCommand.Parameters.Add("$count", SqliteType.Integer);
+
+            foreach (var confusion in record.Confusions)
+            {
+                statisticsIdParameter.Value = statisticsId;
+                recordedAtParameter.Value = confusion.RecordedAt.ToString("O");
+                expectedSymbolParameter.Value = confusion.ExpectedSymbol;
+                actualSymbolParameter.Value = confusion.ActualSymbol;
+                distanceParameter.Value = confusion.Distance;
+                countParameter.Value = confusion.Count;
+
+                await confusionInsertCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        transaction.Commit();
     }
 
     private async Task EnsureSchemaAsync(SqliteConnection connection, CancellationToken cancellationToken)
@@ -133,6 +284,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     character_count INTEGER NOT NULL,
                     error_count INTEGER NOT NULL,
                     error_rate_percent REAL NOT NULL,
+                    error_threshold_percent REAL NOT NULL DEFAULT 0,
                     noise_type TEXT NOT NULL,
                     noise_level_db REAL NOT NULL,
                     noise_bandwidth_hz REAL NOT NULL,
@@ -142,6 +294,26 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     apf_bandwidth_hz REAL NOT NULL,
                     apf_peak_gain_db REAL NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS practice_confusions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    statistics_id INTEGER NOT NULL,
+                    recorded_at TEXT NOT NULL,
+                    expected_symbol TEXT NOT NULL,
+                    actual_symbol TEXT NOT NULL,
+                    distance INTEGER NOT NULL,
+                    count INTEGER NOT NULL,
+                    FOREIGN KEY(statistics_id) REFERENCES practice_result_statistics(id) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_practice_statistics_recorded_at
+                    ON practice_result_statistics(recorded_at);
+
+                CREATE INDEX IF NOT EXISTS idx_practice_confusions_recorded_at
+                    ON practice_confusions(recorded_at);
+
+                CREATE INDEX IF NOT EXISTS idx_practice_confusions_symbols
+                    ON practice_confusions(expected_symbol, actual_symbol);
                 """;
 
             await createCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
