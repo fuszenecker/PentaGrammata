@@ -10,11 +10,13 @@ public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
+    private readonly IWindowSizeService _windowSizeService;
 
-    public MorseSettingsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
+    public MorseSettingsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
+        _windowSizeService = windowSizeService;
     }
 
     public async Task<AppConfig?> ShowSettingsDialogAsync(AppConfig currentSettings)
@@ -31,6 +33,7 @@ public sealed class MorseSettingsDialogService : IMorseSettingsDialogService
             DataContext = viewModel
         };
 
+        _windowSizeService.Track(dialog);
         var saved = await dialog.ShowDialog<bool>(owner);
         if (!saved)
         {

@@ -9,11 +9,13 @@ public sealed class TrendsDialogService : ITrendsDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
+    private readonly IWindowSizeService _windowSizeService;
 
-    public TrendsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
+    public TrendsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
+        _windowSizeService = windowSizeService;
     }
 
     public async Task ShowTrendsAsync()
@@ -32,6 +34,7 @@ public sealed class TrendsDialogService : ITrendsDialogService
             DataContext = viewModel
         };
 
+        _windowSizeService.Track(dialog);
         await dialog.ShowDialog(owner);
     }
 }

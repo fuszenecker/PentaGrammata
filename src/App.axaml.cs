@@ -33,6 +33,8 @@ public partial class App : Application
                 DataContext = _serviceProvider.GetRequiredService<MainWindowViewModel>(),
             };
 
+            _serviceProvider.GetRequiredService<IWindowSizeService>().Track(mainWindow);
+
             _serviceProvider.GetRequiredService<IWindowContext>().MainWindow = mainWindow;
             desktop.MainWindow = mainWindow;
         }
@@ -57,6 +59,8 @@ public partial class App : Application
         services.AddSingleton<IMorseGenerator, MorseGenerator>();
 
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<IWindowSizeStore, WindowSizeStore>();
+        services.AddSingleton<IWindowSizeService, WindowSizeService>();
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();

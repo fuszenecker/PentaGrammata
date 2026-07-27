@@ -9,11 +9,13 @@ public sealed class AboutDialogService : IAboutDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
+    private readonly IWindowSizeService _windowSizeService;
 
-    public AboutDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
+    public AboutDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
+        _windowSizeService = windowSizeService;
     }
 
     public async Task ShowAboutAsync()
@@ -29,6 +31,7 @@ public sealed class AboutDialogService : IAboutDialogService
             DataContext = _viewModelFactory.CreateAbout()
         };
 
+        _windowSizeService.Track(aboutWindow);
         await aboutWindow.ShowDialog(owner);
     }
 }
