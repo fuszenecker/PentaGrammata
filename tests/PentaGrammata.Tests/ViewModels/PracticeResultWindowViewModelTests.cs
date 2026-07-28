@@ -107,7 +107,7 @@ public sealed class PracticeResultWindowViewModelTests
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
         await statisticsStore.Received(1).SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>());
-        await infoDialogService.Received(1).ShowInfoAsync("Results saved", "Statistics were saved to:\n/tmp/practice-results.db", "ResultsSaved");
+        await infoDialogService.Received(1).ShowInfoAsync("Results saved", "Statistics were saved to:\n/tmp/practice-results.db", "ResultsSaved", "Database location");
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
     }

@@ -123,7 +123,8 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             await _infoDialogService.ShowInfoAsync(
                 "Results saved",
                 $"Statistics were saved to:\n{_statisticsStore.DatabasePath}",
-                "ResultsSaved");
+                "ResultsSaved",
+                detailHeading: "Database location");
         }
         catch (StatisticsStoreException ex)
         {

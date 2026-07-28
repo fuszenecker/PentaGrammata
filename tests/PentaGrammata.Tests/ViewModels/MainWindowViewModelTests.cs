@@ -365,6 +365,8 @@ public sealed class MainWindowViewModelTests
             aboutDialogService,
             Substitute.For<ITrendsDialogService>(),
             Substitute.For<IConfusionsDialogService>(),
+            Substitute.For<IUpdateChecker>(),
+            Substitute.For<IInfoDialogService>(),
             logger);
     }
 

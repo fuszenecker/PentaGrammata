@@ -22,6 +22,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IAboutDialogService _aboutDialogService;
     private readonly ITrendsDialogService _trendsDialogService;
     private readonly IConfusionsDialogService _confusionsDialogService;
+    private readonly IUpdateChecker _updateChecker;
+    private readonly IInfoDialogService _infoDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     [ObservableProperty]
@@ -39,6 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand OpenAboutCommand { get; }
     public IAsyncRelayCommand OpenTrendsCommand { get; }
     public IAsyncRelayCommand OpenConfusionsCommand { get; }
+    public IAsyncRelayCommand CheckUpdatesCommand { get; }
 
     [ObservableProperty]
     private string receivedText = string.Empty;
@@ -73,6 +76,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IAboutDialogService aboutDialogService,
         ITrendsDialogService trendsDialogService,
         IConfusionsDialogService confusionsDialogService,
+        IUpdateChecker updateChecker,
+        IInfoDialogService infoDialogService,
         ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
@@ -83,6 +88,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _aboutDialogService = aboutDialogService;
         _trendsDialogService = trendsDialogService;
         _confusionsDialogService = confusionsDialogService;
+        _updateChecker = updateChecker;
+        _infoDialogService = infoDialogService;
         _logger = logger;
 
         PracticeDuration = _practiceController.PracticeDurationMins;
@@ -99,6 +106,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         OpenTrendsCommand = new AsyncRelayCommand(OpenTrendsAsync);
         OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
+        CheckUpdatesCommand = new AsyncRelayCommand(CheckUpdatesAsync);
         UpdateCommandStates();
     }
 
@@ -219,6 +227,34 @@ public partial class MainWindowViewModel : ViewModelBase
     public Task OpenAboutAsync()
     {
         return _aboutDialogService.ShowAboutAsync();
+    }
+
+    public async Task CheckUpdatesAsync()
+    {
+        var result = await _updateChecker.CheckAsync();
+
+        if (!result.Succeeded)
+        {
+            await _infoDialogService.ShowInfoAsync("Check for updates", result.Error ?? "Could not check for updates.");
+            return;
+        }
+
+        if (result.UpdateAvailable)
+        {
+            var message = $"A new version is available: {result.LatestVersion} (you have {result.CurrentVersion}).";
+            if (!string.IsNullOrEmpty(result.ReleaseUrl))
+            {
+                message += $"\n{result.ReleaseUrl}";
+            }
+
+            await _infoDialogService.ShowInfoAsync("Update available", message, detailHeading: "Release page");
+        }
+        else
+        {
+            await _infoDialogService.ShowInfoAsync(
+                "Check for updates",
+                $"You are running the latest version ({result.CurrentVersion}).");
+        }
     }
 
     public Task OpenTrendsAsync()
