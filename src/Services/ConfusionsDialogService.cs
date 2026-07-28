@@ -9,11 +9,13 @@ public sealed class ConfusionsDialogService : IConfusionsDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
+    private readonly IWindowSizeService _windowSizeService;
 
-    public ConfusionsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
+    public ConfusionsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
+        _windowSizeService = windowSizeService;
     }
 
     public async Task ShowConfusionsAsync()
@@ -32,6 +34,7 @@ public sealed class ConfusionsDialogService : IConfusionsDialogService
             DataContext = viewModel
         };
 
+        _windowSizeService.Track(dialog);
         await dialog.ShowDialog(owner);
     }
 }

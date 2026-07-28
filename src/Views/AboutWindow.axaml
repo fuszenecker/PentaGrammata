@@ -3,8 +3,8 @@
     xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.AboutWindow"
     x:DataType="vm:AboutWindowViewModel"
-        Width="520" Height="340"
-        MinWidth="420" MinHeight="280"
+        Width="520" Height="440"
+        MinWidth="420" MinHeight="380"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/pentagrammata-icon.ico"
         Title="About PentaGrammata">
@@ -16,8 +16,16 @@
 
             <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,10"/>
 
-            <TextBlock Text="Morse practice with configurable character sets, audio settings, and detailed result analysis."
+            <TextBlock Text="Morse code copying practice with Farnsworth timing, configurable character sets (including the Koch/LCWO order), and detailed per-session analysis."
                        TextWrapping="Wrap" TextAlignment="Center" Foreground="#c9d1d9" Margin="0,0,0,10"/>
+
+            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,12" Spacing="3">
+                <TextBlock Text="• Adjustable tone, volume, WPM and session length" Foreground="#c9d1d9"/>
+                <TextBlock Text="• Receiver noise simulation with SNR, filtering, AGC and audio peak filter" Foreground="#c9d1d9"/>
+                <TextBlock Text="• Accuracy scoring with sent/received diff and error-rate threshold" Foreground="#c9d1d9"/>
+                <TextBlock Text="• Performance trends chart over your saved sessions" Foreground="#c9d1d9"/>
+                <TextBlock Text="• Confusion matrix with time-weighted retention (half-life)" Foreground="#c9d1d9"/>
+            </StackPanel>
 
             <TextBlock Text="{Binding VersionText}" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
         </StackPanel>

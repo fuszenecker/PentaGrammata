@@ -11,13 +11,16 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
+    private readonly IWindowSizeService _windowSizeService;
 
     public PracticeResultWindowService(
         IWindowContext windowContext,
-        IDialogViewModelFactory viewModelFactory)
+        IDialogViewModelFactory viewModelFactory,
+        IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
+        _windowSizeService = windowSizeService;
     }
 
     public async Task<bool> ShowPracticeResultAsync(
@@ -46,6 +49,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             DataContext = viewModel
         };
 
+        _windowSizeService.Track(resultWindow);
         await resultWindow.ShowDialog(owner);
         return viewModel.IsSaveCompleted;
     }
