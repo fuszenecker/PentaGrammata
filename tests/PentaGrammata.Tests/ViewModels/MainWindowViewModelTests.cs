@@ -348,6 +348,82 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual("MY COPY", sut.ReceivedText);
     }
 
+    [TestMethod]
+    public async Task OpenConfusionsAsync_WhenBoundListWritesStaleSelectionBack_KeepsNewlyCreatedSet()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var confusionsDialogService = Substitute.For<IConfusionsDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        var initialSets = new List<KeyValuePair<string, string>> { new("Default", "ABCDE") };
+        var setsWithConfusions = new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+            new("Practice confusions", "BBB666KKK"),
+        };
+
+        // The controller is a thin facade over the configuration, so model its state:
+        // the dialog switches the selection to the set it just created.
+        var selected = "Default";
+        var writes = new List<string?>();
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(initialSets, setsWithConfusions);
+        practiceController.SelectedCharacterSet.Returns(_ => selected);
+        practiceController.When(x => x.SelectedCharacterSet = Arg.Any<string>())
+            .Do(call =>
+            {
+                selected = call.Arg<string>();
+                writes.Add(selected);
+            });
+        confusionsDialogService.ShowConfusionsAsync().Returns(_ =>
+        {
+            selected = "Practice confusions";
+            return Task.CompletedTask;
+        });
+
+        var sut = new MainWindowViewModel(
+            practiceController,
+            CreateConfigService(),
+            Substitute.For<IMorseSettingsDialogService>(),
+            Substitute.For<IUiSettingsDialogService>(),
+            Substitute.For<IPracticeResultWindowService>(),
+            Substitute.For<IAboutDialogService>(),
+            Substitute.For<ITrendsDialogService>(),
+            confusionsDialogService,
+            Substitute.For<IUpdateChecker>(),
+            Substitute.For<IInfoDialogService>(),
+            logger);
+
+        // A ComboBox bound to CharacterSets/SelectedItem reacts to a replaced ItemsSource by
+        // clearing SelectedItem and then pushing its own now-stale selection back into the view
+        // model (verified against Avalonia: it writes null, then the previous item). Reproduce
+        // that sequence so the refresh cannot silently regress to the previously selected set.
+        var staleWriteBackDone = false;
+        sut.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(MainWindowViewModel.CharacterSets) || staleWriteBackDone)
+            {
+                return;
+            }
+
+            staleWriteBackDone = true;
+            sut.SelectedCharacterSet = null!;
+            sut.SelectedCharacterSet = "Default";
+        };
+
+        writes.Clear();
+
+        await sut.OpenConfusionsAsync();
+
+        Assert.AreEqual("Practice confusions", sut.SelectedCharacterSet);
+        Assert.AreEqual("Practice confusions", practiceController.SelectedCharacterSet);
+        CollectionAssert.AreEqual(new[] { "Default", "Practice confusions" }, sut.CharacterSets);
+
+        // The stale write-back must never reach the controller, since each write there persists
+        // the configuration; only the intended selection may be pushed through.
+        CollectionAssert.AreEqual(new[] { "Practice confusions" }, writes);
+    }
+
     private static MainWindowViewModel CreateSut(
         IPracticeController practiceController,
         IMorseSettingsDialogService settingsDialogService,
