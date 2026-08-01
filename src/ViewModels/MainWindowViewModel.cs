@@ -31,6 +31,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool hasPracticeStarted;
 
+    // Set while the character-set list is being swapped: the bound ComboBox reacts to a new
+    // ItemsSource by pushing its own (now stale) SelectedItem back into the view model, which
+    // would otherwise overwrite the controller's freshly chosen set.
+    private bool suppressSelectedCharacterSetPush;
+
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
 
     public IAsyncRelayCommand StartPracticeCommand { get; }
@@ -93,8 +98,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _logger = logger;
 
         PracticeDuration = _practiceController.PracticeDurationMins;
-        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
-        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        RefreshCharacterSets();
         ReceivedTextFontFamily = new FontFamily(_configurationService.Current.UiPreferences.ReceivedTextFontFamily);
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
@@ -202,8 +206,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
-        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        RefreshCharacterSets();
         PracticeDuration = _practiceController.PracticeDurationMins;
     }
 
@@ -265,8 +268,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public async Task OpenConfusionsAsync()
     {
         await _confusionsDialogService.ShowConfusionsAsync();
-        CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
-        SelectedCharacterSet = _practiceController.SelectedCharacterSet;
+        RefreshCharacterSets();
     }
 
     public async Task OpenUiSettingsDialogAsync()
@@ -282,8 +284,37 @@ public partial class MainWindowViewModel : ViewModelBase
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
 
+    /// <summary>
+    /// Re-reads the available character sets and the controller's current selection. The
+    /// intended selection is captured before the list is replaced, because assigning
+    /// <see cref="CharacterSets"/> makes the bound ComboBox write its stale selection back
+    /// into <see cref="SelectedCharacterSet"/>; that push is suppressed so it cannot
+    /// overwrite a set just chosen elsewhere (e.g. "Practice confusions").
+    /// </summary>
+    private void RefreshCharacterSets()
+    {
+        var selected = _practiceController.SelectedCharacterSet;
+
+        suppressSelectedCharacterSetPush = true;
+        try
+        {
+            CharacterSets = [.. _practiceController.CharacterSets.Select(x => x.Key)];
+        }
+        finally
+        {
+            suppressSelectedCharacterSetPush = false;
+        }
+
+        SelectedCharacterSet = selected;
+    }
+
     partial void OnSelectedCharacterSetChanged(string value)
     {
+        if (suppressSelectedCharacterSetPush)
+        {
+            return;
+        }
+
         _practiceController.SelectedCharacterSet = value;
     }
 
