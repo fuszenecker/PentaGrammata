@@ -59,6 +59,8 @@ public partial class App : Application
         services.AddSingleton<IMorseGenerator, MorseGenerator>();
 
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = System.TimeSpan.FromSeconds(15) });
+        services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();
         services.AddSingleton<IWindowSizeStore, WindowSizeStore>();
         services.AddSingleton<IWindowSizeService, WindowSizeService>();
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();

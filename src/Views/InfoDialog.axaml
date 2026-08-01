@@ -20,7 +20,8 @@
                    Margin="0,0,0,10"/>
 
         <TextBlock Grid.Row="1"
-                   Text="Database location"
+                   Text="{Binding DetailHeading}"
+                   IsVisible="{Binding HasDetailHeading}"
                    TextAlignment="Left"
                    HorizontalAlignment="Stretch"
                    FontWeight="SemiBold"
@@ -28,6 +29,7 @@
 
         <TextBox Grid.Row="2"
                  Text="{Binding DetailMessage}"
+                 IsVisible="{Binding HasDetail}"
                  IsReadOnly="True"
                  TextWrapping="Wrap"
                  FontFamily="{StaticResource MonospaceFont}"

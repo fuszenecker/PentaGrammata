@@ -17,7 +17,7 @@ public sealed class InfoDialogService : IInfoDialogService
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
     }
 
-    public async Task ShowInfoAsync(string title, string message, string? dialogKey = null)
+    public async Task ShowInfoAsync(string title, string message, string? dialogKey = null, string? detailHeading = null)
     {
         if (dialogKey is not null && _configurationService.IsDialogSuppressed(dialogKey))
         {
@@ -31,7 +31,7 @@ public sealed class InfoDialogService : IInfoDialogService
         }
 
         var (primaryMessage, detailMessage) = SplitMessage(message);
-        var viewModel = new InfoDialogViewModel(title, primaryMessage, detailMessage, dialogKey is not null);
+        var viewModel = new InfoDialogViewModel(title, primaryMessage, detailMessage, dialogKey is not null, detailHeading);
         await new InfoDialog(viewModel).ShowDialog(owner);
 
         if (viewModel.DoNotShowAgain && dialogKey is not null)
