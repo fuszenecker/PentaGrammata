@@ -3,7 +3,7 @@
         xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.MorseSettingsDialog"
         x:DataType="vm:MorseSettingsDialogViewModel"
-        Width="720" Height="620"
+        Width="640" Height="520"
         MinWidth="640" MinHeight="520"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
