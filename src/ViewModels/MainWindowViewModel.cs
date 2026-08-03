@@ -139,7 +139,10 @@ public partial class MainWindowViewModel : ViewModelBase
             if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice
                 && string.IsNullOrEmpty(ReceivedText))
             {
-                ReceivedText = _practiceController.LastGeneratedText;
+                var revealedText = _practiceController.LastGeneratedText;
+                ReceivedText = _configurationService.Current.UiPreferences.UseLowercaseLetters
+                    ? revealedText.ToLowerInvariant()
+                    : revealedText;
             }
         }
         catch (OperationCanceledException)
