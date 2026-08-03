@@ -26,7 +26,7 @@ function keyOrder(key) {
 
 function normalizePlainText(input) {
   // Keep everything except line breaks; then apply the requested substitutions.
-  return input.replace(/[\r\n]/g, '').replace(/ /g, '=').replace(/\./g, '+');
+  return input.replace(/[\r\n]/g, '').replace(/ /g, '/');
 }
 
 function denormalizePlainText(input) {
