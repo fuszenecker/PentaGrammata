@@ -3,8 +3,8 @@
         xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.MorseSettingsDialog"
         x:DataType="vm:MorseSettingsDialogViewModel"
-        Width="640" Height="480"
-        MinWidth="640" MinHeight="400"
+        Width="720" Height="620"
+        MinWidth="640" MinHeight="520"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">
@@ -14,26 +14,42 @@
         <TabControl Grid.Row="0" Background="#101010">
 
             <TabItem Header="Practice">
-                <StackPanel Margin="6" Spacing="8">
-                    <TextBlock Text="Character WPM"/>
-                    <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
-                    <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="0,0,0,0">
-                        <StackPanel Grid.Column="0" Spacing="8">
-                            <TextBlock Text="Average WPM"/>
-                            <NumericUpDown Minimum="1" Maximum="{Binding CharacterWpm}" Increment="1" FormatString="0" Value="{Binding AverageWpm}"
-                                           IsEnabled="{Binding !WpmLocked}" HorizontalAlignment="Stretch"/>
-                        </StackPanel>
-                        <ToggleButton Grid.Column="1" IsChecked="{Binding WpmLocked}" VerticalAlignment="Bottom" Padding="10,5"
-                                      ToolTip.Tip="Lock both WPM values together" HorizontalAlignment="Right" Margin="10,0,0,0">
-                            <Panel>
-                                <TextBlock Text="🔒 Locked"   IsVisible="{Binding WpmLocked}"/>
-                                <TextBlock Text="🔓 Unlocked" IsVisible="{Binding !WpmLocked}"/>
-                            </Panel>
-                        </ToggleButton>
-                    </Grid>
-                    <TextBlock Text="Error threshold (%)"/>
-                    <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"/>
-                </StackPanel>
+                <Grid Margin="6" RowDefinitions="Auto,*">
+                    <StackPanel Grid.Row="0" Spacing="8">
+                        <TextBlock Text="Character WPM"/>
+                        <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
+                        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="0,0,0,0">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="Average WPM"/>
+                                <NumericUpDown Minimum="1" Maximum="{Binding CharacterWpm}" Increment="1" FormatString="0" Value="{Binding AverageWpm}"
+                                               IsEnabled="{Binding !WpmLocked}" HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            <ToggleButton Grid.Column="1" IsChecked="{Binding WpmLocked}" VerticalAlignment="Bottom" Padding="10,5"
+                                          ToolTip.Tip="Lock both WPM values together" HorizontalAlignment="Right" Margin="10,0,0,0">
+                                <Panel>
+                                    <TextBlock Text="🔒 Locked"   IsVisible="{Binding WpmLocked}"/>
+                                    <TextBlock Text="🔓 Unlocked" IsVisible="{Binding !WpmLocked}"/>
+                                </Panel>
+                            </ToggleButton>
+                        </Grid>
+                        <TextBlock Text="Error threshold (%)"/>
+                        <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"/>
+                        <TextBlock Text="Custom text" Margin="0,4,0,0"/>
+                        <TextBlock Foreground="#9aa0a6" TextWrapping="Wrap"
+                                   Text="Leave empty to send randomly generated 5-character groups from the selected character set. Any text entered here is sent verbatim instead, ignoring the character set and the practice duration."/>
+                    </StackPanel>
+
+                    <TextBox Grid.Row="1" Margin="0,8,0,0"
+                             Text="{Binding CustomText}"
+                             TextWrapping="Wrap"
+                             FontFamily="{StaticResource MonospaceFont}"
+                             AcceptsReturn="True"
+                             Padding="8,6"
+                             MinHeight="60"
+                             VerticalAlignment="Stretch"
+                             HorizontalAlignment="Stretch"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                </Grid>
             </TabItem>
 
             <TabItem Header="Audio">

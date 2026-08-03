@@ -80,6 +80,21 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             return false;
         }
 
+        // A blank custom text means "generate groups as usual", so only non-blank text is
+        // checked — every token in it has to be something the player can actually send.
+        var customText = CustomTextNormalizer.Normalize(settings.Practice.CustomText);
+        if (customText.Length > 0)
+        {
+            foreach (var token in MorseAlphabet.Tokenize(customText))
+            {
+                if (!MorseAlphabet.Supports(token))
+                {
+                    error = $"Custom text contains something that cannot be sent as Morse code: \"{token}\".";
+                    return false;
+                }
+            }
+        }
+
         if (settings.CharacterSets.Count == 0)
         {
             error = "At least one character set is required.";
