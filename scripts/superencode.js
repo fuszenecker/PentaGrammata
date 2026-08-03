@@ -26,7 +26,7 @@ function keyOrder(key) {
 
 function normalizePlainText(input) {
   // Keep everything except line breaks; then apply the requested substitutions.
-  return input.replace(/[\r\n]/g, '=').replace(/ /g, '=').replace(/\./g, '+');
+  return input.replace(/[\r\n]/g, '').replace(/ /g, '=').replace(/\./g, '+');
 }
 
 function denormalizePlainText(input) {
@@ -55,12 +55,10 @@ function encrypt(plainText, key) {
   }
 
   const rows = Math.ceil(normalized.length / cols);
-  const padLength = (rows * cols) - normalized.length;
-  const padded = normalized + '='.repeat(padLength);
 
   const table = [];
   for (let r = 0; r < rows; r += 1) {
-    table.push(padded.slice(r * cols, (r + 1) * cols).split(''));
+    table.push(normalized.slice(r * cols, (r + 1) * cols).split(''));
   }
 
   const order = keyOrder(key);
@@ -105,9 +103,6 @@ function decrypt(cipherText, key) {
       }
     }
   }
-
-  // Strip trailing padding characters (=)
-  out = out.replace(/=+$/, '');
 
   return denormalizePlainText(out);
 }
