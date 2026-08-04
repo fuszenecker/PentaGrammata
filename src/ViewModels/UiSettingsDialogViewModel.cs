@@ -23,6 +23,9 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private bool revealSentTextAfterPractice;
 
+    [ObservableProperty]
+    private bool revealSentTextInLowercase;
+
     public IReadOnlyList<string> AvailableFonts { get; }
 
     public IRelayCommand SaveCommand { get; }
@@ -36,6 +39,7 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
         ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
         ReceivedTextFontSize = prefs.ReceivedTextFontSize;
         RevealSentTextAfterPractice = prefs.RevealSentTextAfterPractice;
+        RevealSentTextInLowercase = prefs.RevealSentTextInLowercase;
 
         AvailableFonts = [.. FontManager.Current.SystemFonts.Select(f => f.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
@@ -49,5 +53,6 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
         ReceivedTextFontFamily = ReceivedTextFontFamily,
         ReceivedTextFontSize = ReceivedTextFontSize,
         RevealSentTextAfterPractice = RevealSentTextAfterPractice,
+        RevealSentTextInLowercase = RevealSentTextInLowercase,
     };
 }

@@ -203,6 +203,63 @@ public sealed class MorseSettingsDialogViewModelTests
     }
 
     [TestMethod]
+    public void Constructor_ReadsCustomTextFromConfig()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        var config = CreateConfig(20, 15, "Default");
+        config.Practice.CustomText = "CQ CQ DE HA5XYZ";
+
+        var sut = new MorseSettingsDialogViewModel(config, validator);
+
+        Assert.AreEqual("CQ CQ DE HA5XYZ", sut.CustomText);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_CarriesTrimmedCustomTextThrough()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        {
+            CustomText = "  CQ DE HA5XYZ  ",
+            CharacterSetsText = "Default = ABCDE",
+        };
+
+        var success = sut.TryBuildSettings(out var settings);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual("CQ DE HA5XYZ", settings.Practice.CustomText);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_WhenCustomTextLeftEmpty_YieldsEmptyCustomText()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        {
+            CharacterSetsText = "Default = ABCDE",
+        };
+
+        var success = sut.TryBuildSettings(out var settings);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, settings.Practice.CustomText);
+    }
+
+    [TestMethod]
     public void SaveCommand_WhenConfigValid_RaisesCloseRequestedTrue()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();

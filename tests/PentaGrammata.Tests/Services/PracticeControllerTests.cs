@@ -70,6 +70,108 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
+    public async Task StartAsync_WithConfiguredCustomText_SendsItVerbatimWithoutGenerating()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var morseGenerator = Substitute.For<IMorseGenerator>();
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
+        var configService = Substitute.For<IConfigurationService>();
+        var logger = Substitute.For<ILogger<PracticeController>>();
+
+        var config = CreateDefaultConfiguration();
+        config.Practice.CustomText = "CQ CQ DE HA5XYZ";
+        configService.Current.Returns(config);
+
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
+
+        await sut.StartAsync();
+
+        Assert.AreEqual("CQ CQ DE HA5XYZ", sut.LastGeneratedText);
+        morseGenerator.DidNotReceiveWithAnyArgs().GenerateGroupsOf5(default!, default);
+        await morsePlayer.Received(1).PlayMorseCodeAsync(
+            "vvv = CQ CQ DE HA5XYZ <ar>",
+            Arg.Any<MorsePlaybackSettings>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task StartAsync_WithMultiLineCustomText_CollapsesWhitespaceToWordGaps()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var morseGenerator = Substitute.For<IMorseGenerator>();
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
+        var configService = Substitute.For<IConfigurationService>();
+        var logger = Substitute.For<ILogger<PracticeController>>();
+
+        var config = CreateDefaultConfiguration();
+        config.Practice.CustomText = "  CQ  CQ\r\nDE   HA5XYZ\n";
+        configService.Current.Returns(config);
+
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
+
+        await sut.StartAsync();
+
+        Assert.AreEqual("CQ CQ DE HA5XYZ", sut.LastGeneratedText);
+    }
+
+    [TestMethod]
+    public async Task StartAsync_WithBlankCustomText_FallsBackToGeneratedGroups()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var morseGenerator = Substitute.For<IMorseGenerator>();
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
+        var configService = Substitute.For<IConfigurationService>();
+        var logger = Substitute.For<ILogger<PracticeController>>();
+
+        var config = CreateDefaultConfiguration();
+        config.Practice.CustomText = "   ";
+        config.Practice.DefaultDurationMins = 2;
+        config.Practice.AverageWpm = 20;
+        configService.Current.Returns(config);
+
+        morseGenerator.GenerateGroupsOf5(Arg.Any<string>(), 28).Returns("ABCDE FGHIJ");
+
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
+
+        await sut.StartAsync();
+
+        Assert.AreEqual("ABCDE FGHIJ", sut.LastGeneratedText);
+        morseGenerator.Received(1).GenerateGroupsOf5("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 28);
+    }
+
+    [TestMethod]
+    public void TryApplySettings_AppliesCustomText()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var morseGenerator = Substitute.For<IMorseGenerator>();
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
+        var configService = Substitute.For<IConfigurationService>();
+        var logger = Substitute.For<ILogger<PracticeController>>();
+
+        var loadedConfig = CreateDefaultConfiguration();
+        loadedConfig.Practice.CustomText = "OLD TEXT";
+        configService.Current.Returns(loadedConfig);
+        settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, logger);
+
+        var newSettings = CreateDefaultConfiguration();
+        newSettings.Practice.CustomText = "NEW TEXT";
+
+        Assert.IsTrue(sut.TryApplySettings(newSettings, out _));
+        Assert.AreEqual("NEW TEXT", loadedConfig.Practice.CustomText);
+    }
+
+    [TestMethod]
     public void BuildResult_DelegatesToEvaluator_AndStoresLastReceivedText()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();

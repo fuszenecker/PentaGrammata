@@ -102,18 +102,32 @@ public class PracticeController : IPracticeController
 
         try
         {
-            string characterSetCharacters = _configurationService.Current.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
-                && !string.IsNullOrWhiteSpace(selectedCharacters)
-                    ? selectedCharacters
-                    : CharacterSets.FirstOrDefault().Value;
+            // A configured custom text overrides generation entirely: the user hears exactly
+            // that text (duration and character set no longer apply).
+            var customText = CustomTextNormalizer.Normalize(_configurationService.Current.Practice.CustomText);
+            string morseCode;
 
-            if (string.IsNullOrWhiteSpace(characterSetCharacters))
-                characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
+            if (customText.Length > 0)
+            {
+                _logger.LogDebug("Using configured custom text");
+                morseCode = customText;
+            }
+            else
+            {
+                string characterSetCharacters = _configurationService.Current.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
+                    && !string.IsNullOrWhiteSpace(selectedCharacters)
+                        ? selectedCharacters
+                        : CharacterSets.FirstOrDefault().Value;
 
-            int numberOfGroups = (int)Math.Round(PracticeDurationMins * _configurationService.Current.Practice.AverageWpm * LengthCorrector);
-            _logger.LogDebug("Generating {GroupCount} morse groups", numberOfGroups);
-            
-            string morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
+                if (string.IsNullOrWhiteSpace(characterSetCharacters))
+                    characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
+
+                int numberOfGroups = (int)Math.Round(PracticeDurationMins * _configurationService.Current.Practice.AverageWpm * LengthCorrector);
+                _logger.LogDebug("Generating {GroupCount} morse groups", numberOfGroups);
+
+                morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
+            }
+
             LastGeneratedText = morseCode;
 
             try
@@ -194,6 +208,7 @@ public class PracticeController : IPracticeController
         config.Audio.Noise = settings.Audio.Noise.Clone();
         config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
         config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
+        config.Practice.CustomText = settings.Practice.CustomText;
 
         config.CharacterSets.Clear();
         foreach (var item in settings.CharacterSets)

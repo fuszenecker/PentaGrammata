@@ -158,6 +158,68 @@ public sealed class PracticeSettingsValidatorTests
         Assert.AreEqual("Default character set must match one of the configured character set names.", error);
     }
 
+    [TestMethod]
+    public void TryValidate_EmptyCustomText_ReturnsTrue()
+    {
+        // Empty means "generate groups as usual", so it must not be validated as sendable text.
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "   ";
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
+    public void TryValidate_SendableCustomText_ReturnsTrue()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "cq cq de ha5xyz <ar>";
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
+    public void TryValidate_CustomTextWithUnsendableCharacter_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "HELLO! WORLD";
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("Custom text contains something that cannot be sent as Morse code: \"!\".", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_CustomTextWithUnknownProsign_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "CQ <zz> DE";
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("Custom text contains something that cannot be sent as Morse code: \"<zz>\".", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_MultiLineCustomText_ReturnsTrue()
+    {
+        // Line breaks normalize to word gaps, so they must not be reported as unsendable.
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "CQ CQ\r\nDE HA5XYZ\nK";
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
     private static AppConfig CreateValidSettings()
     {
         return new AppConfig

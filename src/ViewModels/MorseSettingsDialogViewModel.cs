@@ -91,6 +91,12 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private double errorThreshold;
 
+    /// <summary>
+    /// User-supplied text to send instead of generated groups; blank means "generate as usual".
+    /// </summary>
+    [ObservableProperty]
+    private string customText = string.Empty;
+
     [ObservableProperty]
     private string characterSetsText = string.Empty;
 
@@ -124,6 +130,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         ApfBandwidthHz = config.Audio.Noise.ApfBandwidthHz;
         ApfPeakGainDb = config.Audio.Noise.ApfPeakGainDb;
         ErrorThreshold = config.Practice.ErrorThreshold;
+        CustomText = config.Practice.CustomText ?? string.Empty;
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
         {
@@ -190,6 +197,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 AverageWpm = AverageWpm,
                 DefaultCharacterSet = defaultSet,
                 ErrorThreshold = ErrorThreshold,
+                CustomText = (CustomText ?? string.Empty).Trim(),
             },
             Audio = new Audio
             {

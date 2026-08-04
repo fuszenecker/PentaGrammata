@@ -7,6 +7,7 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 ## Features
 
 - Generates random 5-character groups from configurable character sets (letters, digits, punctuation, prosigns)
+- Optional custom text: enter your own text in Settings to send it verbatim instead of random groups
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
 - Timed practice sessions with a live countdown
 - Accuracy scoring with per-group diff output and a configurable error-rate threshold
@@ -96,6 +97,7 @@ All packaging scripts read the version from `version.txt` by default and accept 
 | `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
+| `Practice` | `CustomText` | _(empty)_ | Your own text to send instead of generated groups; empty = generate as usual |
 | `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
 | `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
 | `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |

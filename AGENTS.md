@@ -11,6 +11,10 @@ Cross-platform Morse code copying practice app built with .NET 10 and Avalonia U
 3. The user types what they hear; a live countdown shows remaining time.
 4. When time runs out (or the user stops early), the session ends and accuracy is evaluated.
 
+If `Practice.CustomText` is non-blank, step 2 is skipped entirely: that text is sent verbatim
+(whitespace collapsed to word gaps) and neither the character set nor the duration applies. The
+settings dialog rejects custom text containing anything `MorseAlphabet` cannot send.
+
 ### Audio Synthesis
 
 - Morse code is synthesized using the **Farnsworth timing method**: `CharacterWpm` controls individual character speed; `AverageWpm` controls the overall (inter-character spacing) speed.
