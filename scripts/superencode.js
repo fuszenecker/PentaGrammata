@@ -24,13 +24,17 @@ function keyOrder(key) {
     .map((item) => item.index);
 }
 
+// Word gaps ride along as "+" so they survive as a sendable character. These two
+// tables must stay exact inverses of each other or enc | dec stops round-tripping.
+// "." is passed through unchanged (send it with the "Full punctuation" set).
 function normalizePlainText(input) {
-  // Keep everything except line breaks; then apply the requested substitutions.
-  return input.replace(/[\r\n]/g, '').replace(/ /g, '/');
+  // Any run of whitespace, including line breaks, is one word separator. Trimmed
+  // first so a trailing newline from a shell pipe does not become a word gap.
+  return input.trim().replace(/\s+/g, ' ').replace(/ /g, '+');
 }
 
 function denormalizePlainText(input) {
-  return input.replace(/=/g, ' ').replace(/\+/g, '.');
+  return input.replace(/\+/g, ' ');
 }
 
 function splitIntoGroups(text, groupSize = 5) {
