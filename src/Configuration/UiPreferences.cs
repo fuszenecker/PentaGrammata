@@ -8,7 +8,7 @@ public sealed class UiPreferences
     public string ReceivedTextFontFamily { get; set; } = "Cascadia Mono";
     public double ReceivedTextFontSize { get; set; } = 20.0;
     public bool RevealSentTextAfterPractice { get; set; } = true;
-    public bool UseLowercaseLetters { get; set; } = false;
+    public bool RevealSentTextInLowercase { get; set; } = false;
 
     public UiPreferences Clone() => new()
     {
@@ -16,6 +16,6 @@ public sealed class UiPreferences
         ReceivedTextFontFamily = ReceivedTextFontFamily,
         ReceivedTextFontSize = ReceivedTextFontSize,
         RevealSentTextAfterPractice = RevealSentTextAfterPractice,
-        UseLowercaseLetters = UseLowercaseLetters,
+        RevealSentTextInLowercase = RevealSentTextInLowercase,
     };
 }

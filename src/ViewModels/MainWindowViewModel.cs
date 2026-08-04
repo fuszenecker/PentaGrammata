@@ -140,7 +140,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 && string.IsNullOrEmpty(ReceivedText))
             {
                 var revealedText = _practiceController.LastGeneratedText;
-                ReceivedText = _configurationService.Current.UiPreferences.UseLowercaseLetters
+                ReceivedText = _configurationService.Current.UiPreferences.RevealSentTextInLowercase
                     ? revealedText.ToLowerInvariant()
                     : revealedText;
             }

@@ -25,8 +25,8 @@
                 </Grid>
                 <CheckBox Content="Reveal sent text after practice"
                           IsChecked="{Binding RevealSentTextAfterPractice}"/>
-                <CheckBox Content="Use lowercase letters in received text"
-                          IsChecked="{Binding UseLowercaseLetters}"/>
+                <CheckBox Content="Reveal sent text in lowercase"
+                          IsChecked="{Binding RevealSentTextInLowercase}"/>
             </StackPanel>
         </GroupBox>
 

@@ -34,6 +34,7 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontFamily, clone.UiPreferences.ReceivedTextFontFamily);
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontSize, clone.UiPreferences.ReceivedTextFontSize);
         Assert.AreEqual(original.UiPreferences.RevealSentTextAfterPractice, clone.UiPreferences.RevealSentTextAfterPractice);
+        Assert.AreEqual(original.UiPreferences.RevealSentTextInLowercase, clone.UiPreferences.RevealSentTextInLowercase);
         CollectionAssert.AreEqual(original.UiPreferences.SuppressedDialogs, clone.UiPreferences.SuppressedDialogs);
         CollectionAssert.AreEqual(
             new[] { "Default" },
@@ -84,12 +85,14 @@ public sealed class AppConfigurationCloneTests
         original.UiPreferences.ReceivedTextFontFamily = "Ubuntu Mono";
         original.UiPreferences.ReceivedTextFontSize = 42.0;
         original.UiPreferences.RevealSentTextAfterPractice = false;
+        original.UiPreferences.RevealSentTextInLowercase = false;
 
         var clone = original.Clone();
 
         Assert.AreEqual("Ubuntu Mono", clone.UiPreferences.ReceivedTextFontFamily);
         Assert.AreEqual(42.0, clone.UiPreferences.ReceivedTextFontSize);
         Assert.IsFalse(clone.UiPreferences.RevealSentTextAfterPractice);
+        Assert.IsFalse(clone.UiPreferences.RevealSentTextInLowercase);
     }
 
     private static AppConfiguration CreateSample()
@@ -137,6 +140,7 @@ public sealed class AppConfigurationCloneTests
                 ReceivedTextFontFamily = "Cascadia Mono",
                 ReceivedTextFontSize = 20.0,
                 RevealSentTextAfterPractice = true,
+                RevealSentTextInLowercase = true,
             },
         };
     }

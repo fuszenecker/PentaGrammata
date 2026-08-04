@@ -349,6 +349,110 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task StartPracticeAsync_WhenLowercaseRevealEnabled_FillsWithLowercasedGeneratedText()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        var sut = CreateSut(
+            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
+            revealSentText: true, revealInLowercase: true);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual("abcde fghij", sut.ReceivedText);
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenLowercaseRevealDisabled_KeepsGeneratedTextCasing()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        var sut = CreateSut(
+            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
+            revealSentText: true, revealInLowercase: false);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual("ABCDE FGHIJ", sut.ReceivedText);
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenLowercaseRevealEnabled_KeepsProsignsIntact()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Full", "AB<ar><sk>"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Full");
+        practiceController.LastGeneratedText.Returns("AB<ar> CD<sk>");
+
+        var sut = CreateSut(
+            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
+            revealSentText: true, revealInLowercase: true);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual("ab<ar> cd<sk>", sut.ReceivedText);
+    }
+
+    [TestMethod]
+    public async Task StartPracticeAsync_WhenLowercaseRevealEnabledButRevealDisabled_DoesNotFill()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var aboutDialogService = Substitute.For<IAboutDialogService>();
+        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
+
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
+
+        var sut = CreateSut(
+            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
+            revealSentText: false, revealInLowercase: true);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual(string.Empty, sut.ReceivedText);
+    }
+
+    [TestMethod]
     public async Task OpenConfusionsAsync_WhenBoundListWritesStaleSelectionBack_KeepsNewlyCreatedSet()
     {
         var practiceController = Substitute.For<IPracticeController>();
@@ -430,11 +534,12 @@ public sealed class MainWindowViewModelTests
         IPracticeResultWindowService resultWindowService,
         IAboutDialogService aboutDialogService,
         ILogger<MainWindowViewModel> logger,
-        bool revealSentText = true)
+        bool revealSentText = true,
+        bool revealInLowercase = false)
     {
         return new MainWindowViewModel(
             practiceController,
-            CreateConfigService(revealSentText),
+            CreateConfigService(revealSentText, revealInLowercase),
             settingsDialogService,
             Substitute.For<IUiSettingsDialogService>(),
             resultWindowService,
@@ -446,7 +551,7 @@ public sealed class MainWindowViewModelTests
             logger);
     }
 
-    private static IConfigurationService CreateConfigService(bool revealSentText = true)
+    private static IConfigurationService CreateConfigService(bool revealSentText = true, bool revealInLowercase = false)
     {
         var configService = Substitute.For<IConfigurationService>();
         configService.Current.Returns(new AppConfig
@@ -454,6 +559,7 @@ public sealed class MainWindowViewModelTests
             UiPreferences = new UiPreferences
             {
                 RevealSentTextAfterPractice = revealSentText,
+                RevealSentTextInLowercase = revealInLowercase,
             },
         });
         return configService;
