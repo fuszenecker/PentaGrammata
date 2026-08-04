@@ -31,7 +31,7 @@ public sealed class PracticeResultEvaluatorTests
         Assert.AreEqual(1, result.ErrorCount);
         Assert.AreEqual(20d, result.ErrorRatePercent, 0.0001);
         Assert.IsFalse(result.IsSuccessful);
-        Assert.AreEqual("..C..", result.Rows[0].Difference);
+        Assert.AreEqual("..[!C]..", result.Rows[0].Difference);
     }
 
     [TestMethod]
@@ -53,7 +53,36 @@ public sealed class PracticeResultEvaluatorTests
         var result = _evaluator.Evaluate("<bk>", "X", errorThresholdPercent: 100);
 
         Assert.AreEqual(1, result.ErrorCount);
-        Assert.AreEqual("<bk>", result.Rows[0].Difference);
+        Assert.AreEqual("[!<bk>]", result.Rows[0].Difference);
+    }
+
+    [TestMethod]
+    public void Evaluate_SubstitutedPeriod_IsDistinguishableFromAMatch()
+    {
+        // Regression: "." was emitted raw for substitutions, so a wrongly-copied period
+        // produced the exact same diff text as a perfect match and vanished from the view.
+        var substituted = _evaluator.Evaluate("A.C", "A,C", errorThresholdPercent: 100);
+        var perfect = _evaluator.Evaluate("A.C", "A.C", errorThresholdPercent: 100);
+
+        Assert.AreEqual(1, substituted.ErrorCount);
+        Assert.AreEqual("...", perfect.Rows[0].Difference);
+        Assert.AreEqual(".[!.].", substituted.Rows[0].Difference);
+        Assert.AreNotEqual(perfect.Rows[0].Difference, substituted.Rows[0].Difference);
+    }
+
+    [TestMethod]
+    [DataRow(".", ".[!.].")]
+    [DataRow(",", ".[!,].")]
+    [DataRow("/", ".[!/].")]
+    [DataRow("+", ".[!+].")]
+    [DataRow("?", ".[!?].")]
+    [DataRow("=", ".[!=].")]
+    public void Evaluate_SubstitutedPunctuation_IsMarkedAsSubstituted(string sentSymbol, string expectedDifference)
+    {
+        var result = _evaluator.Evaluate($"A{sentSymbol}C", "AXC", errorThresholdPercent: 100);
+
+        Assert.AreEqual(1, result.ErrorCount);
+        Assert.AreEqual(expectedDifference, result.Rows[0].Difference);
     }
 
     [TestMethod]

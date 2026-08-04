@@ -157,16 +157,17 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         var i = 0;
         while (i < difference.Length)
         {
-            if (difference[i] == '[' && i + 2 < difference.Length && (difference[i + 1] == '+' || difference[i + 1] == '-'))
+            if (difference[i] == '[' && i + 2 < difference.Length && TryGetTokenKind(difference[i + 1], out var tokenKind))
             {
-                var end = difference.IndexOf(']', i + 2);
+                // Search from i + 2 so a substituted "]" is taken as content, not as the terminator.
+                var end = difference.IndexOf(']', i + 3);
                 if (end > i)
                 {
                     var tokenContent = difference.Substring(i + 2, end - (i + 2));
                     segments.Add(new PracticeResultDiffSegmentViewModel
                     {
                         Text = tokenContent,
-                        Kind = difference[i + 1] == '+' ? DiffSegmentKind.Inserted : DiffSegmentKind.Deleted
+                        Kind = tokenKind
                     });
                     i = end + 1;
                     continue;
@@ -188,6 +189,25 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         }
 
         return segments;
+    }
+
+    private static bool TryGetTokenKind(char marker, out DiffSegmentKind kind)
+    {
+        switch (marker)
+        {
+            case '+':
+                kind = DiffSegmentKind.Inserted;
+                return true;
+            case '-':
+                kind = DiffSegmentKind.Deleted;
+                return true;
+            case '!':
+                kind = DiffSegmentKind.Substituted;
+                return true;
+            default:
+                kind = DiffSegmentKind.Unchanged;
+                return false;
+        }
     }
 }
 
