@@ -25,8 +25,12 @@
                 </Grid>
                 <CheckBox Content="Reveal sent text after practice"
                           IsChecked="{Binding RevealSentTextAfterPractice}"/>
+                <!-- Lowercase only affects the revealed text, so it is meaningless
+                     unless the reveal itself is on. -->
                 <CheckBox Content="Reveal sent text in lowercase"
-                          IsChecked="{Binding RevealSentTextInLowercase}"/>
+                          Margin="20,0,0,0"
+                          IsChecked="{Binding RevealSentTextInLowercase}"
+                          IsEnabled="{Binding RevealSentTextAfterPractice}"/>
             </StackPanel>
         </GroupBox>
 
