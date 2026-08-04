@@ -97,7 +97,9 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
             if (edit.Kind == LevenshteinEditKind.Substitute)
             {
                 FlushEditBuffers();
-                tokensReversed.Add(edit.Expected);
+                // Bracketed so a substituted "." can never be mistaken for the "." match
+                // marker, and so prosigns such as <bk> survive as one token.
+                tokensReversed.Add($"[!{edit.Expected}]");
                 continue;
             }
 

@@ -27,7 +27,7 @@ public sealed class PracticeResultWindowViewModelTests
                 {
                     SentGroup = "abc",
                     ReceivedGroup = "abd",
-                    Difference = "..C",
+                    Difference = "..[!C]",
                 },
             ],
         };
@@ -60,7 +60,7 @@ public sealed class PracticeResultWindowViewModelTests
                 {
                     SentGroup = "abc",
                     ReceivedGroup = "axc",
-                    Difference = ".[+yz][-q]A ",
+                    Difference = ".[+yz][-q][!A] ",
                 },
             ],
         };
@@ -84,6 +84,39 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.AreEqual(" ", segments[4].Text);
         Assert.AreEqual(DiffSegmentKind.Unchanged, segments[4].Kind);
         Assert.AreEqual(StatusLevel.Success, sut.ResultStatus);
+    }
+
+    [TestMethod]
+    public void Constructor_SubstitutedPunctuation_IsColoredAsSubstitutedNotUnchanged()
+    {
+        // Regression: a substituted "." used to parse as the "match" marker and render
+        // gray, making punctuation errors invisible in the differences column.
+        var sut = BuildViewModelForDifference(".[!.][!,].");
+        var segments = sut.Rows[0].DifferenceSegments;
+
+        Assert.HasCount(4, segments);
+        Assert.AreEqual(".", segments[0].Text);
+        Assert.AreEqual(DiffSegmentKind.Unchanged, segments[0].Kind);
+
+        Assert.AreEqual(".", segments[1].Text);
+        Assert.AreEqual(DiffSegmentKind.Substituted, segments[1].Kind);
+
+        Assert.AreEqual(",", segments[2].Text);
+        Assert.AreEqual(DiffSegmentKind.Substituted, segments[2].Kind);
+
+        Assert.AreEqual(".", segments[3].Text);
+        Assert.AreEqual(DiffSegmentKind.Unchanged, segments[3].Kind);
+    }
+
+    [TestMethod]
+    public void Constructor_SubstitutedProsign_IsKeptAsOneSubstitutedSegment()
+    {
+        var sut = BuildViewModelForDifference("[!<bk>]");
+        var segments = sut.Rows[0].DifferenceSegments;
+
+        Assert.HasCount(1, segments);
+        Assert.AreEqual("<bk>", segments[0].Text);
+        Assert.AreEqual(DiffSegmentKind.Substituted, segments[0].Kind);
     }
 
     [TestMethod]
@@ -157,5 +190,27 @@ public sealed class PracticeResultWindowViewModelTests
 
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
+    }
+
+    private static PracticeResultWindowViewModel BuildViewModelForDifference(string difference)
+    {
+        var result = new PracticeResult
+        {
+            CharacterCount = 5,
+            ErrorCount = 1,
+            ErrorRatePercent = 20,
+            IsSuccessful = true,
+            Rows = [new PracticeResultRow { SentGroup = "a", ReceivedGroup = "b", Difference = difference }],
+        };
+
+        return new PracticeResultWindowViewModel(
+            result,
+            20,
+            15,
+            false,
+            10.0,
+            new NoiseSettings(),
+            Substitute.For<IPracticeResultStatisticsStore>(),
+            Substitute.For<IInfoDialogService>());
     }
 }
