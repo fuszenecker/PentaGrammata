@@ -215,6 +215,45 @@ public sealed class MorseSettingsDialogViewModelTests
     }
 
     [TestMethod]
+    public void Constructor_ReadsAutoAdjustSettingsFromConfig()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        var config = CreateConfig(20, 15, "Default");
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.AutoAdjustWindowSize = 8;
+
+        var sut = new MorseSettingsDialogViewModel(config, validator);
+
+        Assert.IsTrue(sut.AutoAdjustWpm);
+        Assert.AreEqual(8, sut.AutoAdjustWindowSize);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_CarriesAutoAdjustSettingsThrough()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        {
+            AutoAdjustWpm = true,
+            AutoAdjustWindowSize = 4,
+            CharacterSetsText = "Default = ABCDE",
+        };
+
+        var success = sut.TryBuildSettings(out var settings);
+
+        Assert.IsTrue(success);
+        Assert.IsTrue(settings.Practice.AutoAdjustWpm);
+        Assert.AreEqual(4, settings.Practice.AutoAdjustWindowSize);
+    }
+
+    [TestMethod]
     public void TryBuildSettings_CarriesTrimmedCustomTextThrough()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();

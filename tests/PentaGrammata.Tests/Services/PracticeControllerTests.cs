@@ -312,6 +312,225 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
+    public async Task StartAsync_WithAutoAdjust_UsesConfiguredWpmAsDynamicStart()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        configService.Current.Returns(config);
+
+        var sut = CreateController(configService);
+
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithHighError_SlowsDownDynamicAverageWpm()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(new PracticeResult
+        {
+            ErrorRatePercent = 30,
+            IsSuccessful = false,
+        });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            Substitute.For<IPracticeSettingsValidator>(),
+            evaluator,
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+
+        // Adjustment applied once; average slowed from 15 to 14, character unchanged.
+        await sut.StartAsync();
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(14, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithLowError_SpeedsUpAndRaisesCharacterWpmWhenReached()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        // Start locked: average == character, so the very first speed-up must raise both.
+        config.Practice.CharacterWpm = 15;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(new PracticeResult
+        {
+            ErrorRatePercent = 3,
+            IsSuccessful = true,
+        });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            Substitute.For<IPracticeSettingsValidator>(),
+            evaluator,
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+
+        // Two clean sessions: 15 -> 16 -> 17, with character WPM raised alongside.
+        await sut.StartAsync();
+        Assert.AreEqual(17, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(17, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_AdjustsAtMostOncePerSession()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(new PracticeResult
+        {
+            ErrorRatePercent = 30,
+            IsSuccessful = false,
+        });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            Substitute.For<IPracticeSettingsValidator>(),
+            evaluator,
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        // Reopening the result window for the same session must not slow down again.
+        sut.BuildResult("rx");
+
+        await sut.StartAsync();
+        Assert.AreEqual(14, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithAutoAdjustOff_LeavesWpmAtConfigured()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = false;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(new PracticeResult
+        {
+            ErrorRatePercent = 80,
+            IsSuccessful = false,
+        });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            Substitute.For<IPracticeSettingsValidator>(),
+            evaluator,
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task TryApplySettings_ResetsDynamicWpmToConfigured()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(new PracticeResult
+        {
+            ErrorRatePercent = 3,
+            IsSuccessful = true,
+        });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            settingsValidator,
+            evaluator,
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+
+        // Speed up once (15 -> 16), then re-apply the same settings: dynamic must reset.
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        Assert.IsTrue(sut.TryApplySettings(config.Clone(), out _));
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    private static PracticeController CreateController(IConfigurationService configService)
+    {
+        return new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            Substitute.For<IPracticeSettingsValidator>(),
+            Substitute.For<IPracticeResultEvaluator>(),
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+    }
+
+    [TestMethod]
     public void Constructor_WhenCharacterSetsAreEmpty_AddsDefaultSet()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();

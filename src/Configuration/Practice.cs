@@ -14,6 +14,19 @@ public sealed class Practice
 	/// </summary>
 	public string CustomText { get; set; } = string.Empty;
 
+	/// <summary>
+	/// When true, the practice WPM is adjusted in memory after each scored session: it slows
+	/// down when recent errors are high and speeds up when they are low. The dynamic WPM
+	/// itself is never persisted; it restarts from the configured WPM on every app start.
+	/// </summary>
+	public bool AutoAdjustWpm { get; set; }
+
+	/// <summary>
+	/// Number of most recent sessions whose error rates are averaged to drive
+	/// <see cref="AutoAdjustWpm"/>. Must be at least 1.
+	/// </summary>
+	public int AutoAdjustWindowSize { get; set; } = 5;
+
 	public Practice Clone() => new()
 	{
 		DefaultDurationMins = DefaultDurationMins,
@@ -22,5 +35,7 @@ public sealed class Practice
 		DefaultCharacterSet = DefaultCharacterSet,
 		ErrorThreshold = ErrorThreshold,
 		CustomText = CustomText,
+		AutoAdjustWpm = AutoAdjustWpm,
+		AutoAdjustWindowSize = AutoAdjustWindowSize,
 	};
 }

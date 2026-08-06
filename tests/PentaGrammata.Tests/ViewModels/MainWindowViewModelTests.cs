@@ -170,6 +170,8 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        practiceController.LastUsedCharacterWpm.Returns(20);
+        practiceController.LastUsedAverageWpm.Returns(15);
         resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
         var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
@@ -201,6 +203,8 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        practiceController.LastUsedCharacterWpm.Returns(20);
+        practiceController.LastUsedAverageWpm.Returns(15);
         resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(true));
 
         var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
@@ -231,6 +235,8 @@ public sealed class MainWindowViewModelTests
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        practiceController.LastUsedCharacterWpm.Returns(20);
+        practiceController.LastUsedAverageWpm.Returns(15);
         resultWindowService.ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
         var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);

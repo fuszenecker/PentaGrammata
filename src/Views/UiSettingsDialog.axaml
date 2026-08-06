@@ -18,19 +18,23 @@
                     <ComboBox Grid.Column="0" Margin="0,0,6,0"
                               ItemsSource="{Binding AvailableFonts}"
                               SelectedItem="{Binding ReceivedTextFontFamily}"
-                              HorizontalAlignment="Stretch"/>
+                              HorizontalAlignment="Stretch"
+                              ToolTip.Tip="Font used for the received-text box you type into. A monospace font is recommended for aligning groups."/>
                     <NumericUpDown Grid.Column="1" Width="120"
                                    Minimum="6" Maximum="72" Increment="1" FormatString="0"
-                                   Value="{Binding ReceivedTextFontSize}"/>
+                                   Value="{Binding ReceivedTextFontSize}"
+                                   ToolTip.Tip="Font size (pt) for the received-text box."/>
                 </Grid>
                 <CheckBox Content="Reveal sent text after practice"
-                          IsChecked="{Binding RevealSentTextAfterPractice}"/>
+                          IsChecked="{Binding RevealSentTextAfterPractice}"
+                          ToolTip.Tip="When the session ends and you typed nothing, fill the received-text box with what was sent, so you can compare."/>
                 <!-- Lowercase only affects the revealed text, so it is meaningless
                      unless the reveal itself is on. -->
                 <CheckBox Content="Reveal sent text in lowercase"
                           Margin="20,0,0,0"
                           IsChecked="{Binding RevealSentTextInLowercase}"
-                          IsEnabled="{Binding RevealSentTextAfterPractice}"/>
+                          IsEnabled="{Binding RevealSentTextAfterPractice}"
+                          ToolTip.Tip="Lowercase the revealed sent text. Prosigns like &lt;ar&gt; are kept intact."/>
             </StackPanel>
         </GroupBox>
 

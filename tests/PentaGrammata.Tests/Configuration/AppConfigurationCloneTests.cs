@@ -18,6 +18,8 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Practice.DefaultCharacterSet, clone.Practice.DefaultCharacterSet);
         Assert.AreEqual(original.Practice.ErrorThreshold, clone.Practice.ErrorThreshold);
         Assert.AreEqual(original.Practice.CustomText, clone.Practice.CustomText);
+        Assert.AreEqual(original.Practice.AutoAdjustWpm, clone.Practice.AutoAdjustWpm);
+        Assert.AreEqual(original.Practice.AutoAdjustWindowSize, clone.Practice.AutoAdjustWindowSize);
         Assert.AreEqual(original.Analytics.ConfusionsHalfLifeDays, clone.Analytics.ConfusionsHalfLifeDays);
         Assert.AreEqual(original.Audio.SampleRate, clone.Audio.SampleRate);
         Assert.AreEqual(original.Audio.Frequency, clone.Audio.Frequency);
@@ -107,6 +109,8 @@ public sealed class AppConfigurationCloneTests
                 DefaultCharacterSet = "Default",
                 ErrorThreshold = 10,
                 CustomText = "CQ CQ DE HA5XYZ",
+                AutoAdjustWpm = true,
+                AutoAdjustWindowSize = 7,
             },
             Analytics = new Analytics
             {

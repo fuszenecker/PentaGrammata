@@ -17,6 +17,30 @@ public interface IPracticeController
 
     string LastGeneratedText { get; }
 
+    /// <summary>
+    /// Character WPM used by the most recent session. Reflects the in-memory dynamic WPM
+    /// when auto-adjust is enabled, otherwise the configured WPM.
+    /// </summary>
+    int LastUsedCharacterWpm { get; }
+
+    /// <summary>
+    /// Average (Farnsworth) WPM used by the most recent session. Reflects the in-memory
+    /// dynamic WPM when auto-adjust is enabled, otherwise the configured WPM.
+    /// </summary>
+    int LastUsedAverageWpm { get; }
+
+    /// <summary>
+    /// Character WPM the next session will use (the current dynamic value when auto-adjust
+    /// is enabled, otherwise the configured value).
+    /// </summary>
+    int CurrentCharacterWpm { get; }
+
+    /// <summary>
+    /// Average (Farnsworth) WPM the next session will use (the current dynamic value when
+    /// auto-adjust is enabled, otherwise the configured value).
+    /// </summary>
+    int CurrentAverageWpm { get; }
+
     Task StartAsync();
 
     void Stop();

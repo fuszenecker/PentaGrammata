@@ -92,6 +92,17 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private double errorThreshold;
 
     /// <summary>
+    /// When enabled, the practice WPM is adjusted in memory after each scored session based
+    /// on the average error rate of the last <see cref="AutoAdjustWindowSize"/> sessions.
+    /// The dynamic WPM is never persisted; only this toggle and the window size are saved.
+    /// </summary>
+    [ObservableProperty]
+    private bool autoAdjustWpm;
+
+    [ObservableProperty]
+    private int autoAdjustWindowSize;
+
+    /// <summary>
     /// User-supplied text to send instead of generated groups; blank means "generate as usual".
     /// </summary>
     [ObservableProperty]
@@ -130,6 +141,8 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         ApfBandwidthHz = config.Audio.Noise.ApfBandwidthHz;
         ApfPeakGainDb = config.Audio.Noise.ApfPeakGainDb;
         ErrorThreshold = config.Practice.ErrorThreshold;
+        AutoAdjustWpm = config.Practice.AutoAdjustWpm;
+        AutoAdjustWindowSize = config.Practice.AutoAdjustWindowSize;
         CustomText = config.Practice.CustomText ?? string.Empty;
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
@@ -198,6 +211,8 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 DefaultCharacterSet = defaultSet,
                 ErrorThreshold = ErrorThreshold,
                 CustomText = (CustomText ?? string.Empty).Trim(),
+                AutoAdjustWpm = AutoAdjustWpm,
+                AutoAdjustWindowSize = AutoAdjustWindowSize,
             },
             Audio = new Audio
             {
