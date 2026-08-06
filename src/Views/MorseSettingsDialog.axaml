@@ -83,68 +83,78 @@
             </TabItem>
 
             <TabItem Header="Noise">
-                <StackPanel Margin="6" Spacing="12">
-                    <!-- Noise source -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <StackPanel Grid.Column="0" Spacing="8">
-                            <TextBlock Text="Noise type"/>
-                            <ComboBox ItemsSource="{Binding NoiseTypeOptions}" SelectedItem="{Binding SelectedNoiseType}"
-                                      HorizontalAlignment="Stretch"
-                                      ToolTip.Tip="Background noise added to the signal. Select &quot;None&quot; for a clean tone; Gaussian/Uniform/Pink simulate different noise floors."/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="Signal-to-noise ratio (dB)"/>
-                            <NumericUpDown Minimum="-20" Maximum="80" Increment="1" FormatString="0.##"
-                                           Value="{Binding NoiseSnrDb}"
-                                           IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
-                                           ToolTip.Tip="How much louder the signal is than the noise. Higher = cleaner copy; lower = buried in noise. Stored internally as the inverse noise level."/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Filter width (Hz)"/>
-                            <NumericUpDown Minimum="50" Maximum="4000" Increment="50" FormatString="0.##"
-                                           Value="{Binding NoiseBandwidthHz}"
-                                           IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
-                                           ToolTip.Tip="Width of the shared receiver bandpass filter applied to both signal and noise. Narrower = tighter CW filter (less noise gets through), wider = more noise."/>
-                        </StackPanel>
-                    </Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="6" Spacing="12">
 
-                    <!-- AGC row -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="AGC enabled"
-                                  IsChecked="{Binding AgcEnabled}"
-                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
-                                  ToolTip.Tip="Automatic gain control. Lets the receiver gain ride up and down so the noise floor breathes, mimicking a real receiver."/>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="AGC delay (s)"/>
-                            <NumericUpDown Minimum="0.01" Maximum="5" Increment="0.05" FormatString="0.###"
-                                           Value="{Binding AgcDelaySeconds}"
-                                           IsEnabled="{Binding AgcEnabled}"
-                                           ToolTip.Tip="AGC release/delay time. Longer = gain recovers more slowly after loud peaks."/>
-                        </StackPanel>
-                    </Grid>
+                        <!-- Noise source -->
+                        <GroupBox Header="Noise" CornerRadius="0" Background="#101010">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <StackPanel Grid.Column="0" Spacing="8">
+                                    <TextBlock Text="Noise type"/>
+                                    <ComboBox ItemsSource="{Binding NoiseTypeOptions}" SelectedItem="{Binding SelectedNoiseType}"
+                                              HorizontalAlignment="Stretch"
+                                              ToolTip.Tip="Background noise added to the signal. Select &quot;None&quot; for a clean tone; Gaussian/Uniform/Pink simulate different noise floors."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="Signal-to-noise ratio (dB)"/>
+                                    <NumericUpDown Minimum="-20" Maximum="80" Increment="1" FormatString="0.##"
+                                                   Value="{Binding NoiseSnrDb}"
+                                                   IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
+                                                   ToolTip.Tip="How much louder the signal is than the noise. Higher = cleaner copy; lower = buried in noise. Stored internally as the inverse noise level."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Filter width (Hz)"/>
+                                    <NumericUpDown Minimum="50" Maximum="4000" Increment="50" FormatString="0.##"
+                                                   Value="{Binding NoiseBandwidthHz}"
+                                                   IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
+                                                   ToolTip.Tip="Width of the shared receiver bandpass filter applied to both signal and noise. Narrower = tighter CW filter (less noise gets through), wider = more noise."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
 
-                    <!-- APF row -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="APF enabled"
-                                  IsChecked="{Binding ApfEnabled}"
-                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
-                                  ToolTip.Tip="Audio peak filter. Adds a narrow ringing peak on the tone frequency to help pull a weak signal out of the noise."/>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="APF bandwidth (Hz)"/>
-                            <NumericUpDown Minimum="10" Maximum="2000" Increment="10" FormatString="0.##"
-                                           Value="{Binding ApfBandwidthHz}"
-                                           IsEnabled="{Binding ApfEnabled}"
-                                           ToolTip.Tip="Width of the audio peak filter. Narrower = sharper ring concentrated on the tone."/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Peak blend gain (dB)"/>
-                            <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
-                                           Value="{Binding ApfPeakGainDb}"
-                                           IsEnabled="{Binding ApfEnabled}"
-                                           ToolTip.Tip="How much of the narrow-peak signal is blended on top of the passband, relative to the level after AGC. 0 dB = peak as loud as the passband; negative = subtler ring."/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
+                        <!-- AGC -->
+                        <GroupBox Header="AGC (automatic gain control)" CornerRadius="0" Background="#101010"
+                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="AGC enabled"
+                                          IsChecked="{Binding AgcEnabled}"
+                                          ToolTip.Tip="Automatic gain control. Lets the receiver gain ride up and down so the noise floor breathes, mimicking a real receiver."/>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="AGC delay (s)"/>
+                                    <NumericUpDown Minimum="0.01" Maximum="5" Increment="0.05" FormatString="0.###"
+                                                   Value="{Binding AgcDelaySeconds}"
+                                                   IsEnabled="{Binding AgcEnabled}"
+                                                   ToolTip.Tip="AGC release/delay time. Longer = gain recovers more slowly after loud peaks."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- APF -->
+                        <GroupBox Header="APF (audio peak filter)" CornerRadius="0" Background="#101010"
+                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="APF enabled"
+                                          IsChecked="{Binding ApfEnabled}"
+                                          ToolTip.Tip="Audio peak filter. Adds a narrow ringing peak on the tone frequency to help pull a weak signal out of the noise."/>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="APF bandwidth (Hz)"/>
+                                    <NumericUpDown Minimum="10" Maximum="2000" Increment="10" FormatString="0.##"
+                                                   Value="{Binding ApfBandwidthHz}"
+                                                   IsEnabled="{Binding ApfEnabled}"
+                                                   ToolTip.Tip="Width of the audio peak filter. Narrower = sharper ring concentrated on the tone."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Peak blend gain (dB)"/>
+                                    <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
+                                                   Value="{Binding ApfPeakGainDb}"
+                                                   IsEnabled="{Binding ApfEnabled}"
+                                                   ToolTip.Tip="How much of the narrow-peak signal is blended on top of the passband, relative to the level after AGC. 0 dB = peak as loud as the passband; negative = subtler ring."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
+
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Character sets">
