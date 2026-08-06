@@ -25,7 +25,7 @@ public sealed class Practice
 	/// Number of most recent sessions whose error rates are averaged to drive
 	/// <see cref="AutoAdjustWpm"/>. Must be at least 1.
 	/// </summary>
-	public int AutoAdjustWindowSize { get; set; } = 5;
+	public int AutoAdjustWindowSize { get; set; } = 3;
 
 	public Practice Clone() => new()
 	{
