@@ -9,18 +9,18 @@ namespace PentaGrammata.Services;
 public sealed class DialogViewModelFactory : IDialogViewModelFactory
 {
     private readonly IPracticeSettingsValidator _settingsValidator;
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IInfoDialogService _infoDialogService;
     private readonly IConfigurationService _configurationService;
 
     public DialogViewModelFactory(
         IPracticeSettingsValidator settingsValidator,
-        IPracticeResultStatisticsStore statisticsStore,
+        IPracticeResultStatisticsService statisticsService,
         IInfoDialogService infoDialogService,
         IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         _infoDialogService = infoDialogService;
         _configurationService = configurationService;
     }
@@ -45,7 +45,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
             alreadySaved,
             errorThresholdPercent,
             noise,
-            _statisticsStore,
+            _statisticsService,
             _infoDialogService);
     }
 
@@ -61,11 +61,11 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public TrendsDialogViewModel CreateTrends()
     {
-        return new TrendsDialogViewModel(_statisticsStore);
+        return new TrendsDialogViewModel(_statisticsService);
     }
 
     public ConfusionsDialogViewModel CreateConfusions()
     {
-        return new ConfusionsDialogViewModel(_statisticsStore, _configurationService);
+        return new ConfusionsDialogViewModel(_statisticsService, _configurationService);
     }
 }

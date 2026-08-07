@@ -14,7 +14,7 @@ namespace PentaGrammata.ViewModels;
 
 public sealed class PracticeResultWindowViewModel : ViewModelBase
 {
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IInfoDialogService _infoDialogService;
     private readonly PracticeResultStatisticsRecord _record;
     private bool _isSaving;
@@ -59,10 +59,10 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,
-        IPracticeResultStatisticsStore statisticsStore,
+        IPracticeResultStatisticsService statisticsService,
         IInfoDialogService infoDialogService)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         _infoDialogService = infoDialogService;
         _isSaveCompleted = alreadySaved;
 
@@ -118,11 +118,11 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         IsSaving = true;
         try
         {
-            await _statisticsStore.SaveAsync(_record);
+            await _statisticsService.SaveAsync(_record);
             IsSaveCompleted = true;
             await _infoDialogService.ShowInfoAsync(
                 "Results saved",
-                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}",
+                $"Statistics were saved to:\n{_statisticsService.DatabasePath}",
                 "ResultsSaved",
                 detailHeading: "Database location");
         }

@@ -15,7 +15,7 @@ namespace PentaGrammata.ViewModels;
 
 public sealed class TrendsDialogViewModel : ViewModelBase
 {
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
@@ -75,9 +75,9 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         private set => SetProperty(ref _summaryText, value);
     }
 
-    public TrendsDialogViewModel(IPracticeResultStatisticsStore statisticsStore)
+    public TrendsDialogViewModel(IPracticeResultStatisticsService statisticsService)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
         ExportCsvCommand = new RelayCommand(ExportCsv, CanExportCsv);
     }
@@ -132,7 +132,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     public async Task InitializeAsync()
     {
         Points.Clear();
-        _records = await _statisticsStore.GetStatisticsRecordsAsync().ConfigureAwait(false);
+        _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(false);
 
         foreach (var point in _records
             .Select(r => new PracticeTrendPoint

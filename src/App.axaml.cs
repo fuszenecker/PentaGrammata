@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using PentaGrammata.Composition;
 using PentaGrammata.Interfaces;
-using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
@@ -51,33 +51,9 @@ public partial class App : Application
     {
         services.AddLogging();
 
-        services.AddSingleton<IDialogViewModelFactory, DialogViewModelFactory>();
-        services.AddSingleton<IWindowContext, WindowContext>();
-        services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
-        services.AddSingleton<INoiseGeneratorFactory, NoiseGeneratorFactory>();
-        services.AddSingleton<IMorsePlayer, MorsePlayer>();
-        services.AddSingleton<IMorseGenerator, MorseGenerator>();
-
-        services.AddSingleton<IAppPaths, AppPaths>();
-        services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = System.TimeSpan.FromSeconds(15) });
-        services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();
-        services.AddSingleton<IWindowSizeStore, WindowSizeStore>();
-        services.AddSingleton<IWindowSizeService, WindowSizeService>();
-        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
-        services.AddSingleton<IConfigurationService, ConfigurationService>();
-        services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
-        services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
-        services.AddSingleton<IPracticeResultStatisticsStore, PracticeResultStatisticsStore>();
-        services.AddSingleton<IPracticeController, PracticeController>();
-        services.AddSingleton<IInfoDialogService, InfoDialogService>();
-
-        services.AddSingleton<IMorseSettingsDialogService, MorseSettingsDialogService>();
-        services.AddSingleton<IUiSettingsDialogService, UiSettingsDialogService>();
-        services.AddSingleton<IPracticeResultWindowService, PracticeResultWindowService>();
-        services.AddSingleton<IAboutDialogService, AboutDialogService>();
-        services.AddSingleton<ITrendsDialogService, TrendsDialogService>();
-        services.AddSingleton<IConfusionsDialogService, ConfusionsDialogService>();
-
-        services.AddSingleton<MainWindowViewModel>();
+        services.AddInfrastructure();
+        services.AddStores();
+        services.AddServices();
+        services.AddViewModels();
     }
 }

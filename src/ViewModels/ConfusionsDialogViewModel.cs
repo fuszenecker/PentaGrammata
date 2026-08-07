@@ -24,7 +24,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private const string GapSymbol = "_";
     private const int PracticeSetTargetSymbolCount = 200;
 
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IConfigurationService _configurationService;
     private string _summaryText = "Loading confusion matrix...";
     private double _halfLifeDays = DefaultHalfLifeDays;
@@ -73,10 +73,10 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     }
 
     public ConfusionsDialogViewModel(
-        IPracticeResultStatisticsStore statisticsStore,
+        IPracticeResultStatisticsService statisticsService,
         IConfigurationService configurationService)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         _configurationService = configurationService;
         var configuredHalfLife = Math.Clamp(
             _configurationService.Current.Analytics.ConfusionsHalfLifeDays,
@@ -90,7 +90,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
-        _observations = await _statisticsStore.GetConfusionObservationsAsync();
+        _observations = await _statisticsService.GetConfusionObservationsAsync();
         Rebuild();
     }
 
