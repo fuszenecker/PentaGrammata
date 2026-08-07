@@ -17,12 +17,14 @@
                 <Grid Margin="6" RowDefinitions="Auto,*">
                     <StackPanel Grid.Row="0" Spacing="8">
                         <TextBlock Text="Character WPM"/>
-                        <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"/>
+                        <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"
+                                       ToolTip.Tip="Speed at which each individual character is keyed (PARIS standard). Higher = dits and dahs are shorter and faster."/>
                         <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="0,0,0,0">
                             <StackPanel Grid.Column="0" Spacing="8">
                                 <TextBlock Text="Average WPM"/>
                                 <NumericUpDown Minimum="1" Maximum="{Binding CharacterWpm}" Increment="1" FormatString="0" Value="{Binding AverageWpm}"
-                                               IsEnabled="{Binding !WpmLocked}" HorizontalAlignment="Stretch"/>
+                                               IsEnabled="{Binding !WpmLocked}" HorizontalAlignment="Stretch"
+                                               ToolTip.Tip="Overall speed including the gaps between characters (Farnsworth method). Lower than character WPM, it adds extra spacing so characters arrive slower while remaining individually fast. This is the starting point when auto-adjust is on."/>
                             </StackPanel>
                             <ToggleButton Grid.Column="1" IsChecked="{Binding WpmLocked}" VerticalAlignment="Bottom" Padding="10,5"
                                           ToolTip.Tip="Lock both WPM values together" HorizontalAlignment="Right" Margin="10,0,0,0">
@@ -33,10 +35,20 @@
                             </ToggleButton>
                         </Grid>
                         <TextBlock Text="Error threshold (%)"/>
-                        <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"/>
+                        <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"
+                                       ToolTip.Tip="Maximum error rate (Levenshtein distance / sent characters) for a session to count as passed. Also the reference auto-adjust compares recent errors against."/>
+                        <CheckBox Content="Auto-adjust WPM"
+                                  IsChecked="{Binding AutoAdjustWpm}"
+                                  Margin="0,4,0,0"
+                                  ToolTip.Tip="After each scored session, slow down when recent errors are high or the session you just finished failed, and speed up otherwise. The dynamic WPM is kept in memory only and restarts from the configured WPM on each app start."/>
+                        <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding AutoAdjustWpm}" Margin="0,0,0,0">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="Window size (last N sessions)"/>
+                                <NumericUpDown Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding AutoAdjustWindowSize}"
+                                               ToolTip.Tip="When auto-adjust is on, the average error rate of the last N sessions is compared to the error threshold: above it slows the average WPM by 1, at or below it speeds up by 1. The session you just finished also counts on its own — if it is above the threshold the speed drops even when the average still looks good. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured WPM above is the starting point."/>
+                            </StackPanel>
+                        </Grid>
                         <TextBlock Text="Custom text" Margin="0,4,0,0"/>
-                        <TextBlock Foreground="#9aa0a6" TextWrapping="Wrap"
-                                   Text="Leave empty to send randomly generated 5-character groups from the selected character set. Any text entered here is sent verbatim instead, ignoring the character set and the practice duration."/>
                     </StackPanel>
 
                     <TextBox Grid.Row="1" Margin="0,8,0,0"
@@ -48,6 +60,7 @@
                              MinHeight="60"
                              VerticalAlignment="Stretch"
                              HorizontalAlignment="Stretch"
+                             ToolTip.Tip="Leave empty to send randomly generated 5-character groups from the selected character set. Any text entered here is sent verbatim instead, ignoring the character set and the practice duration."
                              ScrollViewer.VerticalScrollBarVisibility="Auto"/>
                 </Grid>
             </TabItem>
@@ -55,82 +68,98 @@
             <TabItem Header="Audio">
                 <StackPanel Margin="6" Spacing="8">
                     <TextBlock Text="Frequency (Hz)"/>
-                    <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"/>
+                    <NumericUpDown Minimum="20" Maximum="20000" Increment="1" FormatString="0.##" Value="{Binding Frequency}"
+                                   ToolTip.Tip="Pitch of the CW tone. 600–700 Hz is typical for copy practice; lower is easier on the ears over long sessions."/>
                     <TextBlock Text="Volume (dBFS)"/>
-                    <NumericUpDown Minimum="-60" Maximum="0" Increment="1" FormatString="0.##" Value="{Binding VolumeDb}"/>
+                    <NumericUpDown Minimum="-60" Maximum="0" Increment="1" FormatString="0.##" Value="{Binding VolumeDb}"
+                                   ToolTip.Tip="Signal level in dB relative to full scale. 0 dBFS is the loudest; negative values attenuate."/>
                     <TextBlock Text="Sample rate"/>
-                    <ComboBox ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SelectedSampleRate}" HorizontalAlignment="Stretch"/>
+                    <ComboBox ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SelectedSampleRate}" HorizontalAlignment="Stretch"
+                              ToolTip.Tip="Audio sample rate (Hz). Higher rates give smoother tone synthesis at no perceptual difference for CW."/>
                     <TextBlock Text="Beep ramp (ms)"/>
-                    <NumericUpDown Minimum="0" Maximum="200" Increment="1" FormatString="0" Value="{Binding BeepRampMs}"/>
+                    <NumericUpDown Minimum="0" Maximum="200" Increment="1" FormatString="0" Value="{Binding BeepRampMs}"
+                                   ToolTip.Tip="Envelope ramp applied at the start and end of each tone to avoid clicks. Small values keep edges sharp."/>
                 </StackPanel>
             </TabItem>
 
             <TabItem Header="Noise">
-                <StackPanel Margin="6" Spacing="12">
-                    <!-- Noise source -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <StackPanel Grid.Column="0" Spacing="8">
-                            <TextBlock Text="Noise type"/>
-                            <ComboBox ItemsSource="{Binding NoiseTypeOptions}" SelectedItem="{Binding SelectedNoiseType}"
-                                      HorizontalAlignment="Stretch"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="Signal-to-noise ratio (dB)"/>
-                            <NumericUpDown Minimum="-20" Maximum="80" Increment="1" FormatString="0.##"
-                                           Value="{Binding NoiseSnrDb}"
-                                           IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Filter width (Hz)"/>
-                            <NumericUpDown Minimum="50" Maximum="4000" Increment="50" FormatString="0.##"
-                                           Value="{Binding NoiseBandwidthHz}"
-                                           IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"/>
-                        </StackPanel>
-                    </Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="6" Spacing="12">
 
-                    <!-- AGC row -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="AGC enabled"
-                                  IsChecked="{Binding AgcEnabled}"
-                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"/>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="AGC delay (s)"/>
-                            <NumericUpDown Minimum="0.01" Maximum="5" Increment="0.05" FormatString="0.###"
-                                           Value="{Binding AgcDelaySeconds}"
-                                           IsEnabled="{Binding AgcEnabled}"/>
-                        </StackPanel>
-                    </Grid>
+                        <!-- Noise source -->
+                        <GroupBox Header="Noise" CornerRadius="0" Background="#101010">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <StackPanel Grid.Column="0" Spacing="8">
+                                    <TextBlock Text="Noise type"/>
+                                    <ComboBox ItemsSource="{Binding NoiseTypeOptions}" SelectedItem="{Binding SelectedNoiseType}"
+                                              HorizontalAlignment="Stretch"
+                                              ToolTip.Tip="Background noise added to the signal. Select &quot;None&quot; for a clean tone; Gaussian/Uniform/Pink simulate different noise floors."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="Signal-to-noise ratio (dB)"/>
+                                    <NumericUpDown Minimum="-20" Maximum="80" Increment="1" FormatString="0.##"
+                                                   Value="{Binding NoiseSnrDb}"
+                                                   IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
+                                                   ToolTip.Tip="How much louder the signal is than the noise. Higher = cleaner copy; lower = buried in noise. Stored internally as the inverse noise level."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Filter width (Hz)"/>
+                                    <NumericUpDown Minimum="50" Maximum="4000" Increment="50" FormatString="0.##"
+                                                   Value="{Binding NoiseBandwidthHz}"
+                                                   IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"
+                                                   ToolTip.Tip="Width of the shared receiver bandpass filter applied to both signal and noise. Narrower = tighter CW filter (less noise gets through), wider = more noise."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
 
-                    <!-- APF row -->
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="APF enabled"
-                                  IsChecked="{Binding ApfEnabled}"
-                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}"/>
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="APF bandwidth (Hz)"/>
-                            <NumericUpDown Minimum="10" Maximum="2000" Increment="10" FormatString="0.##"
-                                           Value="{Binding ApfBandwidthHz}"
-                                           IsEnabled="{Binding ApfEnabled}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="8">
-                            <TextBlock Text="Peak blend gain (dB)"/>
-                            <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
-                                           Value="{Binding ApfPeakGainDb}"
-                                           IsEnabled="{Binding ApfEnabled}"/>
-                        </StackPanel>
-                    </Grid>
+                        <!-- AGC -->
+                        <GroupBox Header="AGC (automatic gain control)" CornerRadius="0" Background="#101010"
+                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="AGC enabled"
+                                          IsChecked="{Binding AgcEnabled}"
+                                          ToolTip.Tip="Automatic gain control. Lets the receiver gain ride up and down so the noise floor breathes, mimicking a real receiver."/>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="AGC delay (s)"/>
+                                    <NumericUpDown Minimum="0.01" Maximum="5" Increment="0.05" FormatString="0.###"
+                                                   Value="{Binding AgcDelaySeconds}"
+                                                   IsEnabled="{Binding AgcEnabled}"
+                                                   ToolTip.Tip="AGC release/delay time. Longer = gain recovers more slowly after loud peaks."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
 
-                    <TextBlock Foreground="#9aa0a6" TextWrapping="Wrap"
-                            Text="Signal and noise pass through a shared receiver filter (narrower = tighter CW filter). AGC makes the noise floor breathe; the audio peak filter (APF) rings the tone. Peak blend gain is relative to the passband level after AGC: 0 dB = peak as loud as the passband, negative = subtler ring. Select &quot;None&quot; for a clean signal."/>
-                </StackPanel>
+                        <!-- APF -->
+                        <GroupBox Header="APF (audio peak filter)" CornerRadius="0" Background="#101010"
+                                  IsEnabled="{Binding SelectedNoiseType, Converter={StaticResource NoiseTypeToEnabled}}">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="APF enabled"
+                                          IsChecked="{Binding ApfEnabled}"
+                                          ToolTip.Tip="Audio peak filter. Adds a narrow ringing peak on the tone frequency to help pull a weak signal out of the noise."/>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="APF bandwidth (Hz)"/>
+                                    <NumericUpDown Minimum="10" Maximum="2000" Increment="10" FormatString="0.##"
+                                                   Value="{Binding ApfBandwidthHz}"
+                                                   IsEnabled="{Binding ApfEnabled}"
+                                                   ToolTip.Tip="Width of the audio peak filter. Narrower = sharper ring concentrated on the tone."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Peak blend gain (dB)"/>
+                                    <NumericUpDown Minimum="-40" Maximum="20" Increment="1" FormatString="0.##"
+                                                   Value="{Binding ApfPeakGainDb}"
+                                                   IsEnabled="{Binding ApfEnabled}"
+                                                   ToolTip.Tip="How much of the narrow-peak signal is blended on top of the passband, relative to the level after AGC. 0 dB = peak as loud as the passband; negative = subtler ring."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
+
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Character sets">
                 <Grid Margin="6" RowDefinitions="Auto,*">
-                    <TextBlock Grid.Row="0" Margin="0,0,0,8" Foreground="#9aa0a6"
-                            Text="Format: name = characters (one character set per line)."/>
-
-                    <TextBox Grid.Row="1"
+                    <TextBox Grid.Row="0"
                              Text="{Binding CharacterSetsText}"
                              TextWrapping="Wrap"
                              FontFamily="{StaticResource MonospaceFont}"
@@ -139,7 +168,8 @@
                              VerticalAlignment="Stretch"
                              HorizontalAlignment="Stretch"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ToolTip.Tip="Format: name = characters (one character set per line)."/>
                 </Grid>
             </TabItem>
 

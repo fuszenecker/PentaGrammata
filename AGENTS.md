@@ -28,6 +28,13 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 - A side-by-side diff of sent vs. received groups is displayed in the results window.
 - Every session result (WPM settings, character count, error count, error rate) is persisted to a **SQLite database** (`practice-results.db`) in the per-user config directory.
 
+### Auto-adjusting WPM
+
+- `Practice.AutoAdjustWpm` (persisted) enables an in-memory dynamic WPM that adapts after each scored session. `Practice.AutoAdjustWindowSize` (persisted, default 3) is N — the number of recent sessions averaged.
+- After `BuildResult`, the error rates of the last N sessions are averaged and compared to `ErrorThreshold`: **above** it slows the average WPM by 1, **at or below** it speeds up by 1. The newest session's own error rate is also compared to the threshold and **vetoes a speed-up** — if the session that just finished failed, the speed drops even when the window average is still below the threshold. Speeding up therefore requires both the newest session and the window average to be clean. The window fills from the start of the application, so the first few sessions average over fewer than N error rates. When the dynamic average WPM reaches the character WPM, the character WPM is raised too so the average can keep climbing.
+- The dynamic WPM lives only in `PracticeController` memory: it is never persisted, and it **restarts from the configured WPM** on construction and whenever settings are applied. Only the toggle and window size are saved.
+- `PracticeController.LastUsedCharacterWpm` / `LastUsedAverageWpm` expose the WPM actually used by the most recent session; the result window and the saved statistics record use these (not the configured WPM) so they reflect the dynamic speed.
+
 ### Character Sets
 
 - Named sets defined in `appsettings.json` under `CharacterSets`; the active set is chosen in Settings.

@@ -27,6 +27,12 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             return false;
         }
 
+        if (settings.Practice.AutoAdjustWindowSize < 1)
+        {
+            error = "Auto-adjust window size must be at least 1.";
+            return false;
+        }
+
         if (settings.Audio.SampleRate < 8000)
         {
             error = "Sample rate must be at least 8000.";

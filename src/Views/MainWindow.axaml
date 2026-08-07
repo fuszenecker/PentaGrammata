@@ -40,7 +40,18 @@
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,1,0,0"
             Padding="10,5">
 
-            <TextBlock Text="{Binding TimeCounterText}" Foreground="{Binding TimeCounterStatus, Converter={StaticResource StatusLevelToBrush}}" VerticalAlignment="Center"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding TimeCounterText}"
+                           Foreground="{Binding TimeCounterStatus, Converter={StaticResource StatusLevelToBrush}}"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Foreground="#9aa0a6" Text="Char "/>
+                    <TextBlock Foreground="#9aa0a6" Text="{Binding NextCharacterWpm}"/>
+                    <TextBlock Foreground="#9aa0a6" Text=" WPM / Avg "/>
+                    <TextBlock Foreground="#9aa0a6" Text="{Binding NextAverageWpm}"/>
+                    <TextBlock Foreground="#9aa0a6" Text=" WPM"/>
+                </StackPanel>
+            </Grid>
         </Border>
         
         <Grid>
@@ -70,7 +81,8 @@
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
                 IsEnabled="{Binding !IsPracticeRunning}"
                 ItemsSource="{Binding CharacterSets}"
-                SelectedItem="{Binding SelectedCharacterSet}"/>
+                SelectedItem="{Binding SelectedCharacterSet}"
+                ToolTip.Tip="Characters drawn from this set when generating random 5-character groups. Ignored when custom text is set in Settings."/>
 
             <!-- Second row: Practice button -->
 
@@ -83,7 +95,8 @@
                 <NumericUpDown Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
                     Value="{Binding PracticeDuration}" Minimum="1" Maximum="999" FormatString="0"
                     AllowSpin="True"
-                    IsEnabled="{Binding !IsPracticeRunning}"/>
+                    IsEnabled="{Binding !IsPracticeRunning}"
+                    ToolTip.Tip="Length of a timed practice session in minutes. The session ends automatically when time runs out."/>
 
                 <Label Content="mins" VerticalAlignment="Center"/>
             </StackPanel>

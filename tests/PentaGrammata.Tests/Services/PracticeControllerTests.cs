@@ -312,6 +312,298 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
+    public async Task StartAsync_WithAutoAdjust_UsesConfiguredWpmAsDynamicStart()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        configService.Current.Returns(config);
+
+        var sut = CreateController(configService);
+
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithErrorAboveThreshold_SlowsDownDynamicAverageWpm()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Failed());
+
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+
+        // Only one error rate in the window (30 %), which is above the 10 % threshold, so the
+        // average WPM slows from 15 to 14 with the character WPM left unchanged.
+        await sut.StartAsync();
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(14, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithErrorBelowThreshold_SpeedsUpAndRaisesCharacterWpmWhenReached()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        // Start locked: average == character, so the very first speed-up must raise both.
+        config.Practice.CharacterWpm = 15;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Passed());
+
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+
+        // Two clean sessions: 15 -> 16 -> 17, with character WPM raised alongside.
+        await sut.StartAsync();
+        Assert.AreEqual(17, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(17, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_AveragesErrorRatesOverWindowRatherThanUsingLatestSession()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10)
+            .Returns(WithErrorRate(0), WithErrorRate(0), WithErrorRate(9), WithErrorRate(24));
+
+        var sut = CreateController(configService, evaluator);
+
+        // Two flawless sessions: 15 -> 16 -> 17.
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(17, sut.LastUsedAverageWpm);
+
+        // Third session at 9 % passes on its own and the window average is (0 + 0 + 9) / 3 =
+        // 3 %, so the speed keeps climbing.
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(18, sut.LastUsedAverageWpm);
+
+        // Fourth session at 24 % pushes the window average to (0 + 9 + 24) / 3 = 11 %, above
+        // the threshold, so the speed drops.
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(17, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithFailingLatestSession_SlowsDownEvenWhenWindowAverageIsGood()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10)
+            .Returns(WithErrorRate(0), WithErrorRate(0), WithErrorRate(24));
+
+        var sut = CreateController(configService, evaluator);
+
+        // Two flawless sessions: 15 -> 16 -> 17.
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(17, sut.LastUsedAverageWpm);
+
+        // The window average is (0 + 0 + 24) / 3 = 8 %, below the 10 % threshold, so averaging
+        // alone would speed up. The newest session failed at 24 %, and that veto wins.
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(16, sut.LastUsedAverageWpm);
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_KeepsOnlyTheLastWindowSizeErrorRates()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        // A window of 1 means only the newest error rate ever counts.
+        config.Practice.AutoAdjustWindowSize = 1;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10)
+            .Returns(WithErrorRate(0), WithErrorRate(24), WithErrorRate(0));
+
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(16, sut.LastUsedAverageWpm);
+
+        // The earlier 0 % is evicted, so the 24 % session alone drives the slow-down.
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+        Assert.AreEqual(16, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_AdjustsAtMostOncePerSession()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Failed());
+
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        // Reopening the result window for the same session must not slow down again.
+        sut.BuildResult("rx");
+
+        await sut.StartAsync();
+        Assert.AreEqual(14, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task BuildResult_WithAutoAdjustOff_LeavesWpmAtConfigured()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = false;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Failed());
+
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task TryApplySettings_ResetsDynamicWpmToConfigured()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 3;
+        configService.Current.Returns(config);
+
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Passed());
+
+        var sut = CreateController(configService, evaluator, settingsValidator);
+
+        // Speed up once (15 -> 16), then re-apply the same settings: dynamic must reset.
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        Assert.IsTrue(sut.TryApplySettings(config.Clone(), out _));
+        await sut.StartAsync();
+
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    private static PracticeController CreateController(
+        IConfigurationService configService,
+        IPracticeResultEvaluator? resultEvaluator = null,
+        IPracticeSettingsValidator? settingsValidator = null)
+    {
+        return new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            settingsValidator ?? Substitute.For<IPracticeSettingsValidator>(),
+            resultEvaluator ?? Substitute.For<IPracticeResultEvaluator>(),
+            configService,
+            Substitute.For<ILogger<PracticeController>>());
+    }
+
+    // The auto-adjust tests use a 10 % threshold, so 3 % is comfortably below it and 30 % well
+    // above; only ErrorRatePercent drives the adjustment.
+    private static PracticeResult Passed() => WithErrorRate(3);
+
+    private static PracticeResult Failed() => WithErrorRate(30);
+
+    private static PracticeResult WithErrorRate(double errorRatePercent) => new()
+    {
+        ErrorRatePercent = errorRatePercent,
+        IsSuccessful = errorRatePercent <= 10,
+    };
+
+    [TestMethod]
     public void Constructor_WhenCharacterSetsAreEmpty_AddsDefaultSet()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();

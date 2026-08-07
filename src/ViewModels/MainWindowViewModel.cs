@@ -72,6 +72,15 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private double receivedTextFontSize = 20.0;
 
+    // WPM the next session will use. Reflects the in-memory dynamic WPM when auto-adjust is
+    // on, otherwise the configured WPM. Refreshed after a session is scored (adjustment) and
+    // after settings are applied (reset to configured).
+    [ObservableProperty]
+    private int nextCharacterWpm;
+
+    [ObservableProperty]
+    private int nextAverageWpm;
+
     public MainWindowViewModel(
         IPracticeController practiceController,
         IConfigurationService configurationService,
@@ -101,6 +110,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshCharacterSets();
         ReceivedTextFontFamily = new FontFamily(_configurationService.Current.UiPreferences.ReceivedTextFontFamily);
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
+        RefreshNextWpm();
 
         StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
         StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
@@ -211,19 +221,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RefreshCharacterSets();
         PracticeDuration = _practiceController.PracticeDurationMins;
+        // Applying settings resets the dynamic WPM to the configured values.
+        RefreshNextWpm();
     }
 
     public async Task OpenResultWindowAsync()
     {
         var result = _practiceController.BuildResult(ReceivedText);
         var settings = _practiceController.CreateSettingsSnapshot();
+        // The WPM passed to the result window is the one actually used during the session
+        // (the dynamic WPM when auto-adjust is on), not the configured starting point, so
+        // the displayed values and any saved statistics record reflect reality.
         var saved = await _practiceResultWindowService.ShowPracticeResultAsync(
             result,
-            settings.Practice.CharacterWpm,
-            settings.Practice.AverageWpm,
+            _practiceController.LastUsedCharacterWpm,
+            _practiceController.LastUsedAverageWpm,
             _practiceController.IsResultSaved,
             settings.Practice.ErrorThreshold,
             settings.Audio.Noise);
+        // BuildResult may have adjusted the dynamic WPM; refresh the status-bar readout.
+        RefreshNextWpm();
         if (saved)
         {
             _practiceController.IsResultSaved = true;
@@ -285,6 +302,16 @@ public partial class MainWindowViewModel : ViewModelBase
         await _configurationService.SaveAsync();
         ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
+    }
+
+    /// <summary>
+    /// Re-reads the next-session WPM from the controller so the status bar reflects the
+    /// current dynamic WPM (after an adjustment or a settings reset).
+    /// </summary>
+    private void RefreshNextWpm()
+    {
+        NextCharacterWpm = _practiceController.CurrentCharacterWpm;
+        NextAverageWpm = _practiceController.CurrentAverageWpm;
     }
 
     /// <summary>

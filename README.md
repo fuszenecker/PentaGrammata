@@ -11,6 +11,7 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
 - Timed practice sessions with a live countdown
 - Accuracy scoring with per-group diff output and a configurable error-rate threshold
+- Optional auto-adjusting WPM: after each scored session the practice speed slows down when recent errors are high and speeds up when they are low (driven by the average error rate of the last N sessions); the dynamic WPM is kept in memory only and restarts from the configured WPM on each app start
 - Fully configurable: tone frequency, volume, sample rate, WPM, session duration, and character set
 - Settings are persisted across sessions
 - Cross-platform: Windows, Linux (x64/arm64), and macOS
@@ -98,6 +99,8 @@ All packaging scripts read the version from `version.txt` by default and accept 
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
 | `Practice` | `CustomText` | _(empty)_ | Your own text to send instead of generated groups; empty = generate as usual |
+| `Practice` | `AutoAdjustWpm` | `false` | Dynamically adjust the practice WPM in memory after each scored session (slow down when the recent average error rate — or the session just finished — is above `ErrorThreshold`, speed up otherwise); the dynamic WPM is not persisted and restarts from the configured WPM on each app start |
+| `Practice` | `AutoAdjustWindowSize` | `3` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm` |
 | `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
 | `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
 | `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |
