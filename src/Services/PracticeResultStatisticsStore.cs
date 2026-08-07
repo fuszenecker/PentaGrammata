@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
@@ -90,6 +91,71 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         {
             _logger.LogError(ex, "Failed to read trend points from {DatabasePath}", _databasePath);
             throw new StatisticsStoreException("Could not read trend points.", ex);
+        }
+    }
+
+    public async Task<IReadOnlyList<PracticeResultStatisticsRecord>> GetStatisticsRecordsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+            await connection.OpenAsync(cancellationToken);
+
+            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT
+                    recorded_at,
+                    character_wpm,
+                    average_wpm,
+                    character_count,
+                    error_count,
+                    error_rate_percent,
+                    error_threshold_percent,
+                    noise_type,
+                    noise_level_db,
+                    noise_bandwidth_hz,
+                    agc_enabled,
+                    agc_delay_seconds,
+                    apf_enabled,
+                    apf_bandwidth_hz,
+                    apf_peak_gain_db
+                FROM practice_result_statistics
+                ORDER BY recorded_at ASC;
+                """;
+
+            var records = new List<PracticeResultStatisticsRecord>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                records.Add(new PracticeResultStatisticsRecord
+                {
+                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
+                    CharacterWpm = reader.GetInt32(1),
+                    AverageWpm = reader.GetInt32(2),
+                    CharacterCount = reader.GetInt32(3),
+                    ErrorCount = reader.GetInt32(4),
+                    ErrorRatePercent = reader.GetDouble(5),
+                    ErrorThresholdPercent = reader.GetDouble(6),
+                    NoiseType = Enum.Parse<NoiseType>(reader.GetString(7), ignoreCase: true),
+                    NoiseLevelDb = reader.GetDouble(8),
+                    NoiseBandwidthHz = reader.GetDouble(9),
+                    AgcEnabled = reader.GetInt32(10) != 0,
+                    AgcDelaySeconds = reader.GetDouble(11),
+                    ApfEnabled = reader.GetInt32(12) != 0,
+                    ApfBandwidthHz = reader.GetDouble(13),
+                    ApfPeakGainDb = reader.GetDouble(14),
+                });
+            }
+
+            return records;
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Failed to read statistics records from {DatabasePath}", _databasePath);
+            throw new StatisticsStoreException("Could not read statistics records.", ex);
         }
     }
 

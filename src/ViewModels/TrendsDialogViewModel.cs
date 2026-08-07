@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +16,7 @@ namespace PentaGrammata.ViewModels;
 public sealed class TrendsDialogViewModel : ViewModelBase
 {
     private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
     private bool _showAverageSeries = true;
@@ -22,7 +26,16 @@ public sealed class TrendsDialogViewModel : ViewModelBase
 
     public event Action? CloseRequested;
 
+    /// <summary>
+    /// Raised when the user requests a CSV export, carrying the fully formatted
+    /// CSV text. The view handles the actual file-save dialog, keeping the VM free
+    /// of any window or storage dependency.
+    /// </summary>
+    public event Action<string>? ExportCsvRequested;
+
     public IRelayCommand CloseCommand { get; }
+
+    public IRelayCommand ExportCsvCommand { get; }
 
     public ObservableCollection<PracticeTrendPoint> Points { get; } = [];
 
@@ -66,16 +79,77 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     {
         _statisticsStore = statisticsStore;
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
+        ExportCsvCommand = new RelayCommand(ExportCsv, CanExportCsv);
+    }
+
+    private bool CanExportCsv() => _records.Count > 0;
+
+    private void ExportCsv()
+    {
+        var csv = BuildCsv(_records);
+        ExportCsvRequested?.Invoke(csv);
+    }
+
+    /// <summary>
+    /// Renders the supplied session records as RFC 4180-ish CSV — one row per
+    /// saved session with every persisted column — using invariant culture so the
+    /// numeric columns are stable across locales. Pure and deterministic so it can
+    /// be unit-tested without a window or store. The per-session confusion rows
+    /// are a separate one-to-many relation and are not included in this export.
+    /// </summary>
+    internal static string BuildCsv(IEnumerable<PracticeResultStatisticsRecord> records)
+    {
+        const string header =
+            "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount," +
+            "ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb," +
+            "NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb";
+
+        var sb = new StringBuilder();
+        sb.Append(header).Append("\r\n");
+        foreach (var r in records)
+        {
+            sb.Append(r.RecordedAt.ToString("O", CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.CharacterWpm.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.AverageWpm.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.CharacterCount.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.ErrorCount.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.ErrorRatePercent.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.ErrorThresholdPercent.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.NoiseType.ToString()).Append(',');
+            sb.Append(r.NoiseLevelDb.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.NoiseBandwidthHz.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.AgcEnabled ? "1" : "0").Append(',');
+            sb.Append(r.AgcDelaySeconds.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.ApfEnabled ? "1" : "0").Append(',');
+            sb.Append(r.ApfBandwidthHz.ToString(CultureInfo.InvariantCulture)).Append(',');
+            sb.Append(r.ApfPeakGainDb.ToString(CultureInfo.InvariantCulture));
+            sb.Append("\r\n");
+        }
+
+        return sb.ToString();
     }
 
     public async Task InitializeAsync()
     {
         Points.Clear();
-        var points = await _statisticsStore.GetTrendPointsAsync().ConfigureAwait(false);
-        foreach (var point in points.OrderBy(x => x.RecordedAt))
+        _records = await _statisticsStore.GetStatisticsRecordsAsync().ConfigureAwait(false);
+
+        foreach (var point in _records
+            .Select(r => new PracticeTrendPoint
+            {
+                RecordedAt = r.RecordedAt,
+                CharacterWpm = r.CharacterWpm,
+                AverageWpm = r.AverageWpm,
+                ErrorRatePercent = r.ErrorRatePercent,
+                ErrorThresholdPercent = r.ErrorThresholdPercent,
+                NoiseLevelDb = r.NoiseLevelDb,
+            })
+            .OrderBy(x => x.RecordedAt))
         {
             Points.Add(point);
         }
+
+        ExportCsvCommand.NotifyCanExecuteChanged();
 
         if (Points.Count == 0)
         {
