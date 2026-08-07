@@ -40,12 +40,12 @@
                         <CheckBox Content="Auto-adjust WPM"
                                   IsChecked="{Binding AutoAdjustWpm}"
                                   Margin="0,4,0,0"
-                                  ToolTip.Tip="After each scored session, slow down when recent errors are high and speed up when they are low. The dynamic WPM is kept in memory only and restarts from the configured WPM on each app start."/>
+                                  ToolTip.Tip="After each scored session, slow down when recent errors are high or the session you just finished failed, and speed up otherwise. The dynamic WPM is kept in memory only and restarts from the configured WPM on each app start."/>
                         <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding AutoAdjustWpm}" Margin="0,0,0,0">
                             <StackPanel Grid.Column="0" Spacing="8">
                                 <TextBlock Text="Window size (last N sessions)"/>
                                 <NumericUpDown Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding AutoAdjustWindowSize}"
-                                               ToolTip.Tip="When auto-adjust is on, the average error rate of the last N sessions is compared to the error threshold: above it slows the average WPM by 1, at or below it speeds up by 1. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured WPM above is the starting point."/>
+                                               ToolTip.Tip="When auto-adjust is on, the average error rate of the last N sessions is compared to the error threshold: above it slows the average WPM by 1, at or below it speeds up by 1. The session you just finished also counts on its own — if it is above the threshold the speed drops even when the average still looks good. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured WPM above is the starting point."/>
                             </StackPanel>
                         </Grid>
                         <TextBlock Text="Custom text" Margin="0,4,0,0"/>

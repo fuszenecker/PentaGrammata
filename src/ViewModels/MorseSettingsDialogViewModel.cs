@@ -92,8 +92,9 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private double errorThreshold;
 
     /// <summary>
-    /// When enabled, the practice WPM is adjusted in memory after each scored session based
-    /// on the average error rate of the last <see cref="AutoAdjustWindowSize"/> sessions.
+    /// When enabled, the practice WPM is adjusted in memory after each scored session based on
+    /// the average error rate of the last <see cref="AutoAdjustWindowSize"/> sessions, with a
+    /// failing newest session always forcing a slow-down.
     /// The dynamic WPM is never persisted; only this toggle and the window size are saved.
     /// </summary>
     [ObservableProperty]
