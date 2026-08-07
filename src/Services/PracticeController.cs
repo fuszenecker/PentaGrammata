@@ -14,23 +14,18 @@ namespace PentaGrammata.Services;
 public class PracticeController : IPracticeController
 {
     private const double LengthCorrector = 0.695;
-    private const int AutoAdjustStep = 1;
-    private const int MinWpm = 1;
 
     private readonly IMorsePlayer _morsePlayer;
     private readonly IMorseGenerator _morseGenerator;
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultEvaluator _resultEvaluator;
     private readonly IConfigurationService _configurationService;
+    private readonly IDynamicWpmAdjuster _dynamicWpmAdjuster;
     private readonly ILogger<PracticeController> _logger;
     private CancellationTokenSource? _cancellationTokenSource;
 
-    // In-memory dynamic WPM state. Never persisted: it restarts from the configured WPM on
-    // every app start (and whenever settings are applied). Only the AutoAdjustWpm toggle and
-    // window size are saved with the configuration.
-    private int _dynamicCharacterWpm;
-    private int _dynamicAverageWpm;
-    private readonly Queue<double> _recentErrorRates = new();
+    // True once the current session's error rate has been fed to the dynamic WPM adjuster, so
+    // repeated BuildResult calls for the same session never stack adjustments.
     private bool _sessionResultRecorded;
 
     // Captured at the start of each session so the result window/statistics record reflects
@@ -49,7 +44,7 @@ public class PracticeController : IPracticeController
     /// on, otherwise the configured value.
     /// </summary>
     public int CurrentCharacterWpm => _configurationService.Current.Practice.AutoAdjustWpm
-        ? _dynamicCharacterWpm
+        ? _dynamicWpmAdjuster.DynamicCharacterWpm
         : _configurationService.Current.Practice.CharacterWpm;
 
     /// <summary>
@@ -57,19 +52,17 @@ public class PracticeController : IPracticeController
     /// auto-adjust is on, otherwise the configured value.
     /// </summary>
     public int CurrentAverageWpm => _configurationService.Current.Practice.AutoAdjustWpm
-        ? _dynamicAverageWpm
+        ? _dynamicWpmAdjuster.DynamicAverageWpm
         : _configurationService.Current.Practice.AverageWpm;
 
     /// <summary>
-    /// Resets the in-memory dynamic WPM to the configured values and clears the recent
-    /// error-rate history. Called on construction and whenever settings are applied.
+    /// Restarts the in-memory dynamic WPM from the configured values. Called on construction
+    /// and whenever settings are applied.
     /// </summary>
     private void ResetDynamicWpm()
     {
         var practice = _configurationService.Current.Practice;
-        _dynamicCharacterWpm = practice.CharacterWpm;
-        _dynamicAverageWpm = practice.AverageWpm;
-        _recentErrorRates.Clear();
+        _dynamicWpmAdjuster.Reset(practice.CharacterWpm, practice.AverageWpm);
         _sessionResultRecorded = false;
     }
 
@@ -113,6 +106,7 @@ public class PracticeController : IPracticeController
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultEvaluator resultEvaluator,
         IConfigurationService configurationService,
+        IDynamicWpmAdjuster dynamicWpmAdjuster,
         ILogger<PracticeController> logger)
     {
         _morsePlayer = morsePlayer;
@@ -120,6 +114,7 @@ public class PracticeController : IPracticeController
         _settingsValidator = settingsValidator;
         _resultEvaluator = resultEvaluator;
         _configurationService = configurationService;
+        _dynamicWpmAdjuster = dynamicWpmAdjuster;
         _logger = logger;
 
         var config = _configurationService.Current;
@@ -245,60 +240,10 @@ public class PracticeController : IPracticeController
         if (practice.AutoAdjustWpm && !_sessionResultRecorded)
         {
             _sessionResultRecorded = true;
-            AdjustDynamicWpm(result.ErrorRatePercent, practice.ErrorThreshold, practice.AutoAdjustWindowSize);
+            _dynamicWpmAdjuster.Adjust(result.ErrorRatePercent, practice.ErrorThreshold, practice.AutoAdjustWindowSize);
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Records the session error rate and nudges the dynamic WPM by the average error rate of
-    /// the last N sessions: above the threshold slows the average WPM down, at or below the
-    /// threshold speeds it up. The session that just finished also has a veto — if it alone is
-    /// above the threshold the speed drops even when the window average still looks good, so a
-    /// fresh failure is never averaged away by earlier clean sessions. When speeding up and the
-    /// average WPM reaches the character WPM, the character WPM is raised too so the average
-    /// can keep climbing (Farnsworth spacing collapses to zero, then raw speed increases). The
-    /// window fills up from the start of the application, so early on the average is taken over
-    /// however many sessions exist so far.
-    /// </summary>
-    private void AdjustDynamicWpm(double errorRatePercent, double errorThreshold, int windowSize)
-    {
-        _recentErrorRates.Enqueue(errorRatePercent);
-        while (_recentErrorRates.Count > windowSize)
-        {
-            _recentErrorRates.Dequeue();
-        }
-
-        var averageErrorRate = _recentErrorRates.Average();
-
-        if (averageErrorRate > errorThreshold || errorRatePercent > errorThreshold)
-        {
-            // Struggling, or the newest session failed on its own: slow down. Lowering the
-            // average WPM adds Farnsworth spacing; the character WPM is left untouched unless
-            // it would fall below the new average.
-            _dynamicAverageWpm = Math.Max(MinWpm, _dynamicAverageWpm - AutoAdjustStep);
-            if (_dynamicCharacterWpm < _dynamicAverageWpm)
-            {
-                _dynamicCharacterWpm = _dynamicAverageWpm;
-            }
-        }
-        else
-        {
-            // Newest session passed and the window average is good too: speed up. If the
-            // average would overtake the character WPM, raise the character WPM so the two
-            // stay valid (average <= character).
-            var newAverage = _dynamicAverageWpm + AutoAdjustStep;
-            if (newAverage > _dynamicCharacterWpm)
-            {
-                _dynamicCharacterWpm = newAverage;
-            }
-            _dynamicAverageWpm = newAverage;
-        }
-
-        _logger.LogInformation(
-            "Dynamic WPM adjusted to character {CharWpm} / average {AvgWpm} (last error {LastError:F2}%, avg error {AvgError:F2}% over {Count} sessions)",
-            _dynamicCharacterWpm, _dynamicAverageWpm, errorRatePercent, averageErrorRate, _recentErrorRates.Count);
     }
 
     public AppConfig CreateSettingsSnapshot()
