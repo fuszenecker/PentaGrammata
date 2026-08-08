@@ -269,6 +269,23 @@ public sealed class MorsePlayerTests
     }
 
     [TestMethod]
+    public async Task PlayMorseCodeAsync_WhenAudioReturnsAfterCancellation_Throws()
+    {
+        var audioPlayer = Substitute.For<IAudioPlayer>();
+        using var cts = new CancellationTokenSource();
+        audioPlayer.PlayAudioAsync(Arg.Any<short[]>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                cts.Cancel();
+                return Task.CompletedTask;
+            });
+        var sut = new MorsePlayer(audioPlayer, new NoiseGeneratorFactory());
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            () => sut.PlayMorseCodeAsync("PARIS", Settings(), cts.Token));
+    }
+
+    [TestMethod]
     public async Task PlayMorseCodeAsync_WhenCancelledBeforeStart_ThrowsAndDoesNotPlay()
     {
         var audioPlayer = Substitute.For<IAudioPlayer>();

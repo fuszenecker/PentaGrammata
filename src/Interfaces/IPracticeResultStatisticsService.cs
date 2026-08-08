@@ -17,8 +17,6 @@ public interface IPracticeResultStatisticsService
 
     Task SaveAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<PracticeTrendPoint>> GetTrendPointsAsync(CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<PracticeResultStatisticsRecord>> GetStatisticsRecordsAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ConfusionObservation>> GetConfusionObservationsAsync(CancellationToken cancellationToken = default);

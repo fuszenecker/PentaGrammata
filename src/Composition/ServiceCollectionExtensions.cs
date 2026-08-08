@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IConfigurationService, ConfigurationService>();
             services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
             services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
+            services.AddSingleton<IDynamicWpmAdjuster, DynamicWpmAdjuster>();
             services.AddSingleton<IPracticeResultStatisticsService, PracticeResultStatisticsService>();
             services.AddSingleton<IPracticeController, PracticeController>();
             services.AddSingleton<IInfoDialogService, InfoDialogService>();

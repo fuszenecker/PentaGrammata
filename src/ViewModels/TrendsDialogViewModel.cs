@@ -91,6 +91,21 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Escapes a CSV field according to RFC 4180. Current exported fields are safe scalar
+    /// values, but keeping this helper here prevents future string columns from corrupting
+    /// the output when they contain delimiters, quotes, or line breaks.
+    /// </summary>
+    internal static string EscapeCsvField(string value)
+    {
+        if (value.IndexOfAny([',', '"', '\r', '\n']) < 0)
+        {
+            return value;
+        }
+
+        return $"\"{value.Replace("\"", "\"\"")}\"";
+    }
+
+    /// <summary>
     /// Renders the supplied session records as RFC 4180-ish CSV — one row per
     /// saved session with every persisted column — using invariant culture so the
     /// numeric columns are stable across locales. Pure and deterministic so it can
@@ -115,7 +130,8 @@ public sealed class TrendsDialogViewModel : ViewModelBase
             sb.Append(r.ErrorCount.ToString(CultureInfo.InvariantCulture)).Append(',');
             sb.Append(r.ErrorRatePercent.ToString(CultureInfo.InvariantCulture)).Append(',');
             sb.Append(r.ErrorThresholdPercent.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.NoiseType.ToString()).Append(',');
+            sb.Append(EscapeCsvField(r.NoiseType.ToString())).Append(',');
+
             sb.Append(r.NoiseLevelDb.ToString(CultureInfo.InvariantCulture)).Append(',');
             sb.Append(r.NoiseBandwidthHz.ToString(CultureInfo.InvariantCulture)).Append(',');
             sb.Append(r.AgcEnabled ? "1" : "0").Append(',');

@@ -21,6 +21,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
 
         cancellationToken.ThrowIfCancellationRequested();
         await _audioPlayer.PlayAudioAsync(audioData, settings.SampleRate, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private static short[] GenerateBeep(int sampleRate, int durationMs, double frequency, double volume, int beepRampMs)

@@ -42,9 +42,15 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    private async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
-        _serviceProvider?.Dispose();
+        if (_serviceProvider is null)
+        {
+            return;
+        }
+
+        await _serviceProvider.GetRequiredService<IConfigurationService>().FlushAsync();
+        _serviceProvider.Dispose();
     }
 
     private static void ConfigureServices(IServiceCollection services)

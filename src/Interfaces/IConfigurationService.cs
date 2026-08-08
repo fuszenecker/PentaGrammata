@@ -21,6 +21,11 @@ public interface IConfigurationService
     Task SaveAsync();
 
     /// <summary>
+    /// Waits for all configuration saves requested so far to complete.
+    /// </summary>
+    Task FlushAsync();
+
+    /// <summary>
     /// Fire-and-forget variant of <see cref="SaveAsync"/> for callers (e.g. property
     /// setters) that cannot await. The save is still ordered behind any in-flight
     /// save; failures are logged.

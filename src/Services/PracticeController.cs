@@ -206,6 +206,7 @@ public class PracticeController : IPracticeController
                     morseCodeToPlay,
                     playbackSettings,
                     _cancellationTokenSource.Token);
+                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
             }
             catch (OperationCanceledException)
             {

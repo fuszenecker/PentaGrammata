@@ -12,6 +12,15 @@ namespace PentaGrammata.Tests.ViewModels;
 public sealed class TrendsDialogViewModelTests
 {
     [TestMethod]
+    public void EscapeCsvField_QuotesSpecialCharacters()
+    {
+        Assert.AreEqual("plain", TrendsDialogViewModel.EscapeCsvField("plain"));
+        Assert.AreEqual("\"a,b\"", TrendsDialogViewModel.EscapeCsvField("a,b"));
+        Assert.AreEqual("\"a\"\"b\"", TrendsDialogViewModel.EscapeCsvField("a\"b"));
+        Assert.AreEqual("\"a\nb\"", TrendsDialogViewModel.EscapeCsvField("a\nb"));
+    }
+
+    [TestMethod]
     public void BuildCsv_Empty_ProducesOnlyHeader()
     {
         var csv = TrendsDialogViewModel.BuildCsv(Array.Empty<PracticeResultStatisticsRecord>());

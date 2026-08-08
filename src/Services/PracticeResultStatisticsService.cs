@@ -25,9 +25,6 @@ public sealed class PracticeResultStatisticsService : IPracticeResultStatisticsS
     public Task SaveAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken = default)
         => _store.SaveAsync(record, cancellationToken);
 
-    public Task<IReadOnlyList<PracticeTrendPoint>> GetTrendPointsAsync(CancellationToken cancellationToken = default)
-        => _store.GetTrendPointsAsync(cancellationToken);
-
     public Task<IReadOnlyList<PracticeResultStatisticsRecord>> GetStatisticsRecordsAsync(CancellationToken cancellationToken = default)
         => _store.GetStatisticsRecordsAsync(cancellationToken);
 

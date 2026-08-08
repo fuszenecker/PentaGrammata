@@ -91,6 +91,7 @@ public class LinuxAudioPlayer : IAudioPlayer
                 {
                     pa_simple_drain(stream, out _);
                 }
+                cancellationToken.ThrowIfCancellationRequested();
             }
             catch (Exception ex)
             {

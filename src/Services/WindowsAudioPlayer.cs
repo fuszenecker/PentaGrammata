@@ -121,6 +121,7 @@ public class WindowsAudioPlayer : IAudioPlayer
                 }
 
                 waveOutUnprepareHeader(hWaveOut, headerPtr, headerSize);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             catch (Exception ex)
             {

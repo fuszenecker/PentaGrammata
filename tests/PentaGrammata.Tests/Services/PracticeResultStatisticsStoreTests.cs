@@ -68,6 +68,130 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.AreEqual(2, await CountRowsAsync(sut.DatabasePath));
     }
 
+    [TestMethod]
+    public async Task GetStatisticsRecordsAsync_RoundTripsAllFieldsAndConfusions()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        var record = CreateRecord();
+        record = new PracticeResultStatisticsRecord
+        {
+            RecordedAt = record.RecordedAt,
+            CharacterWpm = record.CharacterWpm,
+            AverageWpm = record.AverageWpm,
+            CharacterCount = record.CharacterCount,
+            ErrorCount = record.ErrorCount,
+            ErrorRatePercent = record.ErrorRatePercent,
+            ErrorThresholdPercent = 5.0,
+            NoiseType = record.NoiseType,
+            NoiseLevelDb = record.NoiseLevelDb,
+            NoiseBandwidthHz = record.NoiseBandwidthHz,
+            AgcEnabled = record.AgcEnabled,
+            AgcDelaySeconds = record.AgcDelaySeconds,
+            ApfEnabled = record.ApfEnabled,
+            ApfBandwidthHz = record.ApfBandwidthHz,
+            ApfPeakGainDb = record.ApfPeakGainDb,
+            Confusions = new[]
+            {
+                new ConfusionObservation
+                {
+                    RecordedAt = DateTimeOffset.UnixEpoch,
+                    ExpectedSymbol = "A",
+                    ActualSymbol = "B",
+                    Distance = 1,
+                    Count = 2,
+                },
+            },
+        };
+
+        await sut.SaveAsync(record);
+
+        var records = await sut.GetStatisticsRecordsAsync();
+        Assert.HasCount(1, records);
+        var actual = records[0];
+        Assert.AreEqual(record.RecordedAt, actual.RecordedAt);
+        Assert.AreEqual(record.CharacterWpm, actual.CharacterWpm);
+        Assert.AreEqual(record.AverageWpm, actual.AverageWpm);
+        Assert.AreEqual(record.CharacterCount, actual.CharacterCount);
+        Assert.AreEqual(record.ErrorCount, actual.ErrorCount);
+        Assert.AreEqual(record.ErrorRatePercent, actual.ErrorRatePercent);
+        Assert.AreEqual(record.ErrorThresholdPercent, actual.ErrorThresholdPercent);
+        Assert.AreEqual(record.NoiseType, actual.NoiseType);
+        Assert.AreEqual(record.NoiseLevelDb, actual.NoiseLevelDb);
+        Assert.AreEqual(record.NoiseBandwidthHz, actual.NoiseBandwidthHz);
+        Assert.AreEqual(record.AgcEnabled, actual.AgcEnabled);
+        Assert.AreEqual(record.AgcDelaySeconds, actual.AgcDelaySeconds);
+        Assert.AreEqual(record.ApfEnabled, actual.ApfEnabled);
+        Assert.AreEqual(record.ApfBandwidthHz, actual.ApfBandwidthHz);
+        Assert.AreEqual(record.ApfPeakGainDb, actual.ApfPeakGainDb);
+
+        var confusions = await sut.GetConfusionObservationsAsync();
+        Assert.HasCount(1, confusions);
+        Assert.AreEqual("A", confusions[0].ExpectedSymbol);
+        Assert.AreEqual("B", confusions[0].ActualSymbol);
+        Assert.AreEqual(2, confusions[0].Count);
+    }
+
+    [TestMethod]
+    public async Task GetStatisticsRecordsAsync_MigratesLegacyDatabase()
+    {
+        var databasePath = Path.Combine(_tempDirectory, "practice-results.db");
+        Directory.CreateDirectory(_tempDirectory);
+        await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+        {
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE practice_result_statistics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at TEXT NOT NULL,
+                    character_wpm INTEGER NOT NULL,
+                    average_wpm INTEGER NOT NULL,
+                    character_count INTEGER NOT NULL,
+                    error_count INTEGER NOT NULL,
+                    error_rate_percent REAL NOT NULL,
+                    noise_type TEXT NOT NULL,
+                    noise_level_db REAL NOT NULL,
+                    noise_bandwidth_hz REAL NOT NULL,
+                    agc_enabled INTEGER NOT NULL,
+                    agc_delay_seconds REAL NOT NULL,
+                    apf_enabled INTEGER NOT NULL,
+                    apf_bandwidth_hz REAL NOT NULL,
+                    apf_peak_gain_db REAL NOT NULL
+                );
+                INSERT INTO practice_result_statistics VALUES
+                    (1, '1970-01-01T00:00:00.0000000+00:00', 20, 15, 10, 1, 10.0,
+                     'None', -15.0, 500.0, 1, 0.4, 1, 120.0, -9.0);
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        var records = await sut.GetStatisticsRecordsAsync();
+
+        Assert.HasCount(1, records);
+        Assert.AreEqual(0.0, records[0].ErrorThresholdPercent);
+        Assert.AreEqual(2L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+    }
+
+    [TestMethod]
+    public async Task GetStatisticsRecordsAsync_InvalidTimestampThrowsStatisticsStoreException()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        await sut.SaveAsync(CreateRecord());
+
+        await using (var connection = new SqliteConnection($"Data Source={sut.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = "UPDATE practice_result_statistics SET recorded_at = 'not-a-timestamp';";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await Assert.ThrowsExactlyAsync<StatisticsStoreException>(
+            () => sut.GetStatisticsRecordsAsync());
+    }
+
     private static IAppPaths FakePaths(string directory)
     {
         var paths = Substitute.For<IAppPaths>();
@@ -100,10 +224,15 @@ public sealed class PracticeResultStatisticsStoreTests
 
     private static async Task<long> CountRowsAsync(string databasePath)
     {
+        return await ScalarAsync(databasePath, "SELECT COUNT(*) FROM practice_result_statistics;");
+    }
+
+    private static async Task<long> ScalarAsync(string databasePath, string sql)
+    {
         await using var connection = new SqliteConnection($"Data Source={databasePath}");
         await connection.OpenAsync();
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM practice_result_statistics;";
+        command.CommandText = sql;
         return (long)(await command.ExecuteScalarAsync())!;
     }
 }

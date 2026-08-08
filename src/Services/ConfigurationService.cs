@@ -53,6 +53,14 @@ public sealed class ConfigurationService : IConfigurationService
         _ = SaveAsync();
     }
 
+    public Task FlushAsync()
+    {
+        lock (_saveGate)
+        {
+            return _saveChain;
+        }
+    }
+
     public bool IsDialogSuppressed(string dialogKey)
     {
         if (string.IsNullOrEmpty(dialogKey))

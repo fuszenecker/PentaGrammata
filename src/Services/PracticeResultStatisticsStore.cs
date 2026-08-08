@@ -16,6 +16,8 @@ namespace PentaGrammata.Services;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
+    private const int CurrentSchemaVersion = 2;
+
     private readonly ILogger<PracticeResultStatisticsStore> _logger;
     private readonly string _databasePath;
 
@@ -40,57 +42,10 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         {
             await SaveCoreAsync(record, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to save practice statistics to {DatabasePath}", _databasePath);
             throw new StatisticsStoreException("Could not save practice statistics.", ex);
-        }
-    }
-
-    public async Task<IReadOnlyList<PracticeTrendPoint>> GetTrendPointsAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
-            await connection.OpenAsync(cancellationToken);
-
-            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-
-            var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT
-                    recorded_at,
-                    character_wpm,
-                    average_wpm,
-                    error_rate_percent,
-                    error_threshold_percent,
-                    noise_level_db
-                FROM practice_result_statistics
-                ORDER BY recorded_at ASC;
-                """;
-
-            var points = new List<PracticeTrendPoint>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                points.Add(new PracticeTrendPoint
-                {
-                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
-                    CharacterWpm = reader.GetInt32(1),
-                    AverageWpm = reader.GetInt32(2),
-                    ErrorRatePercent = reader.GetDouble(3),
-                    ErrorThresholdPercent = reader.GetDouble(4),
-                    NoiseLevelDb = reader.GetDouble(5)
-                });
-            }
-
-            return points;
-        }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
-        {
-            _logger.LogError(ex, "Failed to read trend points from {DatabasePath}", _databasePath);
-            throw new StatisticsStoreException("Could not read trend points.", ex);
         }
     }
 
@@ -152,7 +107,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 
             return records;
         }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to read statistics records from {DatabasePath}", _databasePath);
             throw new StatisticsStoreException("Could not read statistics records.", ex);
@@ -197,7 +152,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 
             return observations;
         }
-        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to read confusion observations from {DatabasePath}", _databasePath);
             throw new StatisticsStoreException("Could not read confusion observations.", ex);
@@ -339,9 +294,13 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 return;
             }
 
-            var createCommand = connection.CreateCommand();
-            createCommand.CommandText =
+            await using var transaction = connection.BeginTransaction();
+
+            var bootstrapCommand = connection.CreateCommand();
+            bootstrapCommand.Transaction = transaction;
+            bootstrapCommand.CommandText =
                 """
+                PRAGMA foreign_keys = ON;
                 CREATE TABLE IF NOT EXISTS practice_result_statistics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     recorded_at TEXT NOT NULL,
@@ -360,29 +319,71 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     apf_bandwidth_hz REAL NOT NULL,
                     apf_peak_gain_db REAL NOT NULL
                 );
-
-                CREATE TABLE IF NOT EXISTS practice_confusions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    statistics_id INTEGER NOT NULL,
-                    recorded_at TEXT NOT NULL,
-                    expected_symbol TEXT NOT NULL,
-                    actual_symbol TEXT NOT NULL,
-                    distance INTEGER NOT NULL,
-                    count INTEGER NOT NULL,
-                    FOREIGN KEY(statistics_id) REFERENCES practice_result_statistics(id) ON DELETE CASCADE
+                CREATE TABLE IF NOT EXISTS schema_info (
+                    version INTEGER NOT NULL
                 );
-
-                CREATE INDEX IF NOT EXISTS idx_practice_statistics_recorded_at
-                    ON practice_result_statistics(recorded_at);
-
-                CREATE INDEX IF NOT EXISTS idx_practice_confusions_recorded_at
-                    ON practice_confusions(recorded_at);
-
-                CREATE INDEX IF NOT EXISTS idx_practice_confusions_symbols
-                    ON practice_confusions(expected_symbol, actual_symbol);
                 """;
+            await bootstrapCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            await createCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var versionCommand = connection.CreateCommand();
+            versionCommand.Transaction = transaction;
+            versionCommand.CommandText = "SELECT COALESCE((SELECT version FROM schema_info LIMIT 1), 0);";
+            var currentVersion = Convert.ToInt32(await versionCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
+
+            if (currentVersion < 2)
+            {
+                var columnsCommand = connection.CreateCommand();
+                columnsCommand.Transaction = transaction;
+                columnsCommand.CommandText = "PRAGMA table_info(practice_result_statistics);";
+                var hasErrorThreshold = false;
+                await using (var columnsReader = await columnsCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await columnsReader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        if (string.Equals(columnsReader.GetString(1), "error_threshold_percent", StringComparison.Ordinal))
+                        {
+                            hasErrorThreshold = true;
+                            break;
+                        }
+                    }
+                }
+
+                var migrationCommand = connection.CreateCommand();
+                migrationCommand.Transaction = transaction;
+                if (!hasErrorThreshold)
+                {
+                    migrationCommand.CommandText = "ALTER TABLE practice_result_statistics ADD COLUMN error_threshold_percent REAL NOT NULL DEFAULT 0;";
+                    await migrationCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                migrationCommand = connection.CreateCommand();
+                migrationCommand.Transaction = transaction;
+                migrationCommand.CommandText =
+                    """
+                    CREATE TABLE IF NOT EXISTS practice_confusions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        statistics_id INTEGER NOT NULL,
+                        recorded_at TEXT NOT NULL,
+                        expected_symbol TEXT NOT NULL,
+                        actual_symbol TEXT NOT NULL,
+                        distance INTEGER NOT NULL,
+                        count INTEGER NOT NULL,
+                        FOREIGN KEY(statistics_id) REFERENCES practice_result_statistics(id) ON DELETE CASCADE
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_practice_statistics_recorded_at
+                        ON practice_result_statistics(recorded_at);
+                    CREATE INDEX IF NOT EXISTS idx_practice_confusions_recorded_at
+                        ON practice_confusions(recorded_at);
+                    CREATE INDEX IF NOT EXISTS idx_practice_confusions_symbols
+                        ON practice_confusions(expected_symbol, actual_symbol);
+                    DELETE FROM schema_info;
+                    INSERT INTO schema_info(version) VALUES ($version);
+                    """;
+                migrationCommand.Parameters.AddWithValue("$version", CurrentSchemaVersion);
+                await migrationCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             _schemaInitialized = true;
         }
         finally
