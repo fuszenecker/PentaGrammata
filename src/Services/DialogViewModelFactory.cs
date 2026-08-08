@@ -11,6 +11,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
+    private readonly IConfusionAnalysisService _confusionAnalysisService;
     private readonly IInfoDialogService _infoDialogService;
     private readonly IConfigurationService _configurationService;
 
@@ -18,12 +19,14 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
+        IConfusionAnalysisService confusionAnalysisService,
         IInfoDialogService infoDialogService,
         IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
+        _confusionAnalysisService = confusionAnalysisService;
         _infoDialogService = infoDialogService;
         _configurationService = configurationService;
     }
@@ -69,6 +72,6 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public ConfusionsDialogViewModel CreateConfusions()
     {
-        return new ConfusionsDialogViewModel(_statisticsService, _configurationService);
+        return new ConfusionsDialogViewModel(_statisticsService, _configurationService, _confusionAnalysisService);
     }
 }
