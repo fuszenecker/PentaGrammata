@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -42,15 +43,32 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         if (_serviceProvider is null)
         {
             return;
         }
 
-        await _serviceProvider.GetRequiredService<IConfigurationService>().FlushAsync();
-        _serviceProvider.Dispose();
+        try
+        {
+            // Block briefly so the final pending configuration save completes before the
+            // process exits — an async-void handler would let shutdown race the flush and
+            // drop the last save. The save chain runs on the threadpool (TaskScheduler.Default
+            // with ConfigureAwait(false)), so blocking the UI thread here cannot deadlock it.
+            // A short timeout bounds shutdown even if the store hangs.
+            _serviceProvider.GetRequiredService<IConfigurationService>()
+                .FlushAsync()
+                .Wait(TimeSpan.FromSeconds(2));
+        }
+        catch
+        {
+            // Best-effort: a failed or timed-out flush must not prevent shutdown.
+        }
+        finally
+        {
+            _serviceProvider.Dispose();
+        }
     }
 
     private static void ConfigureServices(IServiceCollection services)
