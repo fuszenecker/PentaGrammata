@@ -103,7 +103,7 @@ public sealed class MorsePlayerTests
         var (upper, _) = await PlayAndCaptureAsync("PARIS", Settings());
         var (lower, _) = await PlayAndCaptureAsync("paris", Settings());
 
-        Assert.AreEqual(upper.Length, lower.Length);
+        Assert.HasCount(upper.Length, lower);
     }
 
     [TestMethod]
@@ -129,7 +129,7 @@ public sealed class MorsePlayerTests
 
         var (audio, _) = await PlayAndCaptureAsync("PARIS ", Settings(charWpm: charWpm, averageWpm: charWpm) with { SampleRate = sampleRate });
 
-        Assert.AreEqual(expectedSamples, audio.Length);
+        Assert.HasCount(expectedSamples, audio);
     }
 
     [TestMethod]
@@ -265,7 +265,7 @@ public sealed class MorsePlayerTests
         var (cleanAudio, _) = await PlayAndCaptureAsync("PARIS", clean);
         var (noisyAudio, _) = await PlayAndCaptureAsync("PARIS", noisy);
 
-        Assert.AreEqual(cleanAudio.Length, noisyAudio.Length);
+        Assert.HasCount(cleanAudio.Length, noisyAudio);
     }
 
     [TestMethod]

@@ -1,6 +1,4 @@
-using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 using Avalonia.Media;
@@ -12,13 +10,18 @@ using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.ViewModels;
 
+/// <summary>
+/// Shell view model for the main window: owns the menu/dialog orchestration (settings, UI
+/// settings, about, trends, confusions, updates) and the character-set selection shared by the
+/// combo and the confusions flow. The practice session itself lives on
+/// <see cref="Practice"/>, exposed for the main window's bindings.
+/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IPracticeController _practiceController;
     private readonly IConfigurationService _configurationService;
     private readonly IMorseSettingsDialogService _settingsDialogService;
     private readonly IUiSettingsDialogService _uiSettingsDialogService;
-    private readonly IPracticeResultWindowService _practiceResultWindowService;
     private readonly IAboutDialogService _aboutDialogService;
     private readonly ITrendsDialogService _trendsDialogService;
     private readonly IConfusionsDialogService _confusionsDialogService;
@@ -26,40 +29,19 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IInfoDialogService _infoDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
 
-    [ObservableProperty]
-    private bool isPracticeRunning;
-
-    private bool hasPracticeStarted;
-
-    // Whether the current session's result has already been saved, so reopening the result
-    // window for the same session disables the save button. Reset when a new session starts.
-    private bool _resultSavedForCurrentSession;
-
     // Set while the character-set list is being swapped: the bound ComboBox reacts to a new
     // ItemsSource by pushing its own (now stale) SelectedItem back into the view model, which
     // would otherwise overwrite the controller's freshly chosen set.
     private bool suppressSelectedCharacterSetPush;
 
-    private CancellationTokenSource? _practiceTimerCancellationTokenSource;
+    public PracticeViewModel Practice { get; }
 
-    public IAsyncRelayCommand StartPracticeCommand { get; }
-    public IRelayCommand StopPracticeCommand { get; }
     public IAsyncRelayCommand OpenSettingsCommand { get; }
     public IAsyncRelayCommand OpenUiSettingsCommand { get; }
-    public IAsyncRelayCommand CheckResultCommand { get; }
     public IAsyncRelayCommand OpenAboutCommand { get; }
     public IAsyncRelayCommand OpenTrendsCommand { get; }
     public IAsyncRelayCommand OpenConfusionsCommand { get; }
     public IAsyncRelayCommand CheckUpdatesCommand { get; }
-
-    [ObservableProperty]
-    private string receivedText = string.Empty;
-
-    [ObservableProperty]
-    private string timeCounterText = "00:00";
-
-    [ObservableProperty]
-    private StatusLevel timeCounterStatus = StatusLevel.Neutral;
 
     [ObservableProperty]
     private string[] characterSets = [];
@@ -68,147 +50,46 @@ public partial class MainWindowViewModel : ViewModelBase
     private string selectedCharacterSet = "Default";
 
     [ObservableProperty]
-    private int practiceDuration = 5;
-
-    [ObservableProperty]
     private FontFamily receivedTextFontFamily = FontFamily.Default;
 
     [ObservableProperty]
     private double receivedTextFontSize = 20.0;
-
-    // WPM the next session will use. Reflects the in-memory dynamic WPM when auto-adjust is
-    // on, otherwise the configured WPM. Refreshed after a session is scored (adjustment) and
-    // after settings are applied (reset to configured).
-    [ObservableProperty]
-    private int nextCharacterWpm;
-
-    [ObservableProperty]
-    private int nextAverageWpm;
 
     public MainWindowViewModel(
         IPracticeController practiceController,
         IConfigurationService configurationService,
         IMorseSettingsDialogService settingsDialogService,
         IUiSettingsDialogService uiSettingsDialogService,
-        IPracticeResultWindowService practiceResultWindowService,
         IAboutDialogService aboutDialogService,
         ITrendsDialogService trendsDialogService,
         IConfusionsDialogService confusionsDialogService,
         IUpdateChecker updateChecker,
         IInfoDialogService infoDialogService,
+        PracticeViewModel practice,
         ILogger<MainWindowViewModel> logger)
     {
         _practiceController = practiceController;
         _configurationService = configurationService;
         _settingsDialogService = settingsDialogService;
         _uiSettingsDialogService = uiSettingsDialogService;
-        _practiceResultWindowService = practiceResultWindowService;
         _aboutDialogService = aboutDialogService;
         _trendsDialogService = trendsDialogService;
         _confusionsDialogService = confusionsDialogService;
         _updateChecker = updateChecker;
         _infoDialogService = infoDialogService;
         _logger = logger;
+        Practice = practice;
 
-        PracticeDuration = _practiceController.PracticeDurationMins;
         RefreshCharacterSets();
         ReceivedTextFontFamily = new FontFamily(_configurationService.Current.UiPreferences.ReceivedTextFontFamily);
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
-        RefreshNextWpm();
 
-        StartPracticeCommand = new AsyncRelayCommand(StartPracticeAsync, CanStartPractice);
-        StopPracticeCommand = new RelayCommand(StopPractice, CanStopPractice);
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
         OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync);
-        CheckResultCommand = new AsyncRelayCommand(OpenResultWindowAsync, CanCheckResult);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         OpenTrendsCommand = new AsyncRelayCommand(OpenTrendsAsync);
         OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
         CheckUpdatesCommand = new AsyncRelayCommand(CheckUpdatesAsync);
-        UpdateCommandStates();
-    }
-
-    public async Task StartPracticeAsync()
-    {
-        if (IsPracticeRunning)
-        {
-            return;
-        }
-
-        hasPracticeStarted = true;
-        IsPracticeRunning = true;
-        _resultSavedForCurrentSession = false;
-        UpdateCommandStates();
-        ReceivedText = string.Empty;
-        TimeCounterText = "Starting practice...";
-        TimeCounterStatus = StatusLevel.Info;
-        _practiceTimerCancellationTokenSource = new CancellationTokenSource();
-
-        var timerTask = RunPracticeTimerAsync(_practiceTimerCancellationTokenSource.Token);
-
-        try
-        {
-            await _practiceController.StartAsync();
-            TimeCounterText = "Practice completed!";
-            TimeCounterStatus = StatusLevel.Success;
-            if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice
-                && string.IsNullOrEmpty(ReceivedText))
-            {
-                var revealedText = _practiceController.LastGeneratedText;
-                ReceivedText = _configurationService.Current.UiPreferences.RevealSentTextInLowercase
-                    ? revealedText.ToLowerInvariant()
-                    : revealedText;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            TimeCounterText = "Stopped.";
-            TimeCounterStatus = StatusLevel.Error;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Practice session failed unexpectedly");
-            TimeCounterText = "Practice failed. Check logs for details.";
-            TimeCounterStatus = StatusLevel.Error;
-        }
-        finally
-        {
-            if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
-            {
-                _practiceTimerCancellationTokenSource.Cancel();
-            }
-
-            try
-            {
-                await timerTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-
-            IsPracticeRunning = false;
-            UpdateCommandStates();
-        }
-    }
-
-    public void StopPractice()
-    {
-        if (!IsPracticeRunning)
-        {
-            return;
-        }
-
-        _practiceController.Stop();
-
-        if (_practiceTimerCancellationTokenSource != null && !_practiceTimerCancellationTokenSource.IsCancellationRequested)
-        {
-            _practiceTimerCancellationTokenSource.Cancel();
-        }
-
-        IsPracticeRunning = false;
-        UpdateCommandStates();
-        TimeCounterText = "Stopped.";
-        TimeCounterStatus = StatusLevel.Error;
     }
 
     public async Task OpenSettingsDialogAsync()
@@ -219,37 +100,24 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (!_practiceController.TryApplySettings(newSettings, out var error))
         {
-            TimeCounterText = error;
-            TimeCounterStatus = StatusLevel.Error;
+            Practice.DisplayStatusMessage(error, StatusLevel.Error);
             return;
         }
 
         RefreshCharacterSets();
-        PracticeDuration = _practiceController.PracticeDurationMins;
-        // Applying settings resets the dynamic WPM to the configured values.
-        RefreshNextWpm();
+        Practice.RefreshFromAppliedSettings();
     }
 
-    public async Task OpenResultWindowAsync()
+    public async Task OpenUiSettingsDialogAsync()
     {
-        var result = _practiceController.BuildResult(ReceivedText);
-        var settings = _practiceController.CreateSettingsSnapshot();
-        // The WPM passed to the result window is the one actually used during the session
-        // (the dynamic WPM when auto-adjust is on), not the configured starting point, so
-        // the displayed values and any saved statistics record reflect reality.
-        var saved = await _practiceResultWindowService.ShowPracticeResultAsync(
-            result,
-            _practiceController.LastUsedCharacterWpm,
-            _practiceController.LastUsedAverageWpm,
-            _resultSavedForCurrentSession,
-            settings.Practice.ErrorThreshold,
-            settings.Audio.Noise);
-        // BuildResult may have adjusted the dynamic WPM; refresh the status-bar readout.
-        RefreshNextWpm();
-        if (saved)
-        {
-            _resultSavedForCurrentSession = true;
-        }
+        var newPrefs = await _uiSettingsDialogService.ShowUiSettingsDialogAsync(
+            _configurationService.Current.UiPreferences);
+        if (newPrefs is null)
+            return;
+
+        await _configurationService.ApplyUiPreferencesAsync(newPrefs);
+        ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
+        ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
 
     public Task OpenAboutAsync()
@@ -296,28 +164,6 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshCharacterSets();
     }
 
-    public async Task OpenUiSettingsDialogAsync()
-    {
-        var newPrefs = await _uiSettingsDialogService.ShowUiSettingsDialogAsync(
-            _configurationService.Current.UiPreferences);
-        if (newPrefs is null)
-            return;
-
-        await _configurationService.ApplyUiPreferencesAsync(newPrefs);
-        ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
-        ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
-    }
-
-    /// <summary>
-    /// Re-reads the next-session WPM from the controller so the status bar reflects the
-    /// current dynamic WPM (after an adjustment or a settings reset).
-    /// </summary>
-    private void RefreshNextWpm()
-    {
-        NextCharacterWpm = _practiceController.CurrentCharacterWpm;
-        NextAverageWpm = _practiceController.CurrentAverageWpm;
-    }
-
     /// <summary>
     /// Re-reads the available character sets and the controller's current selection. The
     /// intended selection is captured before the list is replaced, because assigning
@@ -350,58 +196,5 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         _practiceController.SelectedCharacterSet = value;
-    }
-
-    partial void OnPracticeDurationChanged(int value)
-    {
-        _practiceController.PracticeDurationMins = value;
-    }
-
-    partial void OnReceivedTextChanged(string value)
-    {
-        UpdateCommandStates();
-    }
-
-    private async Task RunPracticeTimerAsync(CancellationToken cancellationToken)
-    {
-        var startedAt = DateTime.UtcNow;
-        TimeCounterText = "Ready.";
-        TimeCounterStatus = StatusLevel.Neutral;
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                var elapsed = DateTime.UtcNow - startedAt;
-                TimeCounterText = $"Practicing: {(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
-                TimeCounterStatus = StatusLevel.Info;
-                await Task.Delay(1000, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    private bool CanStartPractice()
-    {
-        return !IsPracticeRunning;
-    }
-
-    private bool CanStopPractice()
-    {
-        return IsPracticeRunning;
-    }
-
-    private bool CanCheckResult()
-    {
-        return !IsPracticeRunning && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
-    }
-
-    private void UpdateCommandStates()
-    {
-        StartPracticeCommand.NotifyCanExecuteChanged();
-        StopPracticeCommand.NotifyCanExecuteChanged();
-        CheckResultCommand.NotifyCanExecuteChanged();
     }
 }

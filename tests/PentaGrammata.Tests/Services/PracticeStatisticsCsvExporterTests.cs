@@ -34,7 +34,7 @@ public sealed class PracticeStatisticsCsvExporterTests
         var csv = Export(Array.Empty<PracticeResultStatisticsRecord>());
 
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.AreEqual(1, lines.Length);
+        Assert.HasCount(1, lines);
         Assert.AreEqual(
             "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount,ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb,NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb",
             lines[0]);
@@ -65,7 +65,7 @@ public sealed class PracticeStatisticsCsvExporterTests
         var csv = Export(record);
 
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.AreEqual(2, lines.Length);
+        Assert.HasCount(2, lines);
         Assert.AreEqual(
             "2026-08-07T12:00:00.0000000+00:00,20,15,120,7,5.5,5,Gaussian,-10.25,600,1,0.5,0,100,3",
             lines[1]);
@@ -105,7 +105,7 @@ public sealed class PracticeStatisticsCsvExporterTests
         var csv = Export(records.ToArray());
 
         var dataLines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.AreEqual(3, dataLines.Length); // header + 2 rows
+        Assert.HasCount(3, dataLines); // header + 2 rows
         StringAssert.Contains(dataLines[1], "2026-01-01");
         StringAssert.Contains(dataLines[2], "2026-01-02");
     }

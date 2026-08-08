@@ -99,7 +99,7 @@ public sealed class ConfusionAnalysisServiceTests
         var result = _sut.BuildMatrix(observations, 1, Now);
 
         Assert.AreEqual(ConfusionMatrixStatus.Available, result.Status);
-        Assert.AreEqual(24, result.Matrix!.Symbols.Count);
+        Assert.HasCount(24, result.Matrix!.Symbols);
     }
 
     [TestMethod]
@@ -112,7 +112,7 @@ public sealed class ConfusionAnalysisServiceTests
 
         var counts = _sut.WeightedSymbolCounts(observations, 1, Now);
 
-        Assert.AreEqual(2, counts.Count);
+        Assert.HasCount(2, counts);
         Assert.AreEqual(4, counts.Single(c => c.Symbol == "A").Score);
         Assert.AreEqual(4, counts.Single(c => c.Symbol == "B").Score);
     }

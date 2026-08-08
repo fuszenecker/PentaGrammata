@@ -7,7 +7,6 @@ using NSubstitute;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
-using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Tests.ViewModels;
@@ -16,79 +15,10 @@ namespace PentaGrammata.Tests.ViewModels;
 public sealed class MainWindowViewModelTests
 {
     [TestMethod]
-    public async Task StartPracticeAsync_DelegatesToController_AndUnlocksResultCheckAfterInput()
+    public async Task OpenSettingsDialogAsync_WhenApplyFails_ShowsErrorOnPracticeStatusBar()
     {
-        var practiceController = Substitute.For<IPracticeController>();
+        var practiceController = CreateController();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.StartAsync().Returns(Task.CompletedTask);
-        practiceController.LastGeneratedText.Returns(string.Empty);
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
-        sut.ReceivedText = "TO_BE_CLEARED";
-
-        await sut.StartPracticeAsync();
-
-        await practiceController.Received(1).StartAsync();
-        Assert.IsFalse(sut.IsPracticeRunning);
-        Assert.AreEqual(string.Empty, sut.ReceivedText);
-        Assert.IsTrue(sut.StartPracticeCommand.CanExecute(null));
-        Assert.IsFalse(sut.StopPracticeCommand.CanExecute(null));
-        Assert.IsFalse(sut.CheckResultCommand.CanExecute(null));
-
-        sut.ReceivedText = "RX";
-        Assert.IsTrue(sut.CheckResultCommand.CanExecute(null));
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenControllerThrows_ShowsFailureMessage()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.StartAsync().Returns(_ => throw new InvalidOperationException("boom"));
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual("Practice failed. Check logs for details.", sut.TimeCounterText);
-        Assert.IsFalse(sut.IsPracticeRunning);
-    }
-
-    [TestMethod]
-    public async Task OpenSettingsDialogAsync_WhenApplyFails_ShowsError()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
 
         var snapshot = CreateConfig("Default", 5, 20, 15);
         var newSettings = CreateConfig("Custom", 8, 24, 18);
@@ -102,21 +32,18 @@ public sealed class MainWindowViewModelTests
                 return false;
             });
 
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService: settingsDialogService);
 
         await sut.OpenSettingsDialogAsync();
 
-        Assert.AreEqual("Invalid settings", sut.TimeCounterText);
+        Assert.AreEqual("Invalid settings", sut.Practice.TimeCounterText);
     }
 
     [TestMethod]
-    public async Task OpenSettingsDialogAsync_WhenApplySucceeds_RefreshesLocalProperties()
+    public async Task OpenSettingsDialogAsync_WhenApplySucceeds_RefreshesCharacterSetsAndPracticeDuration()
     {
-        var practiceController = Substitute.For<IPracticeController>();
+        var practiceController = CreateController();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
 
         var initialSets = new List<KeyValuePair<string, string>> { new("Default", "ABCDE") };
         var updatedSets = new List<KeyValuePair<string, string>>
@@ -141,334 +68,27 @@ public sealed class MainWindowViewModelTests
                 return true;
             });
 
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, settingsDialogService: settingsDialogService);
 
         await sut.OpenSettingsDialogAsync();
 
         CollectionAssert.AreEqual(new[] { "Custom", "Numbers" }, sut.CharacterSets);
         Assert.AreEqual("Custom", sut.SelectedCharacterSet);
-        Assert.AreEqual(9, sut.PracticeDuration);
-    }
-
-    [TestMethod]
-    public async Task OpenResultWindowAsync_BuildsAndShowsPracticeResult()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-
-        var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
-        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        practiceController.LastUsedCharacterWpm.Returns(20);
-        practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
-        sut.ReceivedText = "RX";
-
-        await sut.OpenResultWindowAsync();
-
-        practiceController.Received(1).BuildResult("RX");
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
-    }
-
-    [TestMethod]
-    public async Task OpenResultWindowAsync_WhenSaved_MarksSessionSavedSoReopenPassesAlreadySaved()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-
-        var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
-        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        practiceController.LastUsedCharacterWpm.Returns(20);
-        practiceController.LastUsedAverageWpm.Returns(15);
-        // First open saves (alreadySaved=false -> true); reopen must then pass alreadySaved=true.
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
-            .Returns(true, false);
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
-        sut.ReceivedText = "RX";
-
-        await sut.OpenResultWindowAsync();
-        await sut.OpenResultWindowAsync();
-
-        // The save state is the VM's own, not the controller's: the first open reports
-        // alreadySaved=false, the reopen (same session, already saved) reports true.
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>());
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_ResetsResultSavedStateForTheNewSession()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.StartAsync().Returns(Task.CompletedTask);
-        practiceController.LastGeneratedText.Returns(string.Empty);
-
-        var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
-        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
-        practiceController.LastUsedCharacterWpm.Returns(20);
-        practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
-            .Returns(true, false);
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
-        sut.ReceivedText = "RX";
-
-        // Save the first session's result (alreadySaved=false -> true).
-        await sut.OpenResultWindowAsync();
-
-        // A new session resets the per-session save state (and clears ReceivedText), so the
-        // next result open is not treated as already saved even though the prior session was.
-        await sut.StartPracticeAsync();
-        sut.ReceivedText = "RX";
-        await sut.OpenResultWindowAsync();
-
-        await resultWindowService.Received(2).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
+        Assert.AreEqual(9, sut.Practice.PracticeDuration);
     }
 
     [TestMethod]
     public async Task OpenAboutAsync_DelegatesToService()
     {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+        var practiceController = CreateController();
         var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
         aboutDialogService.ShowAboutAsync().Returns(Task.CompletedTask);
 
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
+        var sut = CreateSut(practiceController, aboutDialogService: aboutDialogService);
 
         await sut.OpenAboutAsync();
 
         await aboutDialogService.Received(1).ShowAboutAsync();
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenRevealEnabledAndReceivedTextEmpty_FillsWithGeneratedText()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.StartAsync().Returns(Task.CompletedTask);
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: true);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual("ABCDE FGHIJ", sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenRevealDisabledAndReceivedTextEmpty_DoesNotFill()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.StartAsync().Returns(Task.CompletedTask);
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: false);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual(string.Empty, sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenRevealEnabledAndReceivedTextNotEmpty_DoesNotOverwriteWithGeneratedText()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        // Simulate the user typing during practice by setting ReceivedText after StartAsync is awaited
-        practiceController.StartAsync().Returns(async _ =>
-        {
-            await Task.Yield();
-        });
-
-        var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger, revealSentText: true);
-
-        var startTask = sut.StartPracticeAsync();
-        // At this point StartAsync has yielded; set ReceivedText to simulate user input
-        sut.ReceivedText = "MY COPY";
-        await startTask;
-
-        Assert.AreEqual("MY COPY", sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenLowercaseRevealEnabled_FillsWithLowercasedGeneratedText()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        var sut = CreateSut(
-            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
-            revealSentText: true, revealInLowercase: true);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual("abcde fghij", sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenLowercaseRevealDisabled_KeepsGeneratedTextCasing()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        var sut = CreateSut(
-            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
-            revealSentText: true, revealInLowercase: false);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual("ABCDE FGHIJ", sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenLowercaseRevealEnabled_KeepsProsignsIntact()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Full", "AB<ar><sk>"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Full");
-        practiceController.LastGeneratedText.Returns("AB<ar> CD<sk>");
-
-        var sut = CreateSut(
-            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
-            revealSentText: true, revealInLowercase: true);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual("ab<ar> cd<sk>", sut.ReceivedText);
-    }
-
-    [TestMethod]
-    public async Task StartPracticeAsync_WhenLowercaseRevealEnabledButRevealDisabled_DoesNotFill()
-    {
-        var practiceController = Substitute.For<IPracticeController>();
-        var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
-        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
-        var aboutDialogService = Substitute.For<IAboutDialogService>();
-        var logger = Substitute.For<ILogger<MainWindowViewModel>>();
-
-        practiceController.PracticeDurationMins.Returns(5);
-        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
-        {
-            new("Default", "ABCDE"),
-        });
-        practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.LastGeneratedText.Returns("ABCDE FGHIJ");
-
-        var sut = CreateSut(
-            practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger,
-            revealSentText: false, revealInLowercase: true);
-
-        await sut.StartPracticeAsync();
-
-        Assert.AreEqual(string.Empty, sut.ReceivedText);
     }
 
     [TestMethod]
@@ -504,18 +124,7 @@ public sealed class MainWindowViewModelTests
             return Task.CompletedTask;
         });
 
-        var sut = new MainWindowViewModel(
-            practiceController,
-            CreateConfigService(),
-            Substitute.For<IMorseSettingsDialogService>(),
-            Substitute.For<IUiSettingsDialogService>(),
-            Substitute.For<IPracticeResultWindowService>(),
-            Substitute.For<IAboutDialogService>(),
-            Substitute.For<ITrendsDialogService>(),
-            confusionsDialogService,
-            Substitute.For<IUpdateChecker>(),
-            Substitute.For<IInfoDialogService>(),
-            logger);
+        var sut = CreateSut(practiceController, confusionsDialogService: confusionsDialogService, logger: logger);
 
         // A ComboBox bound to CharacterSets/SelectedItem reacts to a replaced ItemsSource by
         // clearing SelectedItem and then pushing its own now-stale selection back into the view
@@ -547,27 +156,45 @@ public sealed class MainWindowViewModelTests
         CollectionAssert.AreEqual(new[] { "Practice confusions" }, writes);
     }
 
+    private static IPracticeController CreateController()
+    {
+        var practiceController = Substitute.For<IPracticeController>();
+        practiceController.PracticeDurationMins.Returns(5);
+        practiceController.CharacterSets.Returns(new List<KeyValuePair<string, string>>
+        {
+            new("Default", "ABCDE"),
+        });
+        practiceController.SelectedCharacterSet.Returns("Default");
+        return practiceController;
+    }
+
     private static MainWindowViewModel CreateSut(
         IPracticeController practiceController,
-        IMorseSettingsDialogService settingsDialogService,
-        IPracticeResultWindowService resultWindowService,
-        IAboutDialogService aboutDialogService,
-        ILogger<MainWindowViewModel> logger,
+        IMorseSettingsDialogService? settingsDialogService = null,
+        IAboutDialogService? aboutDialogService = null,
+        IConfusionsDialogService? confusionsDialogService = null,
+        ILogger<MainWindowViewModel>? logger = null,
         bool revealSentText = true,
         bool revealInLowercase = false)
     {
+        var configService = CreateConfigService(revealSentText, revealInLowercase);
+        var practice = new PracticeViewModel(
+            practiceController,
+            Substitute.For<IPracticeResultWindowService>(),
+            configService,
+            Substitute.For<ILogger<PracticeViewModel>>());
         return new MainWindowViewModel(
             practiceController,
-            CreateConfigService(revealSentText, revealInLowercase),
-            settingsDialogService,
+            configService,
+            settingsDialogService ?? Substitute.For<IMorseSettingsDialogService>(),
             Substitute.For<IUiSettingsDialogService>(),
-            resultWindowService,
-            aboutDialogService,
+            aboutDialogService ?? Substitute.For<IAboutDialogService>(),
             Substitute.For<ITrendsDialogService>(),
-            Substitute.For<IConfusionsDialogService>(),
+            confusionsDialogService ?? Substitute.For<IConfusionsDialogService>(),
             Substitute.For<IUpdateChecker>(),
             Substitute.For<IInfoDialogService>(),
-            logger);
+            practice,
+            logger ?? Substitute.For<ILogger<MainWindowViewModel>>());
     }
 
     private static IConfigurationService CreateConfigService(bool revealSentText = true, bool revealInLowercase = false)

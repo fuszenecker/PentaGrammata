@@ -73,6 +73,7 @@ public static class ServiceCollectionExtensions
         public void AddViewModels()
         {
             services.AddSingleton<IDialogViewModelFactory, DialogViewModelFactory>();
+            services.AddSingleton<PracticeViewModel>();
             services.AddSingleton<MainWindowViewModel>();
         }
     }

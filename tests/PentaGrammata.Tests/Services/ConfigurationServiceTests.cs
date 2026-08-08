@@ -100,7 +100,7 @@ public sealed class ConfigurationServiceTests
 
         await sut.SuppressDialogAsync("ResultsSaved");
 
-        Assert.IsTrue(sut.Current.UiPreferences.SuppressedDialogs.Contains("ResultsSaved"));
+        Assert.Contains("ResultsSaved", sut.Current.UiPreferences.SuppressedDialogs);
         await store.Received(1).SaveAsync(Arg.Any<AppConfig>());
     }
 
