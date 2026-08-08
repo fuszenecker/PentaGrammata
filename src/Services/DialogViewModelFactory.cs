@@ -10,17 +10,20 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 {
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultStatisticsService _statisticsService;
+    private readonly IPracticeStatisticsExporter _statisticsExporter;
     private readonly IInfoDialogService _infoDialogService;
     private readonly IConfigurationService _configurationService;
 
     public DialogViewModelFactory(
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultStatisticsService statisticsService,
+        IPracticeStatisticsExporter statisticsExporter,
         IInfoDialogService infoDialogService,
         IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
         _statisticsService = statisticsService;
+        _statisticsExporter = statisticsExporter;
         _infoDialogService = infoDialogService;
         _configurationService = configurationService;
     }
@@ -61,7 +64,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public TrendsDialogViewModel CreateTrends()
     {
-        return new TrendsDialogViewModel(_statisticsService);
+        return new TrendsDialogViewModel(_statisticsService, _statisticsExporter);
     }
 
     public ConfusionsDialogViewModel CreateConfusions()

@@ -1,29 +1,37 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using PentaGrammata.Configuration;
 using PentaGrammata.Models;
-using PentaGrammata.ViewModels;
+using PentaGrammata.Services;
 
-namespace PentaGrammata.Tests.ViewModels;
+namespace PentaGrammata.Tests.Services;
 
 [TestClass]
-public sealed class TrendsDialogViewModelTests
+public sealed class PracticeStatisticsCsvExporterTests
 {
-    [TestMethod]
-    public void EscapeCsvField_QuotesSpecialCharacters()
+    private static string Export(params PracticeResultStatisticsRecord[] records)
     {
-        Assert.AreEqual("plain", TrendsDialogViewModel.EscapeCsvField("plain"));
-        Assert.AreEqual("\"a,b\"", TrendsDialogViewModel.EscapeCsvField("a,b"));
-        Assert.AreEqual("\"a\"\"b\"", TrendsDialogViewModel.EscapeCsvField("a\"b"));
-        Assert.AreEqual("\"a\nb\"", TrendsDialogViewModel.EscapeCsvField("a\nb"));
+        using var writer = new StringWriter();
+        new PracticeStatisticsCsvExporter().Write(records, writer);
+        return writer.ToString();
     }
 
     [TestMethod]
-    public void BuildCsv_Empty_ProducesOnlyHeader()
+    public void EscapeCsvField_QuotesSpecialCharacters()
     {
-        var csv = TrendsDialogViewModel.BuildCsv(Array.Empty<PracticeResultStatisticsRecord>());
+        Assert.AreEqual("plain", PracticeStatisticsCsvExporter.EscapeCsvField("plain"));
+        Assert.AreEqual("\"a,b\"", PracticeStatisticsCsvExporter.EscapeCsvField("a,b"));
+        Assert.AreEqual("\"a\"\"b\"", PracticeStatisticsCsvExporter.EscapeCsvField("a\"b"));
+        Assert.AreEqual("\"a\nb\"", PracticeStatisticsCsvExporter.EscapeCsvField("a\nb"));
+    }
+
+    [TestMethod]
+    public void Write_Empty_ProducesOnlyHeader()
+    {
+        var csv = Export(Array.Empty<PracticeResultStatisticsRecord>());
 
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.AreEqual(1, lines.Length);
@@ -33,7 +41,7 @@ public sealed class TrendsDialogViewModelTests
     }
 
     [TestMethod]
-    public void BuildCsv_RendersAllColumnsWithInvariantCulture()
+    public void Write_RendersAllColumnsWithInvariantCulture()
     {
         var record = new PracticeResultStatisticsRecord
         {
@@ -54,7 +62,7 @@ public sealed class TrendsDialogViewModelTests
             ApfPeakGainDb = 3.0,
         };
 
-        var csv = TrendsDialogViewModel.BuildCsv(new[] { record });
+        var csv = Export(record);
 
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.AreEqual(2, lines.Length);
@@ -64,7 +72,7 @@ public sealed class TrendsDialogViewModelTests
     }
 
     [TestMethod]
-    public void BuildCsv_RendersNoiseTypeAsName()
+    public void Write_RendersNoiseTypeAsName()
     {
         var record = new PracticeResultStatisticsRecord
         {
@@ -72,13 +80,13 @@ public sealed class TrendsDialogViewModelTests
             NoiseType = NoiseType.None,
         };
 
-        var csv = TrendsDialogViewModel.BuildCsv(new[] { record });
+        var csv = Export(record);
 
         StringAssert.Contains(csv, ",None,");
     }
 
     [TestMethod]
-    public void BuildCsv_PreservesRecordOrder()
+    public void Write_PreservesRecordOrder()
     {
         var records = new List<PracticeResultStatisticsRecord>
         {
@@ -94,11 +102,36 @@ public sealed class TrendsDialogViewModelTests
             },
         };
 
-        var csv = TrendsDialogViewModel.BuildCsv(records);
+        var csv = Export(records.ToArray());
 
         var dataLines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.AreEqual(3, dataLines.Length); // header + 2 rows
         StringAssert.Contains(dataLines[1], "2026-01-01");
         StringAssert.Contains(dataLines[2], "2026-01-02");
+    }
+
+    [TestMethod]
+    public void Write_StreamsDirectlyToWriterWithoutBufferingWholeExport()
+    {
+        // Streaming contract: the header is written before any record is enumerated, so a
+        // caller writing straight to a file stream sees output even with zero records.
+        var written = new List<string>();
+        var probingWriter = new ProbingTextWriter(written);
+
+        new PracticeStatisticsCsvExporter().Write(Array.Empty<PracticeResultStatisticsRecord>(), probingWriter);
+
+        Assert.IsGreaterThan(0, written.Count);
+        StringAssert.Contains(written[0], "RecordedAt");
+    }
+
+    private sealed class ProbingTextWriter : StringWriter
+    {
+        private readonly List<string> _written;
+        public ProbingTextWriter(List<string> written) => _written = written;
+        public override void Write(string? value)
+        {
+            _written.Add(value ?? string.Empty);
+            base.Write(value);
+        }
     }
 }

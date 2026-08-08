@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +15,7 @@ namespace PentaGrammata.ViewModels;
 public sealed class TrendsDialogViewModel : ViewModelBase
 {
     private readonly IPracticeResultStatisticsService _statisticsService;
+    private readonly IPracticeStatisticsExporter _statisticsExporter;
     private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
@@ -75,9 +75,12 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         private set => SetProperty(ref _summaryText, value);
     }
 
-    public TrendsDialogViewModel(IPracticeResultStatisticsService statisticsService)
+    public TrendsDialogViewModel(
+        IPracticeResultStatisticsService statisticsService,
+        IPracticeStatisticsExporter statisticsExporter)
     {
         _statisticsService = statisticsService;
+        _statisticsExporter = statisticsExporter;
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
         ExportCsvCommand = new RelayCommand(ExportCsv, CanExportCsv);
     }
@@ -86,63 +89,9 @@ public sealed class TrendsDialogViewModel : ViewModelBase
 
     private void ExportCsv()
     {
-        var csv = BuildCsv(_records);
-        ExportCsvRequested?.Invoke(csv);
-    }
-
-    /// <summary>
-    /// Escapes a CSV field according to RFC 4180. Current exported fields are safe scalar
-    /// values, but keeping this helper here prevents future string columns from corrupting
-    /// the output when they contain delimiters, quotes, or line breaks.
-    /// </summary>
-    internal static string EscapeCsvField(string value)
-    {
-        if (value.IndexOfAny([',', '"', '\r', '\n']) < 0)
-        {
-            return value;
-        }
-
-        return $"\"{value.Replace("\"", "\"\"")}\"";
-    }
-
-    /// <summary>
-    /// Renders the supplied session records as RFC 4180-ish CSV — one row per
-    /// saved session with every persisted column — using invariant culture so the
-    /// numeric columns are stable across locales. Pure and deterministic so it can
-    /// be unit-tested without a window or store. The per-session confusion rows
-    /// are a separate one-to-many relation and are not included in this export.
-    /// </summary>
-    internal static string BuildCsv(IEnumerable<PracticeResultStatisticsRecord> records)
-    {
-        const string header =
-            "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount," +
-            "ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb," +
-            "NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb";
-
-        var sb = new StringBuilder();
-        sb.Append(header).Append("\r\n");
-        foreach (var r in records)
-        {
-            sb.Append(r.RecordedAt.ToString("O", CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.CharacterWpm.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.AverageWpm.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.CharacterCount.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.ErrorCount.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.ErrorRatePercent.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.ErrorThresholdPercent.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(EscapeCsvField(r.NoiseType.ToString())).Append(',');
-
-            sb.Append(r.NoiseLevelDb.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.NoiseBandwidthHz.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.AgcEnabled ? "1" : "0").Append(',');
-            sb.Append(r.AgcDelaySeconds.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.ApfEnabled ? "1" : "0").Append(',');
-            sb.Append(r.ApfBandwidthHz.ToString(CultureInfo.InvariantCulture)).Append(',');
-            sb.Append(r.ApfPeakGainDb.ToString(CultureInfo.InvariantCulture));
-            sb.Append("\r\n");
-        }
-
-        return sb.ToString();
+        using var writer = new StringWriter();
+        _statisticsExporter.Write(_records, writer);
+        ExportCsvRequested?.Invoke(writer.ToString());
     }
 
     public async Task InitializeAsync()
