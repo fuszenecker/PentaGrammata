@@ -3,7 +3,7 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Presentation;
 
 /// <summary>
 /// Creates dialog view models, supplying their container-injected dependencies so

@@ -4,7 +4,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
 public sealed class DialogViewModelFactory : IDialogViewModelFactory
 {

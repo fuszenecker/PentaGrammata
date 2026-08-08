@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Presentation;
 
 public interface IInfoDialogService
 {

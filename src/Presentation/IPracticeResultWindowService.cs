@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using PentaGrammata.Configuration;
 using PentaGrammata.Models;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Presentation;
 
 public interface IPracticeResultWindowService
 {

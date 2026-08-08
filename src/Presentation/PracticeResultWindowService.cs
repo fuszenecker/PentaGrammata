@@ -5,7 +5,7 @@ using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
 public sealed class PracticeResultWindowService : IPracticeResultWindowService
 {

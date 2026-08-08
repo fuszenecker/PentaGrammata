@@ -4,7 +4,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
 public sealed class InfoDialogService : IInfoDialogService
 {

@@ -3,22 +3,22 @@ using System.Threading.Tasks;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Views;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
-public sealed class TrendsDialogService : ITrendsDialogService
+public sealed class ConfusionsDialogService : IConfusionsDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
     private readonly IWindowSizeService _windowSizeService;
 
-    public TrendsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
+    public ConfusionsDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory, IWindowSizeService windowSizeService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
         _windowSizeService = windowSizeService;
     }
 
-    public async Task ShowTrendsAsync()
+    public async Task ShowConfusionsAsync()
     {
         var owner = _windowContext.MainWindow;
         if (owner is null)
@@ -26,10 +26,10 @@ public sealed class TrendsDialogService : ITrendsDialogService
             return;
         }
 
-        var viewModel = _viewModelFactory.CreateTrends();
+        var viewModel = _viewModelFactory.CreateConfusions();
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        var dialog = new TrendsDialog
+        var dialog = new ConfusionsDialog
         {
             DataContext = viewModel
         };
