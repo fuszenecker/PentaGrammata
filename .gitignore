@@ -60,3 +60,5 @@ installer/nsis/PentaGrammata-*-win-x64-setup.exe
 publish
 installer/deb/*
 installer/rpm/*
+
+.claude/

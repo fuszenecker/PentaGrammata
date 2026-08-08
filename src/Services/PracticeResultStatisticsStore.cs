@@ -17,6 +17,7 @@ namespace PentaGrammata.Services;
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
     private const int CurrentSchemaVersion = 2;
+    private const int BusyTimeoutMs = 5000;
 
     private readonly ILogger<PracticeResultStatisticsStore> _logger;
     private readonly string _databasePath;
@@ -24,6 +25,12 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
     // Schema initialization runs once per process, not on every insert.
     private readonly SemaphoreSlim _schemaLock = new(1, 1);
     private bool _schemaInitialized;
+
+    // Serializes every public operation so that reads and writes against the single database
+    // file never interleave on this instance. SQLite with WAL + busy_timeout tolerates
+    // concurrent access from separate connections, but the gate removes "database is locked"
+    // entirely for in-process callers and keeps each operation's connection lifecycle simple.
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
 
     public string DatabasePath => _databasePath;
 
@@ -40,7 +47,15 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
     {
         try
         {
-            await SaveCoreAsync(record, cancellationToken).ConfigureAwait(false);
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SaveCoreAsync(record, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
         }
         catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
@@ -53,59 +68,68 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
     {
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
-            await connection.OpenAsync(cancellationToken);
-
-            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-
-            var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT
-                    recorded_at,
-                    character_wpm,
-                    average_wpm,
-                    character_count,
-                    error_count,
-                    error_rate_percent,
-                    error_threshold_percent,
-                    noise_type,
-                    noise_level_db,
-                    noise_bandwidth_hz,
-                    agc_enabled,
-                    agc_delay_seconds,
-                    apf_enabled,
-                    apf_bandwidth_hz,
-                    apf_peak_gain_db
-                FROM practice_result_statistics
-                ORDER BY recorded_at ASC;
-                """;
-
-            var records = new List<PracticeResultStatisticsRecord>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                records.Add(new PracticeResultStatisticsRecord
-                {
-                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
-                    CharacterWpm = reader.GetInt32(1),
-                    AverageWpm = reader.GetInt32(2),
-                    CharacterCount = reader.GetInt32(3),
-                    ErrorCount = reader.GetInt32(4),
-                    ErrorRatePercent = reader.GetDouble(5),
-                    ErrorThresholdPercent = reader.GetDouble(6),
-                    NoiseType = Enum.Parse<NoiseType>(reader.GetString(7), ignoreCase: true),
-                    NoiseLevelDb = reader.GetDouble(8),
-                    NoiseBandwidthHz = reader.GetDouble(9),
-                    AgcEnabled = reader.GetInt32(10) != 0,
-                    AgcDelaySeconds = reader.GetDouble(11),
-                    ApfEnabled = reader.GetInt32(12) != 0,
-                    ApfBandwidthHz = reader.GetDouble(13),
-                    ApfPeakGainDb = reader.GetDouble(14),
-                });
-            }
+                await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+                await connection.OpenAsync(cancellationToken);
+                await ApplyPragmasAsync(connection, cancellationToken).ConfigureAwait(false);
 
-            return records;
+                await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                var command = connection.CreateCommand();
+                command.CommandText =
+                    """
+                    SELECT
+                        recorded_at,
+                        character_wpm,
+                        average_wpm,
+                        character_count,
+                        error_count,
+                        error_rate_percent,
+                        error_threshold_percent,
+                        noise_type,
+                        noise_level_db,
+                        noise_bandwidth_hz,
+                        agc_enabled,
+                        agc_delay_seconds,
+                        apf_enabled,
+                        apf_bandwidth_hz,
+                        apf_peak_gain_db
+                    FROM practice_result_statistics
+                    ORDER BY recorded_at ASC;
+                    """;
+
+                var records = new List<PracticeResultStatisticsRecord>();
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    records.Add(new PracticeResultStatisticsRecord
+                    {
+                        RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
+                        CharacterWpm = reader.GetInt32(1),
+                        AverageWpm = reader.GetInt32(2),
+                        CharacterCount = reader.GetInt32(3),
+                        ErrorCount = reader.GetInt32(4),
+                        ErrorRatePercent = reader.GetDouble(5),
+                        ErrorThresholdPercent = reader.GetDouble(6),
+                        NoiseType = Enum.Parse<NoiseType>(reader.GetString(7), ignoreCase: true),
+                        NoiseLevelDb = reader.GetDouble(8),
+                        NoiseBandwidthHz = reader.GetDouble(9),
+                        AgcEnabled = reader.GetInt32(10) != 0,
+                        AgcDelaySeconds = reader.GetDouble(11),
+                        ApfEnabled = reader.GetInt32(12) != 0,
+                        ApfBandwidthHz = reader.GetDouble(13),
+                        ApfPeakGainDb = reader.GetDouble(14),
+                    });
+                }
+
+                return records;
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
         }
         catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
@@ -118,39 +142,48 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
     {
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={_databasePath}");
-            await connection.OpenAsync(cancellationToken);
-
-            await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-
-            var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT
-                    recorded_at,
-                    expected_symbol,
-                    actual_symbol,
-                    distance,
-                    count
-                FROM practice_confusions
-                ORDER BY recorded_at ASC;
-                """;
-
-            var observations = new List<ConfusionObservation>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                observations.Add(new ConfusionObservation
-                {
-                    RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
-                    ExpectedSymbol = reader.GetString(1),
-                    ActualSymbol = reader.GetString(2),
-                    Distance = reader.GetInt32(3),
-                    Count = reader.GetInt32(4)
-                });
-            }
+                await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+                await connection.OpenAsync(cancellationToken);
+                await ApplyPragmasAsync(connection, cancellationToken).ConfigureAwait(false);
 
-            return observations;
+                await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                var command = connection.CreateCommand();
+                command.CommandText =
+                    """
+                    SELECT
+                        recorded_at,
+                        expected_symbol,
+                        actual_symbol,
+                        distance,
+                        count
+                    FROM practice_confusions
+                    ORDER BY recorded_at ASC;
+                    """;
+
+                var observations = new List<ConfusionObservation>();
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    observations.Add(new ConfusionObservation
+                    {
+                        RecordedAt = DateTimeOffset.Parse(reader.GetString(0)),
+                        ExpectedSymbol = reader.GetString(1),
+                        ActualSymbol = reader.GetString(2),
+                        Distance = reader.GetInt32(3),
+                        Count = reader.GetInt32(4)
+                    });
+                }
+
+                return observations;
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
         }
         catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
         {
@@ -159,10 +192,30 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         }
     }
 
+    /// <summary>
+    /// Enables WAL journaling (persistent for the database file) and a per-connection busy
+    /// timeout so a reader/writer contention window waits instead of throwing "database is
+    /// locked". Run on every connection right after it is opened, before any schema work.
+    /// </summary>
+    private static async Task ApplyPragmasAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        // journal_mode is persistent for the database file; the first connection switches the
+        // file to WAL and later calls just return "wal". busy_timeout is per-connection, so it
+        // must be set on every connection.
+        var journalCommand = connection.CreateCommand();
+        journalCommand.CommandText = "PRAGMA journal_mode = WAL;";
+        await journalCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        var busyCommand = connection.CreateCommand();
+        busyCommand.CommandText = $"PRAGMA busy_timeout = {BusyTimeoutMs};";
+        await busyCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task SaveCoreAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection($"Data Source={_databasePath}");
         await connection.OpenAsync(cancellationToken);
+        await ApplyPragmasAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await EnsureSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
 

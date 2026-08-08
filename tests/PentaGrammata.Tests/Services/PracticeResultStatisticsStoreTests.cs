@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -190,6 +191,24 @@ public sealed class PracticeResultStatisticsStoreTests
 
         await Assert.ThrowsExactlyAsync<StatisticsStoreException>(
             () => sut.GetStatisticsRecordsAsync());
+    }
+
+    [TestMethod]
+    public async Task ConcurrentSavesAndReads_DoNotLockTheDatabase()
+    {
+        // WAL + the per-instance operation gate must let interleaved saves and reads complete
+        // without surfacing "database is locked" to the caller.
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+
+        var saveTasks = Enumerable.Range(0, 8)
+            .Select(_ => Task.Run(() => sut.SaveAsync(CreateRecord())));
+        var readTasks = Enumerable.Range(0, 4)
+            .Select(_ => Task.Run(() => sut.GetStatisticsRecordsAsync()));
+
+        await Task.WhenAll(saveTasks.Concat(readTasks));
+
+        var records = await sut.GetStatisticsRecordsAsync();
+        Assert.HasCount(8, records);
     }
 
     private static IAppPaths FakePaths(string directory)
