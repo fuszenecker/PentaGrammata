@@ -165,7 +165,6 @@ public sealed class MainWindowViewModelTests
             new("Default", "ABCDE"),
         });
         practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.IsResultSaved.Returns(false);
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
@@ -184,7 +183,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
-    public async Task OpenResultWindowAsync_WhenSaved_SetsIsResultSavedOnController()
+    public async Task OpenResultWindowAsync_WhenSaved_MarksSessionSavedSoReopenPassesAlreadySaved()
     {
         var practiceController = Substitute.For<IPracticeController>();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
@@ -198,25 +197,30 @@ public sealed class MainWindowViewModelTests
             new("Default", "ABCDE"),
         });
         practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.IsResultSaved.Returns(false);
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(true));
+        // First open saves (alreadySaved=false -> true); reopen must then pass alreadySaved=true.
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
+            .Returns(true, false);
 
         var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
         sut.ReceivedText = "RX";
 
         await sut.OpenResultWindowAsync();
+        await sut.OpenResultWindowAsync();
 
-        practiceController.Received(1).IsResultSaved = true;
+        // The save state is the VM's own, not the controller's: the first open reports
+        // alreadySaved=false, the reopen (same session, already saved) reports true.
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]
-    public async Task OpenResultWindowAsync_PassesAlreadySavedFlag()
+    public async Task StartPracticeAsync_ResetsResultSavedStateForTheNewSession()
     {
         var practiceController = Substitute.For<IPracticeController>();
         var settingsDialogService = Substitute.For<IMorseSettingsDialogService>();
@@ -230,21 +234,30 @@ public sealed class MainWindowViewModelTests
             new("Default", "ABCDE"),
         });
         practiceController.SelectedCharacterSet.Returns("Default");
-        practiceController.IsResultSaved.Returns(true);
+        practiceController.StartAsync().Returns(Task.CompletedTask);
+        practiceController.LastGeneratedText.Returns(string.Empty);
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
         practiceController.BuildResult("RX").Returns(result);
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
+            .Returns(true, false);
 
         var sut = CreateSut(practiceController, settingsDialogService, resultWindowService, aboutDialogService, logger);
         sut.ReceivedText = "RX";
 
+        // Save the first session's result (alreadySaved=false -> true).
         await sut.OpenResultWindowAsync();
 
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>());
+        // A new session resets the per-session save state (and clears ReceivedText), so the
+        // next result open is not treated as already saved even though the prior session was.
+        await sut.StartPracticeAsync();
+        sut.ReceivedText = "RX";
+        await sut.OpenResultWindowAsync();
+
+        await resultWindowService.Received(2).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]

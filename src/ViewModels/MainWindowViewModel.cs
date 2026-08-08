@@ -31,6 +31,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool hasPracticeStarted;
 
+    // Whether the current session's result has already been saved, so reopening the result
+    // window for the same session disables the save button. Reset when a new session starts.
+    private bool _resultSavedForCurrentSession;
+
     // Set while the character-set list is being swapped: the bound ComboBox reacts to a new
     // ItemsSource by pushing its own (now stale) SelectedItem back into the view model, which
     // would otherwise overwrite the controller's freshly chosen set.
@@ -133,6 +137,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         hasPracticeStarted = true;
         IsPracticeRunning = true;
+        _resultSavedForCurrentSession = false;
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
@@ -236,14 +241,14 @@ public partial class MainWindowViewModel : ViewModelBase
             result,
             _practiceController.LastUsedCharacterWpm,
             _practiceController.LastUsedAverageWpm,
-            _practiceController.IsResultSaved,
+            _resultSavedForCurrentSession,
             settings.Practice.ErrorThreshold,
             settings.Audio.Noise);
         // BuildResult may have adjusted the dynamic WPM; refresh the status-bar readout.
         RefreshNextWpm();
         if (saved)
         {
-            _practiceController.IsResultSaved = true;
+            _resultSavedForCurrentSession = true;
         }
     }
 

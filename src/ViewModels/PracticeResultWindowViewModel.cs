@@ -78,7 +78,9 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
         ResultStatus = result.IsSuccessful ? StatusLevel.Success : StatusLevel.Error;
-        var recordedAt = DateTimeOffset.Now;
+        // UTC so the recorded timestamp is consistent with the UTC basis used for confusion
+        // half-life decay, regardless of the user's locale.
+        var recordedAt = DateTimeOffset.UtcNow;
 
         _record = new PracticeResultStatisticsRecord
         {

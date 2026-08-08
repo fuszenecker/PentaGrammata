@@ -84,8 +84,6 @@ public class PracticeController : IPracticeController
 
     public bool IsPracticing { get; private set; }
 
-    public bool IsResultSaved { get; set; }
-
     public PracticeController(
         IMorsePlayer morsePlayer,
         IMorseGenerator morseGenerator,
@@ -114,7 +112,6 @@ public class PracticeController : IPracticeController
         _logger.LogInformation("Starting practice session");
         _cancellationTokenSource = new CancellationTokenSource();
         IsPracticing = true;
-        IsResultSaved = false;
         _sessionResultRecorded = false;
 
         // Capture the WPM used for this session before any post-session adjustment can move
