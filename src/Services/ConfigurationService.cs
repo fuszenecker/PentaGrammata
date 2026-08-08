@@ -1,14 +1,19 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Services;
 
 public sealed class ConfigurationService : IConfigurationService
 {
+    private const string DefaultCharacterSetName = "Default";
+    private const string DefaultCharacterSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
+
     private readonly IConfigurationStore _store;
     private readonly ILogger<ConfigurationService> _logger;
 
@@ -24,6 +29,29 @@ public sealed class ConfigurationService : IConfigurationService
         _store = store;
         _logger = logger;
         Current = _store.Load();
+        Normalize();
+    }
+
+    /// <summary>
+    /// Establishes load-time invariants so the rest of the application can assume the
+    /// configuration always has at least one usable character set and a non-null default
+    /// selection. This is the single owner's responsibility, not each consumer's.
+    /// </summary>
+    private void Normalize()
+    {
+        var config = Current;
+
+        if (config.CharacterSets.Count == 0
+            || !config.CharacterSets.Any(kv => !string.IsNullOrWhiteSpace(kv.Value)))
+        {
+            config.CharacterSets[DefaultCharacterSetName] = DefaultCharacterSet;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.Practice.DefaultCharacterSet))
+        {
+            config.Practice.DefaultCharacterSet = config.CharacterSets
+                .First(kv => !string.IsNullOrWhiteSpace(kv.Value)).Key;
+        }
     }
 
     public Task SaveAsync()
@@ -79,6 +107,81 @@ public sealed class ConfigurationService : IConfigurationService
         }
 
         Current.UiPreferences.SuppressedDialogs.Add(dialogKey);
+        return SaveAsync();
+    }
+
+    public void SetPracticeDuration(int minutes)
+    {
+        if (Current.Practice.DefaultDurationMins == minutes)
+        {
+            return;
+        }
+
+        Current.Practice.DefaultDurationMins = minutes;
+        RequestSave();
+    }
+
+    public void SetSelectedCharacterSet(string name)
+    {
+        if (Current.Practice.DefaultCharacterSet == name)
+        {
+            return;
+        }
+
+        Current.Practice.DefaultCharacterSet = name;
+        RequestSave();
+    }
+
+    public void ApplyPracticeSettings(AppConfig settings)
+    {
+        var config = Current;
+        config.Practice.DefaultDurationMins = settings.Practice.DefaultDurationMins;
+        config.Practice.CharacterWpm = settings.Practice.CharacterWpm;
+        config.Practice.AverageWpm = settings.Practice.AverageWpm;
+        config.Audio.SampleRate = settings.Audio.SampleRate;
+        config.Audio.Frequency = settings.Audio.Frequency;
+        config.Audio.VolumeDb = settings.Audio.VolumeDb;
+        config.Audio.BeepRampMs = settings.Audio.BeepRampMs;
+        config.Audio.Noise = settings.Audio.Noise.Clone();
+        config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
+        config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
+        config.Practice.CustomText = settings.Practice.CustomText;
+        config.Practice.AutoAdjustWpm = settings.Practice.AutoAdjustWpm;
+        config.Practice.AutoAdjustWindowSize = settings.Practice.AutoAdjustWindowSize;
+
+        config.CharacterSets.Clear();
+        foreach (var item in settings.CharacterSets)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Key) && !string.IsNullOrWhiteSpace(item.Value))
+            {
+                config.CharacterSets[item.Key] = item.Value;
+            }
+        }
+
+        RequestSave();
+    }
+
+    public Task ApplyUiPreferencesAsync(UiPreferences preferences)
+    {
+        Current.UiPreferences = preferences.Clone();
+        return SaveAsync();
+    }
+
+    public void SetConfusionsHalfLife(double days)
+    {
+        if (Current.Analytics.ConfusionsHalfLifeDays == days)
+        {
+            return;
+        }
+
+        Current.Analytics.ConfusionsHalfLifeDays = days;
+        RequestSave();
+    }
+
+    public Task UpsertCharacterSetAndSelectAsync(string name, string characters)
+    {
+        Current.CharacterSets[name] = characters;
+        Current.Practice.DefaultCharacterSet = name;
         return SaveAsync();
     }
 

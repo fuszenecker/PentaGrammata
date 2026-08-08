@@ -59,7 +59,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             var clamped = Math.Clamp(value, MinHalfLifeDays, MaxHalfLifeDays);
             if (SetProperty(ref _halfLifeDays, clamped))
             {
-                _configurationService.Current.Analytics.ConfusionsHalfLifeDays = clamped;
+                _configurationService.SetConfusionsHalfLife(clamped);
                 _halfLifeDirty = true;
                 Rebuild();
             }
@@ -83,7 +83,14 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             MinHalfLifeDays,
             MaxHalfLifeDays);
         _halfLifeDays = configuredHalfLife;
-        _configurationService.Current.Analytics.ConfusionsHalfLifeDays = configuredHalfLife;
+
+        // Persist the clamped value if the configured half-life was out of range, so the
+        // on-disk configuration stays consistent with what the user sees.
+        if (configuredHalfLife != _configurationService.Current.Analytics.ConfusionsHalfLifeDays)
+        {
+            _configurationService.SetConfusionsHalfLife(configuredHalfLife);
+        }
+
         CloseCommand = new AsyncRelayCommand(CloseAsync);
         PracticeConfusionsCommand = new AsyncRelayCommand(CreatePracticeConfusionsAsync, CanCreatePracticeConfusions);
     }
@@ -244,39 +251,49 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             return;
         }
 
-        _configurationService.Current.CharacterSets[PracticeConfusionsSetName] = characterSet;
-        _configurationService.Current.Practice.DefaultCharacterSet = PracticeConfusionsSetName;
-        await _configurationService.SaveAsync();
+        await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        // The upsert awaits a full SaveAsync, which also flushes any pending half-life
+        // change, so nothing is left dirty.
         _halfLifeDirty = false;
         CloseRequested?.Invoke();
     }
 
     public void OnDialogClosed()
     {
-        if (!_halfLifeDirty)
+        // Reached when the window closes without the CloseCommand (e.g. the title-bar X).
+        // CloseAsync handles the awaited path; here a fire-and-forget save is enough because
+        // the process flushes on exit. TryConsumeHalfLifeDirty ensures the flag is managed in
+        // one place regardless of which close path runs.
+        if (TryConsumeHalfLifeDirty())
         {
-            return;
+            _configurationService.RequestSave();
         }
-
-        _halfLifeDirty = false;
-        _configurationService.RequestSave();
     }
 
     private async Task CloseAsync()
     {
-        await SaveHalfLifeOnCloseAsync();
+        if (TryConsumeHalfLifeDirty())
+        {
+            await _configurationService.SaveAsync();
+        }
+
         CloseRequested?.Invoke();
     }
 
-    private async Task SaveHalfLifeOnCloseAsync()
+    /// <summary>
+    /// If a half-life change is pending, marks it consumed and returns true so the caller can
+    /// persist. Centralizes the dirty flag so the awaited (CloseCommand) and fire-and-forget
+    /// (window-closed) paths can never both save or both skip.
+    /// </summary>
+    private bool TryConsumeHalfLifeDirty()
     {
         if (!_halfLifeDirty)
         {
-            return;
+            return false;
         }
 
         _halfLifeDirty = false;
-        await _configurationService.SaveAsync();
+        return true;
     }
 
     private Dictionary<string, double> BuildWeightedSymbolCounts()

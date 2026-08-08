@@ -168,7 +168,9 @@ public sealed class PracticeControllerTests
         newSettings.Practice.CustomText = "NEW TEXT";
 
         Assert.IsTrue(sut.TryApplySettings(newSettings, out _));
-        Assert.AreEqual("NEW TEXT", loadedConfig.Practice.CustomText);
+        // The controller delegates the wholesale copy to the configuration owner rather than
+        // mutating Current itself.
+        configService.Received(1).ApplyPracticeSettings(Arg.Is<AppConfig>(c => c.Practice.CustomText == "NEW TEXT"));
     }
 
     [TestMethod]
@@ -204,7 +206,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public void TryApplySettings_WhenValidationFails_DoesNotSaveAndReturnsError()
+    public void TryApplySettings_WhenValidationFails_DoesNotApplyAndReturnsError()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();
         var morseGenerator = Substitute.For<IMorseGenerator>();
@@ -227,11 +229,11 @@ public sealed class PracticeControllerTests
 
         Assert.IsFalse(success);
         Assert.AreEqual("invalid settings", error);
-        configService.DidNotReceive().RequestSave();
+        configService.DidNotReceive().ApplyPracticeSettings(Arg.Any<AppConfig>());
     }
 
     [TestMethod]
-    public void TryApplySettings_WhenValid_UpdatesStateAndPersistsSnapshot()
+    public void TryApplySettings_WhenValid_DelegatesToConfigServiceAndDoesNotPersistDirectly()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();
         var morseGenerator = Substitute.For<IMorseGenerator>();
@@ -289,26 +291,10 @@ public sealed class PracticeControllerTests
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
-        configService.Received(1).RequestSave();
-        Assert.AreEqual(7, loadedConfig.Practice.DefaultDurationMins);
-        Assert.AreEqual(30, loadedConfig.Practice.CharacterWpm);
-        Assert.AreEqual(18, loadedConfig.Practice.AverageWpm);
-        Assert.AreEqual("Custom", loadedConfig.Practice.DefaultCharacterSet);
-        Assert.AreEqual(12.5, loadedConfig.Practice.ErrorThreshold);
-        Assert.AreEqual(48000, loadedConfig.Audio.SampleRate);
-        Assert.AreEqual(700, loadedConfig.Audio.Frequency);
-        Assert.AreEqual(-10, loadedConfig.Audio.VolumeDb);
-        Assert.AreEqual(6, loadedConfig.Audio.BeepRampMs);
-        Assert.AreEqual(NoiseType.Uniform, loadedConfig.Audio.Noise.Type);
-        Assert.AreEqual(-8, loadedConfig.Audio.Noise.LevelDb);
-        Assert.AreEqual(350, loadedConfig.Audio.Noise.BandwidthHz);
-        Assert.IsFalse(loadedConfig.Audio.Noise.AgcEnabled);
-        Assert.AreEqual(0.9, loadedConfig.Audio.Noise.AgcDelaySeconds);
-        Assert.IsFalse(loadedConfig.Audio.Noise.ApfEnabled);
-        Assert.AreEqual(70, loadedConfig.Audio.Noise.ApfBandwidthHz);
-        Assert.AreEqual(-4, loadedConfig.Audio.Noise.ApfPeakGainDb);
-        Assert.HasCount(1, loadedConfig.CharacterSets);
-        Assert.AreEqual("ABCDE", loadedConfig.CharacterSets["Custom"]);
+        // The controller hands the snapshot to the configuration owner; it must not reach into
+        // Current or persist directly.
+        configService.Received(1).ApplyPracticeSettings(newSettings);
+        configService.DidNotReceive().RequestSave();
     }
 
     [TestMethod]
@@ -606,28 +592,6 @@ public sealed class PracticeControllerTests
         ErrorRatePercent = errorRatePercent,
         IsSuccessful = errorRatePercent <= 10,
     };
-
-    [TestMethod]
-    public void Constructor_WhenCharacterSetsAreEmpty_AddsDefaultSet()
-    {
-        var morsePlayer = Substitute.For<IMorsePlayer>();
-        var morseGenerator = Substitute.For<IMorseGenerator>();
-        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
-        var resultEvaluator = Substitute.For<IPracticeResultEvaluator>();
-        var configService = Substitute.For<IConfigurationService>();
-        var logger = Substitute.For<ILogger<PracticeController>>();
-
-        var config = CreateDefaultConfiguration();
-        config.CharacterSets.Clear();
-        config.Practice.DefaultCharacterSet = null!;
-        configService.Current.Returns(config);
-
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
-
-        Assert.HasCount(1, sut.CharacterSets);
-        Assert.AreEqual("Default", sut.CharacterSets[0].Key);
-        Assert.AreEqual("Default", sut.SelectedCharacterSet);
-    }
 
     private static AppConfig CreateDefaultConfiguration()
     {

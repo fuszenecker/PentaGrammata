@@ -69,14 +69,7 @@ public class PracticeController : IPracticeController
     public int PracticeDurationMins
     {
         get => _configurationService.Current.Practice.DefaultDurationMins;
-        set
-        {
-            if (_configurationService.Current.Practice.DefaultDurationMins == value)
-                return;
-
-            _configurationService.Current.Practice.DefaultDurationMins = value;
-            _configurationService.RequestSave();
-        }
+        set => _configurationService.SetPracticeDuration(value);
     }
 
     public IReadOnlyList<KeyValuePair<string, string>> CharacterSets => _configurationService.Current.CharacterSets
@@ -86,14 +79,7 @@ public class PracticeController : IPracticeController
     public string SelectedCharacterSet
     {
         get => _configurationService.Current.Practice.DefaultCharacterSet;
-        set
-        {
-            if (_configurationService.Current.Practice.DefaultCharacterSet == value)
-                return;
-
-            _configurationService.Current.Practice.DefaultCharacterSet = value;
-            _configurationService.RequestSave();
-        }
+        set => _configurationService.SetSelectedCharacterSet(value);
     }
 
     public bool IsPracticing { get; private set; }
@@ -117,23 +103,9 @@ public class PracticeController : IPracticeController
         _dynamicWpmAdjuster = dynamicWpmAdjuster;
         _logger = logger;
 
-        var config = _configurationService.Current;
-        var characterSets = new List<KeyValuePair<string, string>>();
-
-        foreach (var characterSet in config.CharacterSets)
-        {
-            if (!string.IsNullOrWhiteSpace(characterSet.Value))
-                characterSets.Add(new KeyValuePair<string, string>(characterSet.Key, characterSet.Value));
-        }
-
-        if (characterSets.Count == 0)
-        {
-            characterSets.Add(new KeyValuePair<string, string>("Default", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>"));
-            config.CharacterSets["Default"] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
-        }
-
-        config.Practice.DefaultCharacterSet = config.Practice.DefaultCharacterSet ?? characterSets[0].Key;
-
+        // Configuration invariants (at least one character set, a non-null default
+        // selection) are established by the configuration owner on load, so this
+        // orchestrator only needs to seed its in-memory dynamic WPM state.
         ResetDynamicWpm();
     }
 
@@ -259,35 +231,10 @@ public class PracticeController : IPracticeController
             return false;
         }
 
-        var config = _configurationService.Current;
-        config.Practice.DefaultDurationMins = settings.Practice.DefaultDurationMins;
-        config.Practice.CharacterWpm = settings.Practice.CharacterWpm;
-        config.Practice.AverageWpm = settings.Practice.AverageWpm;
-        config.Audio.SampleRate = settings.Audio.SampleRate;
-        config.Audio.Frequency = settings.Audio.Frequency;
-        config.Audio.VolumeDb = settings.Audio.VolumeDb;
-        config.Audio.BeepRampMs = settings.Audio.BeepRampMs;
-        config.Audio.Noise = settings.Audio.Noise.Clone();
-        config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
-        config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
-        config.Practice.CustomText = settings.Practice.CustomText;
-        config.Practice.AutoAdjustWpm = settings.Practice.AutoAdjustWpm;
-        config.Practice.AutoAdjustWindowSize = settings.Practice.AutoAdjustWindowSize;
-
-        config.CharacterSets.Clear();
-        foreach (var item in settings.CharacterSets)
-        {
-            if (!string.IsNullOrWhiteSpace(item.Key) && !string.IsNullOrWhiteSpace(item.Value))
-            {
-                config.CharacterSets[item.Key] = item.Value;
-            }
-        }
-
-        _configurationService.RequestSave();
+        // The configuration owner performs the wholesale copy and persists; this orchestrator
+        // only resets its in-memory dynamic WPM state from the newly configured values.
+        _configurationService.ApplyPracticeSettings(settings);
         error = string.Empty;
-
-        // Applied settings change the configured WPM (the dynamic start point), so restart
-        // the in-memory progression from the newly configured values.
         ResetDynamicWpm();
         return true;
     }

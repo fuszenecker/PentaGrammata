@@ -298,8 +298,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (newPrefs is null)
             return;
 
-        _configurationService.Current.UiPreferences = newPrefs.Clone();
-        await _configurationService.SaveAsync();
+        await _configurationService.ApplyUiPreferencesAsync(newPrefs);
         ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
