@@ -1,0 +1,34 @@
+# PentaGrammata .rpm builder image — Rocky Linux 10 (latest stable).
+#
+# There is no official Microsoft .NET image for the EL family, so the .NET 10
+# SDK is installed via the official dotnet-install script (pinned to the 10.0
+# channel). `rpm-build` provides rpmbuild; on EL it hard-pulls the
+# redhat-rpm-config / perl macro chain, which is harmless (only adds size).
+# scripts/Build-Rpm-Installer.sh runs unchanged inside this image when the
+# repo is bind-mounted at /src.
+FROM rockylinux:10
+
+# rpmbuild toolchain + helpers; ca-certificates for the SDK download; libicu
+# is needed by the .NET runtime that the SDK host launches during publish.
+RUN dnf install -y --nodocs --setopt=install_weak_deps=False \
+        rpm-build \
+        tar \
+        gzip \
+        findutils \
+        ca-certificates \
+        libicu \
+ && dnf clean all \
+ && rm -rf /var/cache/dnf
+
+# The SDK is the default install when no --runtime is given.
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+ && chmod +x /tmp/dotnet-install.sh \
+ && /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/share/dotnet \
+ && rm -f /tmp/dotnet-install.sh
+
+ENV DOTNET_ROOT=/usr/share/dotnet \
+    PATH=/usr/share/dotnet:${PATH} \
+    DOTNET_CLI_TELEMETRY=false \
+    DOTNET_NOLOGO=true
+
+WORKDIR /src

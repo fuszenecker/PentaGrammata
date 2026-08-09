@@ -1,0 +1,17 @@
+# PentaGrammata .deb builder image — Ubuntu LTS.
+#
+# Based on Ubuntu 26.04 LTS (resolute). Ubuntu ships dpkg-deb in the essential
+# `dpkg` package, so the only extra step is making `dpkg-dev` explicit. The
+# existing scripts/Build-Deb-Installer.sh runs unchanged inside this image when
+# the repo is bind-mounted at /src.
+FROM mcr.microsoft.com/dotnet/sdk:10.0-resolute
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        dpkg-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV DOTNET_CLI_TELEMETRY=false \
+    DOTNET_NOLOGO=true
+
+WORKDIR /src
