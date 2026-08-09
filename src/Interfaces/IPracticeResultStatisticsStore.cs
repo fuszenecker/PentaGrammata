@@ -11,7 +11,12 @@ public interface IPracticeResultStatisticsStore
 
     Task SaveAsync(PracticeResultStatisticsRecord record, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<PracticeTrendPoint>> GetTrendPointsAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns every saved session with all persisted columns (the full
+    /// <see cref="PracticeResultStatisticsRecord"/>, without the child
+    /// confusion rows).
+    /// </summary>
+    Task<IReadOnlyList<PracticeResultStatisticsRecord>> GetStatisticsRecordsAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ConfusionObservation>> GetConfusionObservationsAsync(CancellationToken cancellationToken = default);
 }

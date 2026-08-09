@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Interfaces;
 
 public interface IAudioPlayer
 {

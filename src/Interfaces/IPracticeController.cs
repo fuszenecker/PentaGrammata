@@ -13,8 +13,6 @@ public interface IPracticeController
 
     string SelectedCharacterSet { get; set; }
 
-    bool IsResultSaved { get; set; }
-
     string LastGeneratedText { get; }
 
     /// <summary>

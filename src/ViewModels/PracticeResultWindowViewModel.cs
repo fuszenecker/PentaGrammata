@@ -8,13 +8,14 @@ using CommunityToolkit.Mvvm.Input;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
 using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
 public sealed class PracticeResultWindowViewModel : ViewModelBase
 {
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IInfoDialogService _infoDialogService;
     private readonly PracticeResultStatisticsRecord _record;
     private bool _isSaving;
@@ -59,10 +60,10 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,
-        IPracticeResultStatisticsStore statisticsStore,
+        IPracticeResultStatisticsService statisticsService,
         IInfoDialogService infoDialogService)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         _infoDialogService = infoDialogService;
         _isSaveCompleted = alreadySaved;
 
@@ -78,7 +79,9 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         ErrorsText = result.ErrorCount.ToString(CultureInfo.InvariantCulture);
         ErrorRateText = $"{result.ErrorRatePercent:F2}%";
         ResultStatus = result.IsSuccessful ? StatusLevel.Success : StatusLevel.Error;
-        var recordedAt = DateTimeOffset.Now;
+        // UTC so the recorded timestamp is consistent with the UTC basis used for confusion
+        // half-life decay, regardless of the user's locale.
+        var recordedAt = DateTimeOffset.UtcNow;
 
         _record = new PracticeResultStatisticsRecord
         {
@@ -118,11 +121,11 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         IsSaving = true;
         try
         {
-            await _statisticsStore.SaveAsync(_record);
+            await _statisticsService.SaveAsync(_record);
             IsSaveCompleted = true;
             await _infoDialogService.ShowInfoAsync(
                 "Results saved",
-                $"Statistics were saved to:\n{_statisticsStore.DatabasePath}",
+                $"Statistics were saved to:\n{_statisticsService.DatabasePath}",
                 "ResultsSaved",
                 detailHeading: "Database location");
         }

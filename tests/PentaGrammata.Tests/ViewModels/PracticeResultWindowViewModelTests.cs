@@ -3,6 +3,7 @@ using NSubstitute;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
 using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Tests.ViewModels;
@@ -13,7 +14,7 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public void Constructor_MapsRowsAndSummaryFields()
     {
-        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var statisticsService = Substitute.For<IPracticeResultStatisticsService>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
@@ -32,7 +33,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsService, infoDialogService);
 
         Assert.HasCount(1, sut.Rows);
         Assert.AreEqual("ABC", sut.Rows[0].SentGroup);
@@ -46,7 +47,7 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public void Constructor_ParsesDifferenceIntoColoredSegments()
     {
-        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var statisticsService = Substitute.For<IPracticeResultStatisticsService>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
@@ -65,7 +66,7 @@ public sealed class PracticeResultWindowViewModelTests
             ],
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, false, 10.0, new NoiseSettings(), statisticsService, infoDialogService);
         var segments = sut.Rows[0].DifferenceSegments;
 
         Assert.HasCount(5, segments);
@@ -122,9 +123,9 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public async Task SaveResultsCommand_SavesOnce_AndDisablesAfterCompletion()
     {
-        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var statisticsService = Substitute.For<IPracticeResultStatisticsService>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
-        statisticsStore.DatabasePath.Returns("/tmp/practice-results.db");
+        statisticsService.DatabasePath.Returns("/tmp/practice-results.db");
         var result = new PracticeResult
         {
             CharacterCount = 8,
@@ -133,13 +134,13 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsService, infoDialogService);
 
         Assert.IsTrue(sut.SaveResultsCommand.CanExecute(null));
 
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
-        await statisticsStore.Received(1).SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>());
+        await statisticsService.Received(1).SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>());
         await infoDialogService.Received(1).ShowInfoAsync("Results saved", "Statistics were saved to:\n/tmp/practice-results.db", "ResultsSaved", "Database location");
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
@@ -148,9 +149,9 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public async Task SaveResultsCommand_WhenSaveFails_ShowsErrorAndKeepsSaveEnabled()
     {
-        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var statisticsService = Substitute.For<IPracticeResultStatisticsService>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
-        statisticsStore.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
+        statisticsService.SaveAsync(Arg.Any<PracticeResultStatisticsRecord>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new StatisticsStoreException(
                 "Could not save practice statistics.",
                 new IOException("Database is locked"))));
@@ -163,7 +164,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, false, 10.0, new NoiseSettings(), statisticsService, infoDialogService);
 
         await sut.SaveResultsCommand.ExecuteAsync(null);
 
@@ -176,7 +177,7 @@ public sealed class PracticeResultWindowViewModelTests
     [TestMethod]
     public void Constructor_WhenAlreadySaved_SaveCommandIsDisabled()
     {
-        var statisticsStore = Substitute.For<IPracticeResultStatisticsStore>();
+        var statisticsService = Substitute.For<IPracticeResultStatisticsService>();
         var infoDialogService = Substitute.For<IInfoDialogService>();
         var result = new PracticeResult
         {
@@ -186,7 +187,7 @@ public sealed class PracticeResultWindowViewModelTests
             IsSuccessful = false,
         };
 
-        var sut = new PracticeResultWindowViewModel(result, 24, 18, true, 10.0, new NoiseSettings(), statisticsStore, infoDialogService);
+        var sut = new PracticeResultWindowViewModel(result, 24, 18, true, 10.0, new NoiseSettings(), statisticsService, infoDialogService);
 
         Assert.IsTrue(sut.IsSaveCompleted);
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
@@ -210,7 +211,7 @@ public sealed class PracticeResultWindowViewModelTests
             false,
             10.0,
             new NoiseSettings(),
-            Substitute.For<IPracticeResultStatisticsStore>(),
+            Substitute.For<IPracticeResultStatisticsService>(),
             Substitute.For<IInfoDialogService>());
     }
 }

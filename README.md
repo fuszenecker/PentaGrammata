@@ -174,14 +174,19 @@ When a noise type other than `None` is selected, the audio passes through a four
 
 ```
 src/                  Application source
+  Composition/        Dependency-injection registration
   Configuration/      Configuration model classes
+  Converters/         Avalonia value converters
   Interfaces/         Service abstractions
   Models/             Data transfer objects
-  Services/           Business logic (Morse generation, playback, scoring)
+  Players/            Audio output stack (Morse rendering, platform players, noise/DSP)
+  Presentation/       Dialog and window services
+  Services/           Business logic (Morse generation, scoring, statistics)
+  Stores/             Persistence (config JSON, statistics SQLite, window sizes)
   ViewModels/         MVVM view models (CommunityToolkit.Mvvm)
   Views/              Avalonia XAML views
 tests/
-  PentaGrammata.Tests/  MSTest unit tests (NSubstitute for mocking)
+  PentaGrammata.Tests/  MSTest unit tests (NSubstitute for mocking); folders mirror src/
 scripts/              Build and packaging scripts
 installer/nsis/       NSIS installer script
 ```

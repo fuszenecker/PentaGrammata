@@ -1,4 +1,4 @@
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Interfaces;
 
 public interface IMorseGenerator
 {

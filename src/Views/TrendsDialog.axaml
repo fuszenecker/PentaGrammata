@@ -53,13 +53,21 @@
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Stretch"/>
 
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
             <TextBlock Grid.Column="0"
                        Text="{Binding SummaryText}"
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"/>
 
             <Button Grid.Column="1"
+                    Content="Export CSV"
+                    MinWidth="100"
+                    Command="{Binding ExportCsvCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    ToolTip.Tip="Export the saved sessions as a CSV file" />
+
+            <Button Grid.Column="2"
                     Content="Close"
                     MinWidth="100"
                     Command="{Binding CloseCommand}"

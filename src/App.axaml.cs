@@ -1,9 +1,10 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using PentaGrammata.Composition;
 using PentaGrammata.Interfaces;
-using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
@@ -44,40 +45,39 @@ public partial class App : Application
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
-        _serviceProvider?.Dispose();
+        if (_serviceProvider is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Block briefly so the final pending configuration save completes before the
+            // process exits — an async-void handler would let shutdown race the flush and
+            // drop the last save. The save chain runs on the threadpool (TaskScheduler.Default
+            // with ConfigureAwait(false)), so blocking the UI thread here cannot deadlock it.
+            // A short timeout bounds shutdown even if the store hangs.
+            _serviceProvider.GetRequiredService<IConfigurationService>()
+                .FlushAsync()
+                .Wait(TimeSpan.FromSeconds(2));
+        }
+        catch
+        {
+            // Best-effort: a failed or timed-out flush must not prevent shutdown.
+        }
+        finally
+        {
+            _serviceProvider.Dispose();
+        }
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddLogging();
 
-        services.AddSingleton<IDialogViewModelFactory, DialogViewModelFactory>();
-        services.AddSingleton<IWindowContext, WindowContext>();
-        services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
-        services.AddSingleton<INoiseGeneratorFactory, NoiseGeneratorFactory>();
-        services.AddSingleton<IMorsePlayer, MorsePlayer>();
-        services.AddSingleton<IMorseGenerator, MorseGenerator>();
-
-        services.AddSingleton<IAppPaths, AppPaths>();
-        services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = System.TimeSpan.FromSeconds(15) });
-        services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();
-        services.AddSingleton<IWindowSizeStore, WindowSizeStore>();
-        services.AddSingleton<IWindowSizeService, WindowSizeService>();
-        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
-        services.AddSingleton<IConfigurationService, ConfigurationService>();
-        services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
-        services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
-        services.AddSingleton<IPracticeResultStatisticsStore, PracticeResultStatisticsStore>();
-        services.AddSingleton<IPracticeController, PracticeController>();
-        services.AddSingleton<IInfoDialogService, InfoDialogService>();
-
-        services.AddSingleton<IMorseSettingsDialogService, MorseSettingsDialogService>();
-        services.AddSingleton<IUiSettingsDialogService, UiSettingsDialogService>();
-        services.AddSingleton<IPracticeResultWindowService, PracticeResultWindowService>();
-        services.AddSingleton<IAboutDialogService, AboutDialogService>();
-        services.AddSingleton<ITrendsDialogService, TrendsDialogService>();
-        services.AddSingleton<IConfusionsDialogService, ConfusionsDialogService>();
-
-        services.AddSingleton<MainWindowViewModel>();
+        services.AddInfrastructure();
+        services.AddStores();
+        services.AddServices();
+        services.AddViewModels();
     }
 }

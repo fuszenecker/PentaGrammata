@@ -69,7 +69,7 @@ public sealed class MorseGeneratorTests
     {
         var output = _generator.GenerateGroupsOf5("ABCDE", numberOfGroups: 1);
 
-        Assert.IsFalse(output.Contains(' '));
+        Assert.DoesNotContain(' ', output);
         Assert.HasCount(5, output);
     }
 

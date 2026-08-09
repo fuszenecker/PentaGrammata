@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,7 +14,9 @@ namespace PentaGrammata.ViewModels;
 
 public sealed class TrendsDialogViewModel : ViewModelBase
 {
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
+    private readonly IPracticeStatisticsExporter _statisticsExporter;
+    private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
     private bool _showAverageSeries = true;
@@ -22,7 +26,16 @@ public sealed class TrendsDialogViewModel : ViewModelBase
 
     public event Action? CloseRequested;
 
+    /// <summary>
+    /// Raised when the user requests a CSV export, carrying the fully formatted
+    /// CSV text. The view handles the actual file-save dialog, keeping the VM free
+    /// of any window or storage dependency.
+    /// </summary>
+    public event Action<string>? ExportCsvRequested;
+
     public IRelayCommand CloseCommand { get; }
+
+    public IRelayCommand ExportCsvCommand { get; }
 
     public ObservableCollection<PracticeTrendPoint> Points { get; } = [];
 
@@ -62,20 +75,46 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         private set => SetProperty(ref _summaryText, value);
     }
 
-    public TrendsDialogViewModel(IPracticeResultStatisticsStore statisticsStore)
+    public TrendsDialogViewModel(
+        IPracticeResultStatisticsService statisticsService,
+        IPracticeStatisticsExporter statisticsExporter)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
+        _statisticsExporter = statisticsExporter;
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
+        ExportCsvCommand = new RelayCommand(ExportCsv, CanExportCsv);
+    }
+
+    private bool CanExportCsv() => _records.Count > 0;
+
+    private void ExportCsv()
+    {
+        using var writer = new StringWriter();
+        _statisticsExporter.Write(_records, writer);
+        ExportCsvRequested?.Invoke(writer.ToString());
     }
 
     public async Task InitializeAsync()
     {
         Points.Clear();
-        var points = await _statisticsStore.GetTrendPointsAsync().ConfigureAwait(false);
-        foreach (var point in points.OrderBy(x => x.RecordedAt))
+        _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(false);
+
+        foreach (var point in _records
+            .Select(r => new PracticeTrendPoint
+            {
+                RecordedAt = r.RecordedAt,
+                CharacterWpm = r.CharacterWpm,
+                AverageWpm = r.AverageWpm,
+                ErrorRatePercent = r.ErrorRatePercent,
+                ErrorThresholdPercent = r.ErrorThresholdPercent,
+                NoiseLevelDb = r.NoiseLevelDb,
+            })
+            .OrderBy(x => x.RecordedAt))
         {
             Points.Add(point);
         }
+
+        ExportCsvCommand.NotifyCanExecuteChanged();
 
         if (Points.Count == 0)
         {

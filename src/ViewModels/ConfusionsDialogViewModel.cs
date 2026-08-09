@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 
 using Avalonia.Media;
@@ -21,11 +20,11 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private const double MinHalfLifeDays = 1d;
     private const double MaxHalfLifeDays = 365d;
     private const string PracticeConfusionsSetName = "Practice confusions";
-    private const string GapSymbol = "_";
     private const int PracticeSetTargetSymbolCount = 200;
 
-    private readonly IPracticeResultStatisticsStore _statisticsStore;
+    private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IConfigurationService _configurationService;
+    private readonly IConfusionAnalysisService _analysisService;
     private string _summaryText = "Loading confusion matrix...";
     private double _halfLifeDays = DefaultHalfLifeDays;
     private bool _halfLifeDirty;
@@ -59,7 +58,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             var clamped = Math.Clamp(value, MinHalfLifeDays, MaxHalfLifeDays);
             if (SetProperty(ref _halfLifeDays, clamped))
             {
-                _configurationService.Current.Analytics.ConfusionsHalfLifeDays = clamped;
+                _configurationService.SetConfusionsHalfLife(clamped);
                 _halfLifeDirty = true;
                 Rebuild();
             }
@@ -73,24 +72,33 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     }
 
     public ConfusionsDialogViewModel(
-        IPracticeResultStatisticsStore statisticsStore,
-        IConfigurationService configurationService)
+        IPracticeResultStatisticsService statisticsService,
+        IConfigurationService configurationService,
+        IConfusionAnalysisService analysisService)
     {
-        _statisticsStore = statisticsStore;
+        _statisticsService = statisticsService;
         _configurationService = configurationService;
+        _analysisService = analysisService;
         var configuredHalfLife = Math.Clamp(
             _configurationService.Current.Analytics.ConfusionsHalfLifeDays,
             MinHalfLifeDays,
             MaxHalfLifeDays);
         _halfLifeDays = configuredHalfLife;
-        _configurationService.Current.Analytics.ConfusionsHalfLifeDays = configuredHalfLife;
+
+        // Persist the clamped value if the configured half-life was out of range, so the
+        // on-disk configuration stays consistent with what the user sees.
+        if (configuredHalfLife != _configurationService.Current.Analytics.ConfusionsHalfLifeDays)
+        {
+            _configurationService.SetConfusionsHalfLife(configuredHalfLife);
+        }
+
         CloseCommand = new AsyncRelayCommand(CloseAsync);
         PracticeConfusionsCommand = new AsyncRelayCommand(CreatePracticeConfusionsAsync, CanCreatePracticeConfusions);
     }
 
     public async Task InitializeAsync()
     {
-        _observations = await _statisticsStore.GetConfusionObservationsAsync();
+        _observations = await _statisticsService.GetConfusionObservationsAsync();
         Rebuild();
     }
 
@@ -99,98 +107,42 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         ColumnHeaders.Clear();
         Rows.Clear();
 
-        var observations = GetSubstitutionObservations();
-        if (observations.Count == 0)
-        {
-            SummaryText = "No substitution confusion data yet.";
-            PracticeConfusionsCommand.NotifyCanExecuteChanged();
-            return;
-        }
-
         var now = DateTimeOffset.UtcNow;
-        var weighted = observations
-            .Select(observation => new
-            {
-                observation.ExpectedSymbol,
-                observation.ActualSymbol,
-                Score = CalculateScore(observation, now, _halfLifeDays)
-            })
-            .Where(x => x.Score > 0)
-            .ToArray();
+        var result = _analysisService.BuildMatrix(_observations, _halfLifeDays, now);
 
-        if (weighted.Length == 0)
+        switch (result.Status)
         {
-            SummaryText = "No visible confusion data after weighting.";
-            PracticeConfusionsCommand.NotifyCanExecuteChanged();
-            return;
+            case ConfusionMatrixStatus.NoSubstitutionData:
+                SummaryText = "No substitution confusion data yet.";
+                PracticeConfusionsCommand.NotifyCanExecuteChanged();
+                return;
+            case ConfusionMatrixStatus.NoVisibleAfterWeighting:
+                SummaryText = "No visible confusion data after weighting.";
+                PracticeConfusionsCommand.NotifyCanExecuteChanged();
+                return;
+            case ConfusionMatrixStatus.NoVisibleAfterFiltering:
+                SummaryText = "No visible confusion data after filtering.";
+                PracticeConfusionsCommand.NotifyCanExecuteChanged();
+                return;
         }
 
-        var symbolTotals = weighted
-            .GroupBy(x => x.ExpectedSymbol)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Score), StringComparer.Ordinal);
-
-        foreach (var grouped in weighted.GroupBy(x => x.ActualSymbol))
-        {
-            if (symbolTotals.TryGetValue(grouped.Key, out var existing))
-            {
-                symbolTotals[grouped.Key] = existing + grouped.Sum(x => x.Score);
-            }
-            else
-            {
-                symbolTotals[grouped.Key] = grouped.Sum(x => x.Score);
-            }
-        }
-
-        var symbols = symbolTotals
-            .OrderByDescending(x => x.Value)
-            .Take(24)
-            .Select(x => x.Key)
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToArray();
-
-        foreach (var symbol in symbols)
+        var matrix = result.Matrix!;
+        foreach (var symbol in matrix.Symbols)
         {
             ColumnHeaders.Add(symbol);
         }
 
-        var symbolIndex = symbols
-            .Select((symbol, index) => new { symbol, index })
-            .ToDictionary(x => x.symbol, x => x.index, StringComparer.Ordinal);
-
-        var matrix = new double[symbols.Length, symbols.Length];
-        var totalScore = 0d;
-
-        foreach (var item in weighted)
-        {
-            if (!symbolIndex.TryGetValue(item.ExpectedSymbol, out var rowIndex)
-                || !symbolIndex.TryGetValue(item.ActualSymbol, out var columnIndex))
-            {
-                continue;
-            }
-
-            matrix[rowIndex, columnIndex] += item.Score;
-            totalScore += item.Score;
-        }
-
-        var maxScore = matrix.Cast<double>().DefaultIfEmpty(0).Max();
-        if (maxScore <= 0)
-        {
-            SummaryText = "No visible confusion data after filtering.";
-            PracticeConfusionsCommand.NotifyCanExecuteChanged();
-            return;
-        }
-
-        for (var row = 0; row < symbols.Length; row++)
+        for (var row = 0; row < matrix.Symbols.Count; row++)
         {
             var rowVm = new ConfusionMatrixRowViewModel
             {
-                ExpectedSymbol = symbols[row]
+                ExpectedSymbol = matrix.Symbols[row]
             };
 
-            for (var column = 0; column < symbols.Length; column++)
+            for (var column = 0; column < matrix.Symbols.Count; column++)
             {
-                var score = matrix[row, column];
-                var normalized = score / maxScore;
+                var score = matrix.Cells[row, column];
+                var normalized = score / matrix.MaxScore;
                 rowVm.Cells.Add(new ConfusionMatrixCellViewModel
                 {
                     Score = score,
@@ -206,135 +158,69 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         SummaryText = string.Format(
             CultureInfo.InvariantCulture,
             "{0:0.0} weighted observations across {1} symbols (half-life: {2:0} days).",
-            totalScore,
-            symbols.Length,
+            matrix.TotalScore,
+            matrix.Symbols.Count,
             _halfLifeDays);
         PracticeConfusionsCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanCreatePracticeConfusions()
     {
-        return BuildWeightedSymbolCounts().Count > 0;
+        return _analysisService.WeightedSymbolCounts(_observations, _halfLifeDays, DateTimeOffset.UtcNow).Count > 0;
     }
 
     private async Task CreatePracticeConfusionsAsync()
     {
-        var weightedCounts = BuildWeightedSymbolCounts();
-        if (weightedCounts.Count == 0)
-        {
-            return;
-        }
-
-        var totalWeight = weightedCounts.Values.Sum();
-        var targetSymbols = Math.Max(weightedCounts.Count, PracticeSetTargetSymbolCount);
-        var scaledCounts = weightedCounts
-            .ToDictionary(
-                kv => kv.Key,
-                kv => Math.Max(1, (int)Math.Round((kv.Value / totalWeight) * targetSymbols, MidpointRounding.AwayFromZero)),
-                StringComparer.Ordinal);
-
-        var orderedSymbols = scaledCounts
-            .OrderByDescending(kv => kv.Value)
-            .ThenBy(kv => kv.Key, StringComparer.Ordinal)
-            .ToArray();
-
-        var characterSet = string.Concat(orderedSymbols.Select(kv => string.Concat(Enumerable.Repeat(kv.Key, kv.Value))));
+        var characterSet = _analysisService.BuildPracticeConfusionsCharacterSet(
+            _observations, _halfLifeDays, DateTimeOffset.UtcNow, PracticeSetTargetSymbolCount);
         if (string.IsNullOrWhiteSpace(characterSet))
         {
             return;
         }
 
-        _configurationService.Current.CharacterSets[PracticeConfusionsSetName] = characterSet;
-        _configurationService.Current.Practice.DefaultCharacterSet = PracticeConfusionsSetName;
-        await _configurationService.SaveAsync();
+        await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        // The upsert awaits a full SaveAsync, which also flushes any pending half-life
+        // change, so nothing is left dirty.
         _halfLifeDirty = false;
         CloseRequested?.Invoke();
     }
 
     public void OnDialogClosed()
     {
-        if (!_halfLifeDirty)
+        // Reached when the window closes without the CloseCommand (e.g. the title-bar X).
+        // CloseAsync handles the awaited path; here a fire-and-forget save is enough because
+        // the process flushes on exit. TryConsumeHalfLifeDirty ensures the flag is managed in
+        // one place regardless of which close path runs.
+        if (TryConsumeHalfLifeDirty())
         {
-            return;
+            _configurationService.RequestSave();
         }
-
-        _halfLifeDirty = false;
-        _configurationService.RequestSave();
     }
 
     private async Task CloseAsync()
     {
-        await SaveHalfLifeOnCloseAsync();
+        if (TryConsumeHalfLifeDirty())
+        {
+            await _configurationService.SaveAsync();
+        }
+
         CloseRequested?.Invoke();
     }
 
-    private async Task SaveHalfLifeOnCloseAsync()
+    /// <summary>
+    /// If a half-life change is pending, marks it consumed and returns true so the caller can
+    /// persist. Centralizes the dirty flag so the awaited (CloseCommand) and fire-and-forget
+    /// (window-closed) paths can never both save or both skip.
+    /// </summary>
+    private bool TryConsumeHalfLifeDirty()
     {
         if (!_halfLifeDirty)
         {
-            return;
+            return false;
         }
 
         _halfLifeDirty = false;
-        await _configurationService.SaveAsync();
-    }
-
-    private Dictionary<string, double> BuildWeightedSymbolCounts()
-    {
-        var now = DateTimeOffset.UtcNow;
-        var result = new Dictionary<string, double>(StringComparer.Ordinal);
-
-        foreach (var observation in GetSubstitutionObservations())
-        {
-            var score = CalculateScore(observation, now, _halfLifeDays);
-            if (score <= 0)
-            {
-                continue;
-            }
-
-            AddWeightedSymbol(result, observation.ExpectedSymbol, score);
-            AddWeightedSymbol(result, observation.ActualSymbol, score);
-        }
-
-        return result;
-    }
-
-    private IReadOnlyList<ConfusionObservation> GetSubstitutionObservations()
-    {
-        return _observations
-            .Where(observation => !string.Equals(observation.ExpectedSymbol, GapSymbol, StringComparison.Ordinal)
-                && !string.Equals(observation.ActualSymbol, GapSymbol, StringComparison.Ordinal))
-            .ToArray();
-    }
-
-    private static void AddWeightedSymbol(IDictionary<string, double> counts, string symbol, double score)
-    {
-        if (string.IsNullOrWhiteSpace(symbol) || string.Equals(symbol, GapSymbol, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        if (counts.TryGetValue(symbol, out var existing))
-        {
-            counts[symbol] = existing + score;
-            return;
-        }
-
-        counts[symbol] = score;
-    }
-
-    private static double CalculateScore(ConfusionObservation observation, DateTimeOffset now, double halfLifeDays)
-    {
-        if (observation.Count <= 0)
-        {
-            return 0;
-        }
-
-        var ageDays = Math.Max(0, (now - observation.RecordedAt).TotalDays);
-        // Half-life decay: weight halves every halfLifeDays.
-        var decay = Math.Pow(2.0, -ageDays / halfLifeDays);
-        var distanceFactor = 1d / Math.Max(1, observation.Distance);
-        return observation.Count * decay * distanceFactor;
+        return true;
     }
 
     private static IBrush BuildHeatBrush(double normalized)
