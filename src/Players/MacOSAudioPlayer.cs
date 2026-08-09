@@ -2,7 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PentaGrammata.Services;
+using PentaGrammata.Interfaces;
+
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// Placeholder macOS audio player. Full implementation would require AudioToolbox or AVFoundation.

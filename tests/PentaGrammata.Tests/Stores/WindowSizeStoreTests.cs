@@ -4,9 +4,9 @@ using System.IO;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PentaGrammata.Interfaces;
-using PentaGrammata.Services;
+using PentaGrammata.Stores;
 
-namespace PentaGrammata.Tests.Services;
+namespace PentaGrammata.Tests.Stores;
 
 [TestClass]
 public sealed class WindowSizeStoreTests

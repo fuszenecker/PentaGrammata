@@ -1,6 +1,6 @@
 using System;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// Gaussian (normal) white noise, generated with the Box-Muller transform. The raw

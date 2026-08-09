@@ -12,7 +12,7 @@ using PentaGrammata.Models;
 // SqliteException, IOException and UnauthorizedAccessException are translated into
 // StatisticsStoreException so callers never depend on the storage technology.
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Stores;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {

@@ -5,8 +5,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using PentaGrammata.Configuration;
+using PentaGrammata.Interfaces;
+using PentaGrammata.Services;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseGeneratorFactory) : IMorsePlayer
 {

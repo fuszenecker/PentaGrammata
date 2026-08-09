@@ -52,15 +52,22 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 src/
   Views/           # Avalonia AXAML + code-behind (minimal logic)
   ViewModels/      # CommunityToolkit.Mvvm partial classes; IAsyncRelayCommand / IRelayCommand
+  Converters/      # IValueConverter implementations keeping toolkit types out of view models
+  Presentation/    # Dialog/window services and the dialog view-model factory
   Services/        # Business logic implementing Interfaces/
+  Players/         # Audio output stack: Morse rendering, platform players, noise/DSP
+  Stores/          # Persistence surfaces (JSON config, SQLite statistics, window sizes)
   Interfaces/      # Abstractions injected via Microsoft.Extensions.DependencyInjection
   Models/          # Plain data records
   Configuration/   # Strongly-typed settings bound from appsettings.json
+  Composition/     # DI registration (ServiceCollectionExtensions)
 tests/
-  PentaGrammata.Tests/   # MSTest + NSubstitute
+  PentaGrammata.Tests/   # MSTest + NSubstitute; folders mirror src/
 ```
 
-Platform-specific audio is isolated in `Services/` (`WindowsAudioPlayer`, `LinuxAudioPlayer`, `MacOSAudioPlayer`) behind `IAudioPlayer`.
+Platform-specific audio is isolated in `Players/` (`WindowsAudioPlayer`, `LinuxAudioPlayer`, `MacOSAudioPlayer`) behind `IAudioPlayer`, selected by `AudioPlayerFactory`. `Players/` also holds `MorsePlayer`, its `MorsePlaybackSettings` record, and the DSP helpers it owns (`BandPassFilter`, `AutomaticGainControl`, the noise generators). `Stores/` holds the three persistence implementations; view models and services reach them only through `Interfaces/`.
+
+Each folder's namespace matches its path (`PentaGrammata.Players`, `PentaGrammata.Stores`, …). The one deliberate exception is `Interfaces/`: contracts live there rather than beside their implementations, so `IMorsePlayer` and `IAudioPlayer` are in `PentaGrammata.Interfaces` while the classes implementing them are in `PentaGrammata.Players`. `Presentation/` is the exception to that exception — its `I*.cs` files sit next to their implementations.
 
 ## Build & Test
 

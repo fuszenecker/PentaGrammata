@@ -7,6 +7,7 @@ using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Players;
 using PentaGrammata.Services;
 
 namespace PentaGrammata.Tests.Services;
