@@ -35,6 +35,8 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 - `dpkg-deb` (Debian/Ubuntu) — for `.deb` packages
 - `rpmbuild` (Fedora/RHEL) — for `.rpm` packages
 
+Alternatively, build the Linux packages in a Podman container with only `podman` (or Podman Desktop) installed — no .NET SDK, `dpkg-deb`, `rpmbuild`, or WSL needed on the host. See [Containerized packaging (Podman)](#containerized-packaging-podman) below.
+
 ## Building
 
 ```powershell
@@ -74,6 +76,39 @@ dotnet test tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj
 ```
 
 All packaging scripts read the version from `version.txt` by default and accept a `--version` / `-Version` flag to override it.
+
+### Containerized packaging (Podman)
+
+The `.deb` and `.rpm` packages can be built inside Podman containers so the host needs nothing but `podman` — no .NET SDK, `dpkg-deb`, `rpmbuild`, or WSL. Each format is built on a distro-faithful base: the `.deb` on **Ubuntu 26.04 LTS** (`container/Containerfile.deb`) and the `.rpm` on **Rocky Linux 10** (`container/Containerfile.rpm`). The driver builds the relevant image once, then runs the existing packaging scripts inside the container with the repo bind-mounted. Output artifacts land in `installer/deb` and `installer/rpm`, owned by the host user.
+
+```bash
+# .deb on Ubuntu 26.04 LTS, current host arch (linux-x64 by default)
+./scripts/Build-Installer.Podman.sh --format deb
+
+# .rpm on Rocky Linux 10, for a specific runtime
+./scripts/Build-Installer.Podman.sh --format rpm --runtime linux-arm64
+
+# both, sharing a single publish/<rid> output
+./scripts/Build-Installer.Podman.sh --format all
+```
+
+Any of `--version`, `--runtime`, `--release`, and `--skip-publish` are passed through to the underlying script. Use `--build` to force a rebuild of the builder image(s) or `--no-build` to skip building.
+
+On Windows, the same flow works from PowerShell via `podman` (e.g. via Podman Desktop) in place of WSL:
+
+```powershell
+# .deb builder on Ubuntu 26.04 LTS
+podman build -t localhost/pentagrammata-builder-deb:latest -f container/Containerfile.deb container/
+podman run --rm --userns=keep-id -v "${PWD}:/src:Z" -v pentagrammata-nuget:/tmp/nuget:Z `
+  -w /src -e HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget localhost/pentagrammata-builder-deb:latest `
+  ./scripts/Build-Deb-Installer.sh
+
+# .rpm builder on Rocky Linux 10
+podman build -t localhost/pentagrammata-builder-rpm:latest -f container/Containerfile.rpm container/
+podman run --rm --userns=keep-id -v "${PWD}:/src:Z" -v pentagrammata-nuget:/tmp/nuget:Z `
+  -w /src -e HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget localhost/pentagrammata-builder-rpm:latest `
+  ./scripts/Build-Rpm-Installer.sh
+```
 
 ## Configuration
 
