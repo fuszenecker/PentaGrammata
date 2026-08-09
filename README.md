@@ -79,10 +79,10 @@ All packaging scripts read the version from `version.txt` by default and accept 
 
 ### Containerized packaging (Podman)
 
-The `.deb` and `.rpm` packages can be built inside Podman containers so the host needs nothing but `podman` — no .NET SDK, `dpkg-deb`, `rpmbuild`, or WSL. Each format is built on a distro-faithful base: the `.deb` on **Ubuntu LTS** (`container/Containerfile.deb`) and the `.rpm` on **Rocky Linux 10** (`container/Containerfile.rpm`). The driver builds the relevant image once, then runs the existing packaging scripts inside the container with the repo bind-mounted. Output artifacts land in `installer/deb` and `installer/rpm`, owned by the host user.
+The `.deb` and `.rpm` packages can be built inside Podman containers so the host needs nothing but `podman` — no .NET SDK, `dpkg-deb`, `rpmbuild`, or WSL. Each format is built on a distro-faithful base: the `.deb` on **Ubuntu 26.04 LTS** (`container/Containerfile.deb`) and the `.rpm` on **Rocky Linux 10** (`container/Containerfile.rpm`). The driver builds the relevant image once, then runs the existing packaging scripts inside the container with the repo bind-mounted. Output artifacts land in `installer/deb` and `installer/rpm`, owned by the host user.
 
 ```bash
-# .deb on Ubuntu LTS, current host arch (linux-x64 by default)
+# .deb on Ubuntu 26.04 LTS, current host arch (linux-x64 by default)
 ./scripts/Build-Installer.Podman.sh --format deb
 
 # .rpm on Rocky Linux 10, for a specific runtime
@@ -97,7 +97,7 @@ Any of `--version`, `--runtime`, `--release`, and `--skip-publish` are passed th
 On Windows, the same flow works from PowerShell via `podman` (e.g. via Podman Desktop) in place of WSL:
 
 ```powershell
-# .deb builder on Ubuntu LTS
+# .deb builder on Ubuntu 26.04 LTS
 podman build -t localhost/pentagrammata-builder-deb:latest -f container/Containerfile.deb container/
 podman run --rm --userns=keep-id -v "${PWD}:/src:Z" -v pentagrammata-nuget:/tmp/nuget:Z `
   -w /src -e HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget localhost/pentagrammata-builder-deb:latest `

@@ -9,7 +9,7 @@
 # installer/deb and installer/rpm, owned by the host user (via --userns=keep-id).
 #
 # Each package is built on a distro-faithful base:
-#   deb -> Ubuntu LTS  (container/Containerfile.deb)
+#   deb -> Ubuntu 26.04 LTS (container/Containerfile.deb)
 #   rpm -> Rocky Linux 10 (container/Containerfile.rpm)
 
 set -euo pipefail
@@ -179,7 +179,7 @@ run_in_container() {
 case "${FORMAT}" in
   deb)
     ensure_image "deb"
-    echo "==> Building .deb (Ubuntu LTS)"
+    echo "==> Building .deb (Ubuntu 26.04 LTS)"
     run_in_container "deb" "Build-Deb-Installer.sh" "${PASSTHROUGH[@]}"
     ;;
   rpm)
@@ -201,7 +201,7 @@ case "${FORMAT}" in
       [[ "${arg}" == "--skip-publish" ]] && skip_present="true"
     done
 
-    echo "--- .deb (Ubuntu LTS) ---"
+    echo "--- .deb (Ubuntu 26.04 LTS) ---"
     run_in_container "deb" "Build-Deb-Installer.sh" "${PASSTHROUGH[@]}"
 
     echo "--- .rpm (Rocky Linux 10) ---"
