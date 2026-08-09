@@ -9,9 +9,9 @@ using NSubstitute;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
-using PentaGrammata.Services;
+using PentaGrammata.Stores;
 
-namespace PentaGrammata.Tests.Services;
+namespace PentaGrammata.Tests.Stores;
 
 // These tests are only possible because the store takes its data location from an
 // injected IAppPaths rather than deriving a real per-user path itself.

@@ -1,7 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace PentaGrammata.Services;
+using PentaGrammata.Interfaces;
+
+namespace PentaGrammata.Players;
 
 public static class AudioPlayerFactory
 {

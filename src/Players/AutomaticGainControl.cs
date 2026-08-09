@@ -1,6 +1,6 @@
 using System;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// A simple envelope-following automatic gain control, like the AGC in a receiver.

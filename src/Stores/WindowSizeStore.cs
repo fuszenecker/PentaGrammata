@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Interfaces;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Stores;
 
 /// <summary>
 /// Persists window sizes to a dedicated JSON file (<c>window-sizes.json</c>) in the

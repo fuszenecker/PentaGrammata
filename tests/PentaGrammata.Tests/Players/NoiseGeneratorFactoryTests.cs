@@ -1,7 +1,7 @@
 using PentaGrammata.Configuration;
-using PentaGrammata.Services;
+using PentaGrammata.Players;
 
-namespace PentaGrammata.Tests.Services;
+namespace PentaGrammata.Tests.Players;
 
 [TestClass]
 public sealed class NoiseGeneratorFactoryTests

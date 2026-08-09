@@ -1,7 +1,7 @@
 using System;
 using PentaGrammata.Configuration;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 public sealed class NoiseGeneratorFactory : INoiseGeneratorFactory
 {

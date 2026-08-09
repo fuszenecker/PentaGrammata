@@ -1,4 +1,4 @@
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// Produces a stream of raw background-noise samples. The absolute amplitude is

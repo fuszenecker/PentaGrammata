@@ -3,9 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using NSubstitute;
 using PentaGrammata.Configuration;
-using PentaGrammata.Services;
+using PentaGrammata.Interfaces;
+using PentaGrammata.Players;
 
-namespace PentaGrammata.Tests.Services;
+namespace PentaGrammata.Tests.Players;
 
 [TestClass]
 public sealed class MorsePlayerTests

@@ -1,6 +1,6 @@
 using PentaGrammata.Configuration;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// Immutable bundle of the parameters needed to render Morse code to audio.

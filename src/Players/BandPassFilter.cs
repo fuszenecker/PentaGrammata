@@ -1,6 +1,6 @@
 using System;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Players;
 
 /// <summary>
 /// A single-stage RBJ biquad band-pass filter (constant 0 dB peak gain). Used to limit

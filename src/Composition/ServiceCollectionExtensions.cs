@@ -1,8 +1,10 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Players;
 using PentaGrammata.Presentation;
 using PentaGrammata.Services;
+using PentaGrammata.Stores;
 using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Composition;

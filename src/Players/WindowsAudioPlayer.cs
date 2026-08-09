@@ -3,7 +3,9 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PentaGrammata.Services;
+using PentaGrammata.Interfaces;
+
+namespace PentaGrammata.Players;
 
 public class WindowsAudioPlayer : IAudioPlayer
 {

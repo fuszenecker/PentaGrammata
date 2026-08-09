@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using PentaGrammata.Interfaces;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Stores;
 
 public sealed class ConfigurationStore : IConfigurationStore
 {
