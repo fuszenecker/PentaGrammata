@@ -15,6 +15,15 @@ public sealed class AboutWindowViewModelTests
     }
 
     [TestMethod]
+    public void Constructor_PopulatesCopyrightText()
+    {
+        var sut = new AboutWindowViewModel();
+
+        StringAssert.Contains(sut.CopyrightText, "Fuszenecker");
+        StringAssert.Contains(sut.CopyrightText, "HA8LHS");
+    }
+
+    [TestMethod]
     public void CloseCommand_RaisesCloseRequestedEvent()
     {
         var sut = new AboutWindowViewModel();
