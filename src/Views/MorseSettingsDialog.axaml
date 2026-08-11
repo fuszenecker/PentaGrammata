@@ -158,7 +158,7 @@
             </TabItem>
 
             <TabItem Header="Character sets">
-                <Grid Margin="6" RowDefinitions="Auto,*">
+                <Grid Margin="6" RowDefinitions="*">
                     <TextBox Grid.Row="0"
                              Text="{Binding CharacterSetsText}"
                              TextWrapping="Wrap"
