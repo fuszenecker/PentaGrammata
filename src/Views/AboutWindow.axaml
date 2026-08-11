@@ -3,40 +3,111 @@
     xmlns:vm="using:PentaGrammata.ViewModels"
         x:Class="PentaGrammata.Views.AboutWindow"
     x:DataType="vm:AboutWindowViewModel"
-        Width="520" Height="440"
-        MinWidth="420" MinHeight="380"
+        Width="560" Height="560"
+        MinWidth="460" MinHeight="420"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/pentagrammata-icon.ico"
         Title="About PentaGrammata">
 
-    <Grid RowDefinitions="*,60" Margin="0">
-        <Border Background="#101010">
-            <StackPanel Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <Image Source="/Assets/pentagrammata-icon.png" Width="96" Height="96" HorizontalAlignment="Center"/>
+    <Window.Styles>
+        <!-- Bullets are a two-column grid so wrapped lines align with the text,
+             not under the bullet glyph. -->
+        <Style Selector="Grid.feature > TextBlock">
+            <Setter Property="Foreground" Value="#c9d1d9"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="Grid.feature > TextBlock.bullet">
+            <Setter Property="Text" Value="•"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+    </Window.Styles>
 
-            <TextBlock Text="PentaGrammata" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,10"/>
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="12">
 
-            <TextBlock Text="Morse code copying practice with Farnsworth timing, configurable character sets (including the Koch/LCWO order), and detailed per-session analysis."
-                       TextWrapping="Wrap" TextAlignment="Center" Foreground="#c9d1d9" Margin="0,0,0,10"/>
-
-            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,12" Spacing="3">
-                <TextBlock Text="• Adjustable tone, volume, WPM and session length" Foreground="#c9d1d9"/>
-                <TextBlock Text="• Receiver noise simulation with SNR, filtering, AGC and audio peak filter" Foreground="#c9d1d9"/>
-                <TextBlock Text="• Accuracy scoring with sent/received diff and error-rate threshold" Foreground="#c9d1d9"/>
-                <TextBlock Text="• Performance trends chart over your saved sessions" Foreground="#c9d1d9"/>
-                <TextBlock Text="• Confusion matrix with time-weighted retention (half-life)" Foreground="#c9d1d9"/>
-            </StackPanel>
-
-            <TextBlock Text="{Binding VersionText}" HorizontalAlignment="Center" Foreground="#9aa0a6"/>
-        </StackPanel>
+        <!-- Header: icon, name and one-paragraph summary. -->
+        <Border Grid.Row="0" Padding="16" Margin="0,0,0,10"
+                Background="#101010" BorderBrush="#2c2c2c" BorderThickness="1" CornerRadius="0">
+            <Grid ColumnDefinitions="Auto,*">
+                <Image Grid.Column="0" Source="/Assets/pentagrammata-icon.png"
+                       Width="72" Height="72" Margin="0,0,16,0"
+                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="PentaGrammata" FontSize="26" FontWeight="Bold"/>
+                    <TextBlock Text="Cross-platform Morse code copying practice"
+                               Foreground="#9aa0a6" Margin="0,2,0,8"/>
+                    <TextBlock Text="Listen to five-character groups — or your own text — and type what you hear. Every session is scored, saved and turned into progress you can track."
+                               TextWrapping="Wrap" Foreground="#c9d1d9"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Button Grid.Row="1"
+        <!-- Only the feature list scrolls; header and footer stay pinned. -->
+        <GroupBox Grid.Row="1" Header="Features" Margin="0,0,0,10"
+                  CornerRadius="0" Background="#101010">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10" Spacing="5">
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Farnsworth timing with separate character and average WPM"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Configurable character sets, including the full Koch/LCWO order"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Custom text mode: send your own text instead of random groups"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Adjustable tone, volume, sample rate and session length"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Receiver simulation: noise, band-pass filter, AGC and audio peak filter"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Accuracy scoring with sent/received diff and error threshold"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your recent error rate"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Performance trends over saved sessions, exportable to CSV"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Confusion matrix with time-weighted retention (half-life)"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Update check against the latest GitHub release"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </GroupBox>
+
+        <!-- Footer: version and legal notice. -->
+        <Border Grid.Row="2" Padding="10"
+                Background="#101010" BorderBrush="#2c2c2c" BorderThickness="1" CornerRadius="0">
+            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding VersionText}" TextAlignment="Center"
+                           HorizontalAlignment="Center" Foreground="#9aa0a6"/>
+                <TextBlock Text="{Binding CopyrightText}" TextAlignment="Center"
+                           HorizontalAlignment="Center" Foreground="#9aa0a6"/>
+                <TextBlock Text="MIT licensed — see the LICENSE file for details." TextAlignment="Center"
+                           HorizontalAlignment="Center" Foreground="#9aa0a6"/>
+            </StackPanel>
+        </Border>
+
+        <Button Grid.Row="3"
                 Content="Close"
-                Margin="0,0,10,0"
-                MinWidth="100"
+                Margin="0,10,0,0"
+                MinWidth="90"
                 HorizontalAlignment="Right"
-                VerticalAlignment="Center"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"
                 Background="#1D4ED8"
