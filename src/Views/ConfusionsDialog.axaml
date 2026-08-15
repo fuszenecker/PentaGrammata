@@ -79,14 +79,15 @@
                     MinWidth="170"
                     Command="{Binding PracticeConfusionsCommand}"
                     HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"/>
+                <Button Content="Close"
+                    MinWidth="100"
+                    IsDefault="True"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Background="#1D4ED8"
                     Foreground="White"/>
-                <Button Content="Close"
-                    MinWidth="100"
-                    Command="{Binding CloseCommand}"
-                    HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"/>
                 </StackPanel>
         </Grid>
     </Grid>

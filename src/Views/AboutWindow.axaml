@@ -107,6 +107,7 @@
                 Content="Close"
                 Margin="0,10,0,0"
                 MinWidth="90"
+                IsDefault="True"
                 HorizontalAlignment="Right"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"

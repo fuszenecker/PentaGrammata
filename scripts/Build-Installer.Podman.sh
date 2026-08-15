@@ -19,10 +19,10 @@ usage() {
 Build PentaGrammata .deb/.rpm packages in Podman containers.
 
 Usage:
-  ./scripts/Build-Installer.Podman.sh --format <deb|rpm|all> [options]
+  ./scripts/Build-Installer.Podman.sh [options]
 
-Required:
-  -f, --format <fmt>    Package format: deb, rpm, or all (both)
+Options:
+  -f, --format <fmt>    Package format: deb, rpm, or all (both). Default: all
 
 Options (passed through to the underlying build script):
   -v, --version <ver>    Package version (defaults to root version.txt)
@@ -36,9 +36,10 @@ Image:
   -h, --help              Show this help message
 
 Examples:
+  ./scripts/Build-Installer.Podman.sh                         # all (default)
   ./scripts/Build-Installer.Podman.sh --format deb
   ./scripts/Build-Installer.Podman.sh --format rpm --runtime linux-arm64
-  ./scripts/Build-Installer.Podman.sh --format all --version 1.2.0.0
+  ./scripts/Build-Installer.Podman.sh --version 1.2.0.0        # all, explicit version
 EOF
 }
 
@@ -51,7 +52,7 @@ IMG_RPM="localhost/pentagrammata-builder-rpm:latest"
 CF_DEB="${CONTAINER_DIR}/Containerfile.deb"
 CF_RPM="${CONTAINER_DIR}/Containerfile.rpm"
 
-FORMAT=""
+FORMAT="all"
 FORCE_BUILD="false"
 SKIP_BUILD="false"
 PASSTHROUGH=()
@@ -85,12 +86,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-if [[ -z "${FORMAT}" ]]; then
-  echo "Error: --format is required (deb, rpm, or all)." >&2
-  usage
-  exit 1
-fi
 
 case "${FORMAT}" in
   deb|rpm|all) ;;
