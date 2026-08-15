@@ -17,7 +17,7 @@ public sealed class PracticeStatisticsCsvExporter : IPracticeStatisticsExporter
     private const string Header =
         "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount," +
         "ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb," +
-        "NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb";
+        "NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,AgcMaxGainDb,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb";
 
     public void Write(IEnumerable<PracticeResultStatisticsRecord> records, TextWriter writer)
     {
@@ -49,6 +49,8 @@ public sealed class PracticeStatisticsCsvExporter : IPracticeStatisticsExporter
             writer.Write(r.AgcEnabled ? "1" : "0");
             writer.Write(',');
             writer.Write(r.AgcDelaySeconds.ToString(CultureInfo.InvariantCulture));
+            writer.Write(',');
+            writer.Write(r.AgcMaxGainDb.ToString(CultureInfo.InvariantCulture));
             writer.Write(',');
             writer.Write(r.ApfEnabled ? "1" : "0");
             writer.Write(',');

@@ -88,6 +88,7 @@ public sealed class PracticeResultStatisticsStoreTests
             NoiseBandwidthHz = record.NoiseBandwidthHz,
             AgcEnabled = record.AgcEnabled,
             AgcDelaySeconds = record.AgcDelaySeconds,
+            AgcMaxGainDb = 18.0,
             ApfEnabled = record.ApfEnabled,
             ApfBandwidthHz = record.ApfBandwidthHz,
             ApfPeakGainDb = record.ApfPeakGainDb,
@@ -121,6 +122,7 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.AreEqual(record.NoiseBandwidthHz, actual.NoiseBandwidthHz);
         Assert.AreEqual(record.AgcEnabled, actual.AgcEnabled);
         Assert.AreEqual(record.AgcDelaySeconds, actual.AgcDelaySeconds);
+        Assert.AreEqual(record.AgcMaxGainDb, actual.AgcMaxGainDb);
         Assert.AreEqual(record.ApfEnabled, actual.ApfEnabled);
         Assert.AreEqual(record.ApfBandwidthHz, actual.ApfBandwidthHz);
         Assert.AreEqual(record.ApfPeakGainDb, actual.ApfPeakGainDb);
@@ -172,7 +174,9 @@ public sealed class PracticeResultStatisticsStoreTests
 
         Assert.HasCount(1, records);
         Assert.AreEqual(0.0, records[0].ErrorThresholdPercent);
-        Assert.AreEqual(2L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+        // The v3 migration backfills the AGC max-gain column with the old hardcoded value.
+        Assert.AreEqual(18.0, records[0].AgcMaxGainDb);
+        Assert.AreEqual(3L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
     }
 
     [TestMethod]
@@ -236,6 +240,7 @@ public sealed class PracticeResultStatisticsStoreTests
         NoiseBandwidthHz = 500.0,
         AgcEnabled = true,
         AgcDelaySeconds = 0.4,
+        AgcMaxGainDb = 18.0,
         ApfEnabled = true,
         ApfBandwidthHz = 120.0,
         ApfPeakGainDb = -9.0,

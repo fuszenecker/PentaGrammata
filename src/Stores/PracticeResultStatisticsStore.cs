@@ -16,7 +16,7 @@ namespace PentaGrammata.Stores;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
     private const int BusyTimeoutMs = 5000;
 
     private readonly ILogger<PracticeResultStatisticsStore> _logger;
@@ -93,6 +93,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         noise_bandwidth_hz,
                         agc_enabled,
                         agc_delay_seconds,
+                        agc_max_gain_db,
                         apf_enabled,
                         apf_bandwidth_hz,
                         apf_peak_gain_db
@@ -118,9 +119,10 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         NoiseBandwidthHz = reader.GetDouble(9),
                         AgcEnabled = reader.GetInt32(10) != 0,
                         AgcDelaySeconds = reader.GetDouble(11),
-                        ApfEnabled = reader.GetInt32(12) != 0,
-                        ApfBandwidthHz = reader.GetDouble(13),
-                        ApfPeakGainDb = reader.GetDouble(14),
+                        AgcMaxGainDb = reader.GetDouble(12),
+                        ApfEnabled = reader.GetInt32(13) != 0,
+                        ApfBandwidthHz = reader.GetDouble(14),
+                        ApfPeakGainDb = reader.GetDouble(15),
                     });
                 }
 
@@ -238,6 +240,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 noise_bandwidth_hz,
                 agc_enabled,
                 agc_delay_seconds,
+                agc_max_gain_db,
                 apf_enabled,
                 apf_bandwidth_hz,
                 apf_peak_gain_db
@@ -255,6 +258,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 $noise_bandwidth_hz,
                 $agc_enabled,
                 $agc_delay_seconds,
+                $agc_max_gain_db,
                 $apf_enabled,
                 $apf_bandwidth_hz,
                 $apf_peak_gain_db
@@ -273,6 +277,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$noise_bandwidth_hz", record.NoiseBandwidthHz);
         insertCommand.Parameters.AddWithValue("$agc_enabled", record.AgcEnabled ? 1 : 0);
         insertCommand.Parameters.AddWithValue("$agc_delay_seconds", record.AgcDelaySeconds);
+        insertCommand.Parameters.AddWithValue("$agc_max_gain_db", record.AgcMaxGainDb);
         insertCommand.Parameters.AddWithValue("$apf_enabled", record.ApfEnabled ? 1 : 0);
         insertCommand.Parameters.AddWithValue("$apf_bandwidth_hz", record.ApfBandwidthHz);
         insertCommand.Parameters.AddWithValue("$apf_peak_gain_db", record.ApfPeakGainDb);
@@ -368,6 +373,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     noise_bandwidth_hz REAL NOT NULL,
                     agc_enabled INTEGER NOT NULL,
                     agc_delay_seconds REAL NOT NULL,
+                    agc_max_gain_db REAL NOT NULL DEFAULT 18.0,
                     apf_enabled INTEGER NOT NULL,
                     apf_bandwidth_hz REAL NOT NULL,
                     apf_peak_gain_db REAL NOT NULL
@@ -434,6 +440,45 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     """;
                 migrationCommand.Parameters.AddWithValue("$version", CurrentSchemaVersion);
                 await migrationCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (currentVersion < 3)
+            {
+                // Add the AGC max-gain column to databases that predate it. The default
+                // backfills existing rows with the old hardcoded value (8× ≈ 18 dB).
+                var agcMaxGainColumnsCommand = connection.CreateCommand();
+                agcMaxGainColumnsCommand.Transaction = transaction;
+                agcMaxGainColumnsCommand.CommandText = "PRAGMA table_info(practice_result_statistics);";
+                var hasAgcMaxGain = false;
+                await using (var agcMaxGainReader = await agcMaxGainColumnsCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await agcMaxGainReader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        if (string.Equals(agcMaxGainReader.GetString(1), "agc_max_gain_db", StringComparison.Ordinal))
+                        {
+                            hasAgcMaxGain = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasAgcMaxGain)
+                {
+                    var addAgcMaxGainCommand = connection.CreateCommand();
+                    addAgcMaxGainCommand.Transaction = transaction;
+                    addAgcMaxGainCommand.CommandText = "ALTER TABLE practice_result_statistics ADD COLUMN agc_max_gain_db REAL NOT NULL DEFAULT 18.0;";
+                    await addAgcMaxGainCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                var v3VersionCommand = connection.CreateCommand();
+                v3VersionCommand.Transaction = transaction;
+                v3VersionCommand.CommandText =
+                    """
+                    DELETE FROM schema_info;
+                    INSERT INTO schema_info(version) VALUES ($version);
+                    """;
+                v3VersionCommand.Parameters.AddWithValue("$version", CurrentSchemaVersion);
+                await v3VersionCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);

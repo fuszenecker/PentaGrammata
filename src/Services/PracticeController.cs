@@ -167,6 +167,7 @@ public class PracticeController : IPracticeController
                     NoiseBandwidthHz = audio.Noise.BandwidthHz,
                     AgcEnabled = audio.Noise.AgcEnabled,
                     AgcDelaySeconds = audio.Noise.AgcDelaySeconds,
+                    AgcMaxGainDb = audio.Noise.AgcMaxGainDb,
                     ApfEnabled = audio.Noise.ApfEnabled,
                     ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
                     ApfPeakGainDb = audio.Noise.ApfPeakGainDb,

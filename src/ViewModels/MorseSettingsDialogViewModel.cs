@@ -80,6 +80,9 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private double agcDelaySeconds;
 
     [ObservableProperty]
+    private double agcMaxGainDb;
+
+    [ObservableProperty]
     private bool apfEnabled;
 
     [ObservableProperty]
@@ -138,6 +141,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         NoiseBandwidthHz = config.Audio.Noise.BandwidthHz;
         AgcEnabled = config.Audio.Noise.AgcEnabled;
         AgcDelaySeconds = config.Audio.Noise.AgcDelaySeconds;
+        AgcMaxGainDb = config.Audio.Noise.AgcMaxGainDb;
         ApfEnabled = config.Audio.Noise.ApfEnabled;
         ApfBandwidthHz = config.Audio.Noise.ApfBandwidthHz;
         ApfPeakGainDb = config.Audio.Noise.ApfPeakGainDb;
@@ -228,6 +232,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                     BandwidthHz = NoiseBandwidthHz,
                     AgcEnabled = AgcEnabled,
                     AgcDelaySeconds = AgcDelaySeconds,
+                    AgcMaxGainDb = AgcMaxGainDb,
                     ApfEnabled = ApfEnabled,
                     ApfBandwidthHz = ApfBandwidthHz,
                     ApfPeakGainDb = ApfPeakGainDb,

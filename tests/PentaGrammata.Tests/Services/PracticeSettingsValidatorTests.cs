@@ -86,6 +86,20 @@ public sealed class PracticeSettingsValidatorTests
     }
 
     [TestMethod]
+    public void TryValidate_AgcEnabledWithNegativeMaxGainDb_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.Gaussian;
+        settings.Audio.Noise.AgcEnabled = true;
+        settings.Audio.Noise.AgcMaxGainDb = -1;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("AGC max gain must be 0 dB or higher.", error);
+    }
+
+    [TestMethod]
     public void TryValidate_ApfEnabledWithNonPositiveBandwidth_ReturnsFalse()
     {
         var settings = CreateValidSettings();
@@ -123,6 +137,7 @@ public sealed class PracticeSettingsValidatorTests
         settings.Audio.Noise.Type = NoiseType.Gaussian;
         settings.Audio.Noise.AgcEnabled = false;
         settings.Audio.Noise.AgcDelaySeconds = 0;
+        settings.Audio.Noise.AgcMaxGainDb = -1;
         settings.Audio.Noise.ApfEnabled = false;
         settings.Audio.Noise.ApfBandwidthHz = 0;
         settings.Audio.Noise.ApfPeakGainDb = -5;
