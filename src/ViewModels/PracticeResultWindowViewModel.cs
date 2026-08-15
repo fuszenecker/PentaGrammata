@@ -97,6 +97,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             NoiseBandwidthHz = noise.BandwidthHz,
             AgcEnabled = noise.AgcEnabled,
             AgcDelaySeconds = noise.AgcDelaySeconds,
+            AgcMaxGainDb = noise.AgcMaxGainDb,
             ApfEnabled = noise.ApfEnabled,
             ApfBandwidthHz = noise.ApfBandwidthHz,
             ApfPeakGainDb = noise.ApfPeakGainDb,

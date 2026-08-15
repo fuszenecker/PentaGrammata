@@ -223,7 +223,7 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
         //    boosted. The AGC sees only the passband signal (see the step 6 loop).
         double target = short.MaxValue * volumeLinear;
         AutomaticGainControl? agc = settings.AgcEnabled
-            ? new AutomaticGainControl(settings.SampleRate, target, maxGain: 8.0, releaseSeconds: settings.AgcDelaySeconds)
+            ? new AutomaticGainControl(settings.SampleRate, target, maxGain: DecibelsToLinear(settings.AgcMaxGainDb), releaseSeconds: settings.AgcDelaySeconds)
             : null;
 
         // 5. APF (optional): a resonant peak at the tone, added AFTER the AGC and driven

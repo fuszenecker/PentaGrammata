@@ -34,6 +34,14 @@ public sealed class NoiseSettings
     public double AgcDelaySeconds { get; set; } = 0.4;
 
     /// <summary>
+    /// Maximum amount the AGC may boost a weak signal or the noise floor, in decibels.
+    /// Caps the gain so the gaps between characters don't swell uncontrollably.
+    /// 18 dB ≈ 8× (default). Lower = quieter gaps (easier copy); higher = louder noise
+    /// floor (more realistic weak-signal feel, harder practice).
+    /// </summary>
+    public double AgcMaxGainDb { get; set; } = 18.0;
+
+    /// <summary>
     /// When true, an audio peak filter (APF) adds a resonant peak at the tone for the
     /// characteristic CW "ring". When false the tone passes through the wider filter only.
     /// </summary>
@@ -59,6 +67,7 @@ public sealed class NoiseSettings
         BandwidthHz = BandwidthHz,
         AgcEnabled = AgcEnabled,
         AgcDelaySeconds = AgcDelaySeconds,
+        AgcMaxGainDb = AgcMaxGainDb,
         ApfEnabled = ApfEnabled,
         ApfBandwidthHz = ApfBandwidthHz,
         ApfPeakGainDb = ApfPeakGainDb,

@@ -30,6 +30,7 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Audio.Noise.BandwidthHz, clone.Audio.Noise.BandwidthHz);
         Assert.AreEqual(original.Audio.Noise.AgcEnabled, clone.Audio.Noise.AgcEnabled);
         Assert.AreEqual(original.Audio.Noise.AgcDelaySeconds, clone.Audio.Noise.AgcDelaySeconds);
+        Assert.AreEqual(original.Audio.Noise.AgcMaxGainDb, clone.Audio.Noise.AgcMaxGainDb);
         Assert.AreEqual(original.Audio.Noise.ApfEnabled, clone.Audio.Noise.ApfEnabled);
         Assert.AreEqual(original.Audio.Noise.ApfBandwidthHz, clone.Audio.Noise.ApfBandwidthHz);
         Assert.AreEqual(original.Audio.Noise.ApfPeakGainDb, clone.Audio.Noise.ApfPeakGainDb);
@@ -129,6 +130,7 @@ public sealed class AppConfigurationCloneTests
                     BandwidthHz = 400,
                     AgcEnabled = false,
                     AgcDelaySeconds = 0.8,
+                    AgcMaxGainDb = 24.0,
                     ApfEnabled = false,
                     ApfBandwidthHz = 90,
                     ApfPeakGainDb = -6,

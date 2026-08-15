@@ -73,6 +73,12 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
                 return false;
             }
 
+            if (noise.AgcEnabled && noise.AgcMaxGainDb < 0)
+            {
+                error = "AGC max gain must be 0 dB or higher.";
+                return false;
+            }
+
             if (noise.ApfEnabled && noise.ApfBandwidthHz <= 0)
             {
                 error = "APF bandwidth must be greater than 0.";

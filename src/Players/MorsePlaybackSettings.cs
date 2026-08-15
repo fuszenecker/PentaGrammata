@@ -36,6 +36,9 @@ public sealed record MorsePlaybackSettings
     /// <summary>AGC release/delay, in seconds.</summary>
     public double AgcDelaySeconds { get; init; } = 0.4;
 
+    /// <summary>Maximum AGC boost of a weak signal / noise floor, in decibels.</summary>
+    public double AgcMaxGainDb { get; init; } = 18.0;
+
     /// <summary>Whether the audio peak filter (APF) stage is active.</summary>
     public bool ApfEnabled { get; init; } = true;
 

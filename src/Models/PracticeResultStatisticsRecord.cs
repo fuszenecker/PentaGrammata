@@ -19,6 +19,7 @@ public sealed class PracticeResultStatisticsRecord
     public double NoiseBandwidthHz { get; init; }
     public bool AgcEnabled { get; init; }
     public double AgcDelaySeconds { get; init; }
+    public double AgcMaxGainDb { get; init; }
     public bool ApfEnabled { get; init; }
     public double ApfBandwidthHz { get; init; }
     public double ApfPeakGainDb { get; init; }

@@ -126,6 +126,13 @@
                                                    IsEnabled="{Binding AgcEnabled}"
                                                    ToolTip.Tip="AGC release/delay time. Longer = gain recovers more slowly after loud peaks."/>
                                 </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Max gain (dB)"/>
+                                    <NumericUpDown Minimum="0" Maximum="40" Increment="1" FormatString="0.##"
+                                                   Value="{Binding AgcMaxGainDb}"
+                                                   IsEnabled="{Binding AgcEnabled}"
+                                                   ToolTip.Tip="Maximum amount the AGC may boost a weak signal or the noise floor. Higher = noise in the gaps between characters gets pulled up louder (harder copy, more realistic weak-signal feel); lower = gaps stay quieter. 18 dB ≈ 8× (default)."/>
+                                </StackPanel>
                             </Grid>
                         </GroupBox>
 
