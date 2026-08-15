@@ -2,8 +2,11 @@
 
 'use strict';
 
+const readline = require('node:readline');
+
 function usage() {
   console.error('Usage: node superencode.js <enc|dec> <KEY>');
+  console.error('       node superencode.js repl [KEY]   (interactive session)');
   console.error('Reads input from stdin and writes result to stdout.');
 }
 
@@ -111,9 +114,91 @@ function decrypt(cipherText, key) {
   return denormalizePlainText(out);
 }
 
+const REPL_HELP = `REPL commands:
+  key <KEY>        set the transposition key (letters only)
+  key              show the current key
+  enc <text>       encrypt text with the current key
+  dec <text>       decrypt text with the current key
+  help             show this help
+  exit | quit      leave (Ctrl-C / Ctrl-D also work)
+
+The text after enc/dec is the message; spaces are allowed and become word gaps.
+Encrypted output is 5-char groups separated by spaces — paste those groups
+straight back into dec.`;
+
+function startRepl(initialKey) {
+  let key = null;
+  if (initialKey) {
+    if (!isAlphabetic(initialKey)) {
+      console.error('Error: key must contain alphabetic characters only.');
+      process.exit(1);
+    }
+    key = initialKey;
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: 'super> ',
+  });
+
+  console.log('Super-encode REPL — "help" for commands, "exit" or Ctrl-D to quit.');
+  if (key) console.log(`key set: ${key} (${key.length} cols)`);
+  else console.log('No key set. Start with: key <KEY>');
+  rl.prompt();
+
+  rl.on('line', (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) { rl.prompt(); return; }
+    const sp = trimmed.indexOf(' ');
+    const cmd = sp === -1 ? trimmed : trimmed.slice(0, sp);
+    const arg = sp === -1 ? '' : trimmed.slice(sp + 1);
+
+    switch (cmd) {
+      case 'key':
+        if (!arg) { console.log(key ? `key: ${key} (${key.length} cols)` : '(no key set)'); break; }
+        if (!isAlphabetic(arg)) { console.log('Error: key must contain alphabetic characters only.'); break; }
+        key = arg;
+        console.log(`key set: ${key} (${key.length} cols)`);
+        break;
+      case 'enc':
+      case 'encrypt':
+        if (!key) { console.log('No key set. Use: key <KEY>'); break; }
+        try { console.log(encrypt(arg, key)); } catch (err) { console.log(`Error: ${err.message}`); }
+        break;
+      case 'dec':
+      case 'decrypt':
+        if (!key) { console.log('No key set. Use: key <KEY>'); break; }
+        try { console.log(decrypt(arg, key)); } catch (err) { console.log(`Error: ${err.message}`); }
+        break;
+      case 'help':
+        console.log(REPL_HELP);
+        break;
+      case 'exit':
+      case 'quit':
+        rl.close();
+        return;
+      default:
+        console.log(`Unknown command "${cmd}". Type "help" for usage.`);
+    }
+    rl.prompt();
+  });
+
+  rl.on('SIGINT', () => rl.close());
+  rl.on('close', () => {
+    console.log('\nbye.');
+    process.exit(0);
+  });
+}
+
 function main() {
   const mode = process.argv[2];
   const key = process.argv[3];
+
+  if (mode === 'repl') {
+    startRepl(key || null);
+    return;
+  }
 
   if (!mode || !key || !['enc', 'dec'].includes(mode)) {
     usage();
