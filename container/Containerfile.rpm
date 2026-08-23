@@ -6,7 +6,7 @@
 # redhat-rpm-config / perl macro chain, which is harmless (only adds size).
 # scripts/Build-Rpm-Installer.sh runs unchanged inside this image when the
 # repo is bind-mounted at /src.
-FROM rockylinux:10
+FROM quay.io/rockylinux/rockylinux:10
 
 # rpmbuild toolchain + helpers; ca-certificates for the SDK download; libicu
 # is needed by the .NET runtime that the SDK host launches during publish.
