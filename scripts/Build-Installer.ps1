@@ -131,7 +131,8 @@ Write-Host ""
 Write-Host "==> Running NSIS ..." -ForegroundColor Cyan
 
 $nsisArgs = @(
-    "/DAPP_VERSION=$Version",
+    # -D works on both Windows and Linux makensis (/D is Windows-only).
+    "-DAPP_VERSION=$Version",
     $NsiFile
 )
 
