@@ -1,0 +1,68 @@
+name: Create Installer
+
+# Builds the .deb and .rpm installers for a newly pushed tag and publishes them
+# as downloadable assets on a GitHub Release for that tag.
+#
+# The installers are produced by the same Podman-based pipeline used locally
+# (scripts/Build-Installer.Podman.sh), so the runner only needs `podman`:
+#   - .deb -> Ubuntu 26.04 LTS (container/Containerfile.deb)
+#   - .rpm -> Rocky Linux 10   (container/Containerfile.rpm)
+#
+# The release version is taken from the tag (a leading "v" is stripped if present)
+# and forwarded to the build scripts via --version so the artifacts match the tag.
+
+on:
+  push:
+    tags:
+      - '**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: create-installer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build .deb and .rpm, then publish a release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          # The tag is the release version, e.g. "1.11.4.0" (or "v1.11.4.0").
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${version}"
+
+      - name: Build .deb and .rpm installers
+        run: |
+          ./scripts/Build-Installer.Podman.sh --format all --version "${{ steps.version.outputs.version }}"
+
+      - name: Verify built artifacts
+        run: |
+          echo "== .deb =="
+          ls -lh installer/deb/pentagrammata_${{ steps.version.outputs.version }}_*.deb
+          echo "== .rpm =="
+          ls -lh installer/rpm/x86_64/pentagrammata-${{ steps.version.outputs.version }}-*.rpm
+
+      - name: Create release and upload installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          deb="installer/deb/pentagrammata_${{ steps.version.outputs.version }}_*.deb"
+          rpm="installer/rpm/x86_64/pentagrammata-${{ steps.version.outputs.version }}-*.rpm"
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists; refreshing assets."
+            gh release upload "${GITHUB_REF_NAME}" --clobber ${deb} ${rpm}
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes \
+              ${deb} ${rpm}
+          fi
