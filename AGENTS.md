@@ -91,16 +91,21 @@ Scripts in `scripts/` read the version from `version.txt`. Update `version.txt` 
 
 ## Releases
 
-Releases are produced automatically by the `Create Installer` workflow (`.github/workflows/create-installer.yml`) on every pushed tag. The version is **always strict semver** — `MAJOR.MINOR.PATCH` (e.g. `1.11.5`). Never a 4th build-number segment, no exceptions.
+Releases are produced automatically by the `Create Installer` workflow (`.github/workflows/create-installer.yml`) on every pushed tag.
 
-To cut a new release:
+The version is **4-part: `MAJOR.MINOR.PATCH.BUILD`** (e.g. `1.11.4.4`), and the roles are fixed — do not deviate:
 
-1. **Bump the version in `version.txt`** to the next semver value:
-   - **Build/CI/packaging/docs-only changes (no code change):** bump the **patch** (`1.11.4` → `1.11.5`). This is the only case that calls for a build bump.
-   - **Code changes:** bump per semver as the change warrants (patch for fixes, minor for backward-compatible features, major for breaking changes).
+- **MAJOR** (`1`): frozen. Only the owner ever changes it. Never touch it.
+- **MINOR**: the owner decides when it moves (usually tied to a feature/release they direct). Never touch it unless instructed.
+- **PATCH**: the owner controls it. Never touch it unless instructed.
+- **BUILD** (the 4th segment): the **only** part the agent ever increments, and **only when the owner commands a new release from the same code**. A build-only / CI / packaging / docs change with no code change is exactly such a case — bump BUILD and re-tag the same `MAJOR.MINOR.PATCH`.
+
+To cut a new release (only when commanded):
+
+1. **Increment the BUILD segment** in `version.txt` (`1.11.4.4` → `1.11.4.5`). Do not change MAJOR, MINOR, or PATCH.
 2. **Commit** the version bump together with the changes on `main`.
 3. **Push `main`.**
-4. **Tag** the commit as `<version>` (no leading `v`): `git tag 1.11.5`.
-5. **Push the tag**: `git push origin 1.11.5`.
+4. **Tag** the commit as `<version>` (no leading `v`): `git tag 1.11.4.5`.
+5. **Push the tag**: `git push origin 1.11.4.5`.
 
 The tag push triggers `create-installer.yml`, which builds the Linux (`.deb` + `.rpm` via Podman on `ubuntu-latest`) and Windows (`.exe` via NSIS on `windows-latest`) installers in parallel, then creates a GitHub **pre-release** (not `latest`) named after the tag with all three installers attached. Do not create the release or upload assets by hand — the workflow owns that. Verify the run succeeded and the release lists all three assets before considering the release done.
