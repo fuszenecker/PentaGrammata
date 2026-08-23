@@ -1,15 +1,22 @@
 name: Create Installer
 
-# Builds the .deb and .rpm installers for a newly pushed tag and publishes them
-# as downloadable assets on a GitHub Release for that tag.
+# Builds the Linux (.deb + .rpm) and Windows (.exe) installers for a newly
+# pushed tag and publishes them as downloadable assets on a GitHub Release.
 #
-# The installers are produced by the same Podman-based pipeline used locally
-# (scripts/Build-Installer.Podman.sh), so the runner only needs `podman`:
-#   - .deb -> Ubuntu 26.04 LTS (container/Containerfile.deb)
-#   - .rpm -> Rocky Linux 10   (container/Containerfile.rpm)
+# The two build jobs run in parallel and the release job waits for both, so a
+# release is only created once every installer has built successfully.
 #
-# The release version is taken from the tag (a leading "v" is stripped if present)
-# and forwarded to the build scripts via --version so the artifacts match the tag.
+#   build-linux    -> .deb (Ubuntu 26.04) + .rpm (Rocky 10) via Podman
+#   build-windows  -> .exe (NSIS) directly on the runner
+#   release        -> gh release create --prerelease (not latest) with all assets
+#
+# Everything runs on ubuntu-latest: the Linux installers use the same Podman
+# pipeline as locally (scripts/Build-Installer.Podman.sh), and the Windows
+# installer cross-publishes win-x64 and compiles the NSIS script with the
+# apt-installed `nsis` (makensis runs fine on Linux).
+#
+# The release version is taken from the tag (a leading "v" is stripped if
+# present) and forwarded to the build scripts so artifact filenames match.
 
 on:
   push:
@@ -24,8 +31,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-release:
-    name: Build .deb and .rpm, then publish a release
+  build-linux:
+    name: Build .deb and .rpm (Podman)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,21 +57,103 @@ jobs:
           echo "== .rpm =="
           ls -lh installer/rpm/x86_64/pentagrammata-${{ steps.version.outputs.version }}-*.rpm
 
+      - name: Upload Linux installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            installer/deb/*.deb
+            installer/rpm/x86_64/*.rpm
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows .exe (NSIS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${version}"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install NSIS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis
+          makensis -version
+
+      - name: Build Windows installer
+        # The script publishes win-x64 (self-contained) and runs makensis.
+        # Its -DAPP_VERSION flag works on both Windows and Linux makensis.
+        run: |
+          pwsh ./scripts/Build-Installer.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Verify built artifact
+        run: |
+          ls -lh installer/nsis/PentaGrammata-${{ steps.version.outputs.version }}-win-x64-setup.exe
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: installer/nsis/PentaGrammata-*-win-x64-setup.exe
+          if-no-files-found: error
+
+  release:
+    name: Create pre-release with all installers
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect installer files
+        id: files
+        run: |
+          set -eu
+          mapfile -t files < <(find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' \) | sort)
+          if [ "${#files[@]}" -lt 3 ]; then
+            echo "Expected at least 3 installers (deb, rpm, exe); found ${#files[@]}:"
+            printf '  %s\n' "${files[@]}" >&2
+            exit 1
+          fi
+          printf 'Installers to publish:\n'
+          printf '  %s\n' "${files[@]}"
+          # Pass the list as a JSON array for the next step.
+          {
+            echo 'files<<EOF'
+            for f in "${files[@]}"; do echo "$f"; done
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create release and upload installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          deb="installer/deb/pentagrammata_${{ steps.version.outputs.version }}_*.deb"
-          rpm="installer/rpm/x86_64/pentagrammata-${{ steps.version.outputs.version }}-*.rpm"
+          mapfile -t files < <(printf '%s\n' '${{ steps.files.outputs.files }}')
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             echo "Release ${GITHUB_REF_NAME} already exists; refreshing assets."
-            gh release upload "${GITHUB_REF_NAME}" --clobber ${deb} ${rpm}
+            gh release upload "${GITHUB_REF_NAME}" --clobber "${files[@]}"
           else
             # Pre-release: marks it as a pre-release and excludes it from "latest".
             gh release create "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
               --generate-notes \
               --prerelease \
-              ${deb} ${rpm}
+              "${files[@]}"
           fi
