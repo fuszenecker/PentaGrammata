@@ -61,8 +61,10 @@ jobs:
             echo "Release ${GITHUB_REF_NAME} already exists; refreshing assets."
             gh release upload "${GITHUB_REF_NAME}" --clobber ${deb} ${rpm}
           else
+            # Pre-release: marks it as a pre-release and excludes it from "latest".
             gh release create "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
               --generate-notes \
+              --prerelease \
               ${deb} ${rpm}
           fi
