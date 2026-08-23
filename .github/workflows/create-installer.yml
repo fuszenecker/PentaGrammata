@@ -7,13 +7,13 @@ name: Create Installer
 # release is only created once every installer has built successfully.
 #
 #   build-linux    -> .deb (Ubuntu 26.04) + .rpm (Rocky 10) via Podman
-#   build-windows  -> .exe (NSIS) directly on the runner
+#   build-windows  -> .exe (NSIS) on a real Windows runner
 #   release        -> gh release create --prerelease (not latest) with all assets
 #
-# Everything runs on ubuntu-latest: the Linux installers use the same Podman
-# pipeline as locally (scripts/Build-Installer.Podman.sh), and the Windows
-# installer cross-publishes win-x64 and compiles the NSIS script with the
-# apt-installed `nsis` (makensis runs fine on Linux).
+# The Linux installers build on ubuntu-latest using the same Podman pipeline as
+# locally (scripts/Build-Installer.Podman.sh). The Windows installer builds
+# natively on windows-latest: .NET publishes win-x64 and NSIS (installed via
+# Chocolatey) compiles the .nsi into a real Windows setup.exe.
 #
 # The release version is taken from the tag (a leading "v" is stripped if
 # present) and forwarded to the build scripts so artifact filenames match.
@@ -68,13 +68,14 @@ jobs:
 
   build-windows:
     name: Build Windows .exe (NSIS)
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Resolve version from tag
         id: version
+        shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
@@ -86,18 +87,22 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Install NSIS
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install -y nsis
-          makensis -version
+          choco install nsis -y --no-progress
+          # Put makensis on PATH for subsequent steps.
+          "C:\Program Files (x86)\NSIS" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          & "C:\Program Files (x86)\NSIS\makensis.exe" -version
 
       - name: Build Windows installer
         # The script publishes win-x64 (self-contained) and runs makensis.
-        # Its -DAPP_VERSION flag works on both Windows and Linux makensis.
+        # Its -DAPP_VERSION flag works with native Windows makensis.
+        shell: pwsh
         run: |
-          pwsh ./scripts/Build-Installer.ps1 -Version "${{ steps.version.outputs.version }}"
+          ./scripts/Build-Installer.ps1 -Version "${{ steps.version.outputs.version }}"
 
       - name: Verify built artifact
+        shell: bash
         run: |
           ls -lh installer/nsis/PentaGrammata-${{ steps.version.outputs.version }}-win-x64-setup.exe
 

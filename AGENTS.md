@@ -88,3 +88,15 @@ dotnet test tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj
 ## Packaging
 
 Scripts in `scripts/` read the version from `version.txt`. Update `version.txt` when bumping the version — not the `.csproj`.
+
+## Releases
+
+Releases are produced automatically by the `Create Installer` workflow (`.github/workflows/create-installer.yml`) on every pushed tag. To cut a new release:
+
+1. **Bump the version.** Increment the 4th segment (build number) in `version.txt` (e.g. `1.11.4.3` → `1.11.4.4`). This is mandatory whenever any file under `.github/workflows/` is also being changed — the bump and the workflow edit go in the same commit so the new workflow is exercised by the tag that follows.
+2. **Commit** the version bump (and any workflow/agent-doc changes) together on `main`.
+3. **Push `main`.**
+4. **Tag** the commit as `<version>` (no leading `v`): `git tag 1.11.4.4`.
+5. **Push the tag**: `git push origin 1.11.4.4`.
+
+The tag push triggers `create-installer.yml`, which builds the Linux (`.deb` + `.rpm` via Podman on `ubuntu-latest`) and Windows (`.exe` via NSIS on `windows-latest`) installers in parallel, then creates a GitHub **pre-release** (not `latest`) named after the tag with all three installers attached. Do not create the release or upload assets by hand — the workflow owns that. Verify the run succeeded and the release lists all three assets before considering the release done.
