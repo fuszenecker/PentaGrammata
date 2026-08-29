@@ -37,7 +37,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public IAsyncRelayCommand CloseCommand { get; }
     public IAsyncRelayCommand PracticeConfusionsCommand { get; }
 
-    public ObservableCollection<string> ColumnHeaders { get; } = [];
+    public ObservableCollection<ConfusionMatrixHeaderViewModel> ColumnHeaders { get; } = [];
 
     public ObservableCollection<ConfusionMatrixRowViewModel> Rows { get; } = [];
 
@@ -127,27 +127,36 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         }
 
         var matrix = result.Matrix!;
-        foreach (var symbol in matrix.Symbols)
+        for (var column = 0; column < matrix.Symbols.Count; column++)
         {
-            ColumnHeaders.Add(symbol);
+            ColumnHeaders.Add(new ConfusionMatrixHeaderViewModel
+            {
+                Symbol = matrix.Symbols[column],
+                Background = BuildZebraBase(isEvenRow: false, isEvenColumn: column % 2 == 0)
+            });
         }
 
         for (var row = 0; row < matrix.Symbols.Count; row++)
         {
+            var isEvenRow = row % 2 == 0;
             var rowVm = new ConfusionMatrixRowViewModel
             {
-                ExpectedSymbol = matrix.Symbols[row]
+                ExpectedSymbol = matrix.Symbols[row],
+                RowHeaderBackground = BuildZebraBase(isEvenRow, isEvenColumn: false)
             };
 
             for (var column = 0; column < matrix.Symbols.Count; column++)
             {
                 var score = matrix.Cells[row, column];
-                var normalized = score / matrix.MaxScore;
+                var normalized = matrix.MaxScore > 0 ? score / matrix.MaxScore : 0;
+                var isEvenColumn = column % 2 == 0;
                 rowVm.Cells.Add(new ConfusionMatrixCellViewModel
                 {
                     Score = score,
+                    IsEvenRow = isEvenRow,
+                    IsEvenColumn = isEvenColumn,
                     DisplayText = score <= 0.01 ? string.Empty : score.ToString("0.0", CultureInfo.InvariantCulture),
-                    Background = BuildHeatBrush(normalized),
+                    Background = BuildHeatBrush(normalized, isEvenRow, isEvenColumn),
                     Foreground = normalized > 0.65 ? Brushes.White : Brushes.LightGray
                 });
             }
@@ -223,29 +232,70 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
         return true;
     }
 
-    private static IBrush BuildHeatBrush(double normalized)
+    /// <summary>
+    /// The zebra base color for a cell/label at the given parity: barely-perceptible lift on
+    /// even axes so bands read as continuous rows/columns without fragmenting the heat fill.
+    /// </summary>
+    private static IBrush BuildZebraBase(bool isEvenRow, bool isEvenColumn)
     {
-        var clamped = Math.Clamp(normalized, 0, 1);
-        var baseColor = Color.Parse("#0B1020");
-        var hotColor = Color.Parse("#DC2626");
-
-        byte Blend(byte from, byte to)
+        var color = (isEvenRow, isEvenColumn) switch
         {
-            return (byte)(from + (to - from) * clamped);
-        }
-
-        var color = Color.FromRgb(
-            Blend(baseColor.R, hotColor.R),
-            Blend(baseColor.G, hotColor.G),
-            Blend(baseColor.B, hotColor.B));
-
+            (true, true) => Color.Parse("#0B1019"),
+            (true, false) => Color.Parse("#090D14"),
+            (false, true) => Color.Parse("#090D14"),
+            (false, false) => Color.Parse("#05080E"),
+        };
         return new SolidColorBrush(color);
     }
+
+    /// <summary>
+    /// Builds a cell background that combines a faint zebra tint (lighter on even rows and
+    /// even columns, lightest where both are even) with a red heat fill whose opacity scales
+    /// with the normalized confusion score. A cell with no confusion shows only the zebra
+    /// tint; a frequent confusion deepens to opaque red over the tint.
+    /// </summary>
+    private static IBrush BuildHeatBrush(double normalized, bool isEvenRow, bool isEvenColumn)
+    {
+        var zebraColor = (isEvenRow, isEvenColumn) switch
+        {
+            (true, true) => Color.Parse("#0B1019"),
+            (true, false) => Color.Parse("#090D14"),
+            (false, true) => Color.Parse("#090D14"),
+            (false, false) => Color.Parse("#05080E"),
+        };
+
+        var heat = Math.Clamp(normalized, 0, 1);
+        if (heat <= 0)
+        {
+            // No confusion: untouched, just the zebra tint.
+            return new SolidColorBrush(zebraColor);
+        }
+
+        // Alpha-over compose the heat red onto the zebra base by the score, so a rare
+        // confusion is a faint red wash and a frequent one is deep red.
+        var hotColor = Color.Parse("#DC2626");
+        var composed = Color.FromRgb(
+            (byte)(zebraColor.R + (hotColor.R - zebraColor.R) * heat),
+            (byte)(zebraColor.G + (hotColor.G - zebraColor.G) * heat),
+            (byte)(zebraColor.B + (hotColor.B - zebraColor.B) * heat));
+
+        return new SolidColorBrush(composed);
+    }
+}
+
+public sealed class ConfusionMatrixHeaderViewModel
+{
+    public string Symbol { get; init; } = string.Empty;
+
+    public IBrush Background { get; init; } = Brushes.Transparent;
 }
 
 public sealed class ConfusionMatrixRowViewModel
 {
     public string ExpectedSymbol { get; init; } = string.Empty;
+
+    /// <summary>Row-header tint matching the row's zebra band, so the label reads as part of the row.</summary>
+    public IBrush RowHeaderBackground { get; init; } = Brushes.Transparent;
 
     public ObservableCollection<ConfusionMatrixCellViewModel> Cells { get; } = [];
 }
@@ -253,6 +303,10 @@ public sealed class ConfusionMatrixRowViewModel
 public sealed class ConfusionMatrixCellViewModel
 {
     public double Score { get; init; }
+
+    public bool IsEvenRow { get; init; }
+
+    public bool IsEvenColumn { get; init; }
 
     public string DisplayText { get; init; } = string.Empty;
 

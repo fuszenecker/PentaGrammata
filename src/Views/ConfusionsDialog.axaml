@@ -27,13 +27,13 @@
                     <ItemsControl ItemsSource="{Binding ColumnHeaders}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                <StackPanel Orientation="Horizontal" Spacing="0"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="34" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
-                                    <TextBlock Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                <Border Width="34" Height="24" Background="{Binding Background}" BorderBrush="#0B1020" BorderThickness="0">
+                                    <TextBlock Text="{Binding Symbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -44,18 +44,18 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Border Width="36" Height="24" Background="#111827" BorderBrush="#374151" BorderThickness="1">
+                                <Border Width="36" Height="24" Background="{Binding RowHeaderBackground}" BorderBrush="#0B1020" BorderThickness="0">
                                     <TextBlock Text="{Binding ExpectedSymbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                 </Border>
                                 <ItemsControl ItemsSource="{Binding Cells}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="0"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="34" Height="24" Background="{Binding Background}" BorderBrush="#374151" BorderThickness="1">
+                                            <Border Width="34" Height="24" Background="{Binding Background}" BorderBrush="#0B1020" BorderThickness="0">
                                                 <TextBlock Text="{Binding DisplayText}" Foreground="{Binding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
                                             </Border>
                                         </DataTemplate>
