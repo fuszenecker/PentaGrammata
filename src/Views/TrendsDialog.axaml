@@ -13,31 +13,37 @@
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
             <CheckBox IsChecked="{Binding ShowCharacterSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Width="14" Height="8" CornerRadius="2" Background="#1D4ED8" VerticalAlignment="Center"/>
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#DC2626" VerticalAlignment="Center"/>
                     <TextBlock Text="Character speed" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowAverageSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Width="14" Height="8" CornerRadius="2" Background="#0891B2" VerticalAlignment="Center"/>
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#3987E5" VerticalAlignment="Center"/>
                     <TextBlock Text="Average speed" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding ShowDailyMaxSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#FACC15" Opacity="0.5" VerticalAlignment="Center"/>
+                    <TextBlock Text="Daily max speed" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowErrorSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Width="14" Height="8" CornerRadius="2" Background="#DC2626" VerticalAlignment="Center"/>
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#E66767" VerticalAlignment="Center"/>
                     <TextBlock Text="Error rate" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowLimitSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Width="14" Height="8" CornerRadius="2" Background="#F59E0B" VerticalAlignment="Center"/>
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#C98500" VerticalAlignment="Center"/>
                     <TextBlock Text="Error threshold" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowNoiseSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Width="14" Height="8" CornerRadius="2" Background="#16A34A" VerticalAlignment="Center"/>
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#008300" VerticalAlignment="Center"/>
                     <TextBlock Text="SNR" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
@@ -47,6 +53,7 @@
                                       Items="{Binding Points}"
                                       ShowCharacterSeries="{Binding ShowCharacterSeries}"
                                       ShowAverageSeries="{Binding ShowAverageSeries}"
+                                      ShowDailyMaxSeries="{Binding ShowDailyMaxSeries}"
                                       ShowErrorSeries="{Binding ShowErrorSeries}"
                                       ShowLimitSeries="{Binding ShowLimitSeries}"
                                       ShowNoiseSeries="{Binding ShowNoiseSeries}"

@@ -32,6 +32,9 @@ public sealed class TrendsTimelineChart : Control
     public static readonly StyledProperty<bool> ShowNoiseSeriesProperty =
         AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowNoiseSeries), true);
 
+    public static readonly StyledProperty<bool> ShowDailyMaxSeriesProperty =
+        AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowDailyMaxSeries), true);
+
     private const double LeftAxisWidth = 52;
     private const double RightAxisWidth = 58;
     private const double TopPadding = 10;
@@ -50,11 +53,16 @@ public sealed class TrendsTimelineChart : Control
     private bool _isHovering;
     private Point _hoverPoint;
 
-    private static readonly Color CharacterColor = Color.Parse("#1D4ED8");
-    private static readonly Color AverageColor = Color.Parse("#0891B2");
-    private static readonly Color ErrorColor = Color.Parse("#DC2626");
-    private static readonly Color LimitColor = Color.Parse("#F59E0B");
-    private static readonly Color NoiseColor = Color.Parse("#16A34A");
+    // Categorical palette validated (dark surface #0F111A) for CVD separation and the
+    // lightness band — see the dataviz skill's palette reference. The speed series stay
+    // in cool/warm slots far enough apart that character (blue) and average (orange) no
+    // longer read as the same color.
+    private static readonly Color CharacterColor = Color.Parse("#DC2626");
+    private static readonly Color AverageColor = Color.Parse("#3987E5");
+    private static readonly Color DailyMaxFillColor = Color.FromArgb(28, 250, 204, 21);
+    private static readonly Color ErrorColor = Color.Parse("#E66767");
+    private static readonly Color LimitColor = Color.Parse("#C98500");
+    private static readonly Color NoiseColor = Color.Parse("#008300");
 
     public IReadOnlyList<PracticeTrendPoint>? Items
     {
@@ -90,6 +98,12 @@ public sealed class TrendsTimelineChart : Control
     {
         get => GetValue(ShowNoiseSeriesProperty);
         set => SetValue(ShowNoiseSeriesProperty, value);
+    }
+
+    public bool ShowDailyMaxSeries
+    {
+        get => GetValue(ShowDailyMaxSeriesProperty);
+        set => SetValue(ShowDailyMaxSeriesProperty, value);
     }
 
     public TrendsTimelineChart()
@@ -139,6 +153,7 @@ public sealed class TrendsTimelineChart : Control
 
         DrawAxes(context, chartRect);
         DrawSpeedSeries(context, chartRect, visible);
+        DrawDailyMaxSeries(context, chartRect, visible);
         DrawPercentSeries(context, chartRect, visible);
         DrawNoiseBand(context, noiseRect, visible);
         DrawTimeAxis(context, chartRect, xAxisY, visible);
@@ -261,7 +276,8 @@ public sealed class TrendsTimelineChart : Control
             || change.Property == ShowAverageSeriesProperty
             || change.Property == ShowErrorSeriesProperty
             || change.Property == ShowLimitSeriesProperty
-            || change.Property == ShowNoiseSeriesProperty)
+            || change.Property == ShowNoiseSeriesProperty
+            || change.Property == ShowDailyMaxSeriesProperty)
         {
             InvalidateVisual();
         }
@@ -273,7 +289,8 @@ public sealed class TrendsTimelineChart : Control
             || ShowAverageSeries
             || ShowErrorSeries
             || ShowLimitSeries
-            || ShowNoiseSeries;
+            || ShowNoiseSeries
+            || ShowDailyMaxSeries;
     }
 
     private void DrawAxes(DrawingContext context, Rect chartRect)
@@ -327,6 +344,71 @@ public sealed class TrendsTimelineChart : Control
         {
             DrawLineSeries(context, chartRect, visible, p => p.AverageWpm, 0, speedMax, AverageColor);
         }
+    }
+
+    private void DrawDailyMaxSeries(DrawingContext context, Rect chartRect, IReadOnlyList<PracticeTrendPoint> visible)
+    {
+        if (!ShowDailyMaxSeries)
+        {
+            return;
+        }
+
+        var speedMax = GetSpeedMax();
+        if (speedMax <= 0)
+        {
+            return;
+        }
+
+        var range = Math.Max(0.001, speedMax);
+
+        // The daily max is a per-day value repeated on every session of the day, so the
+        // fill's top edge traces every daily value as a step. NaN marks days with no
+        // passing session; the fill breaks there, so each contiguous run of valid points
+        // becomes its own shaded lobe. Every point in the run is included so the top edge
+        // follows the real daily-max profile rather than a straight line run-start→run-end.
+        var fillGeometry = new StreamGeometry();
+        using (var fillGc = fillGeometry.Open())
+        {
+            var runPoints = new List<Point>();
+            for (var i = 0; i < visible.Count; i++)
+            {
+                var value = visible[i].DailyMaxWpm;
+                if (double.IsNaN(value))
+                {
+                    CloseFillRun(fillGc, chartRect, runPoints);
+                    runPoints.Clear();
+                    continue;
+                }
+
+                var x = chartRect.Left + (double)i / Math.Max(1, visible.Count - 1) * chartRect.Width;
+                var normalized = Math.Clamp(value / range, 0, 1);
+                var y = chartRect.Bottom - normalized * chartRect.Height;
+                runPoints.Add(new Point(x, y));
+            }
+
+            CloseFillRun(fillGc, chartRect, runPoints);
+        }
+
+        context.DrawGeometry(new SolidColorBrush(DailyMaxFillColor), null, fillGeometry);
+    }
+
+    private static void CloseFillRun(StreamGeometryContext gc, Rect chartRect, List<Point> runPoints)
+    {
+        if (runPoints.Count == 0)
+        {
+            return;
+        }
+
+        // Fill down to the baseline so each gap-free run reads as its own shaded area:
+        // baseline → first point → …every daily point… → last point → baseline.
+        gc.BeginFigure(new Point(runPoints[0].X, chartRect.Bottom), true);
+        foreach (var p in runPoints)
+        {
+            gc.LineTo(p);
+        }
+
+        gc.LineTo(new Point(runPoints[^1].X, chartRect.Bottom));
+        gc.EndFigure(true);
     }
 
     private void DrawPercentSeries(DrawingContext context, Rect chartRect, IReadOnlyList<PracticeTrendPoint> visible)
@@ -474,6 +556,13 @@ public sealed class TrendsTimelineChart : Control
         if (ShowAverageSeries)
         {
             lines.Add($"Average speed: {point.AverageWpm:0.##} WPM");
+        }
+
+        if (ShowDailyMaxSeries)
+        {
+            lines.Add(double.IsNaN(point.DailyMaxWpm)
+                ? "Daily max: no passing session"
+                : $"Daily max: {point.DailyMaxWpm:0.##} WPM");
         }
 
         if (ShowErrorSeries)

@@ -23,6 +23,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     private bool _showErrorSeries = true;
     private bool _showLimitSeries = true;
     private bool _showNoiseSeries = true;
+    private bool _showDailyMaxSeries = true;
 
     public event Action? CloseRequested;
 
@@ -69,6 +70,12 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         set => SetProperty(ref _showNoiseSeries, value);
     }
 
+    public bool ShowDailyMaxSeries
+    {
+        get => _showDailyMaxSeries;
+        set => SetProperty(ref _showDailyMaxSeries, value);
+    }
+
     public string SummaryText
     {
         get => _summaryText;
@@ -99,6 +106,17 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         Points.Clear();
         _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(false);
 
+        // Daily-max speed: for each local calendar day, take the highest AverageWpm among
+        // sessions whose error rate stayed below their error threshold. Days with no such
+        // session map to NaN so the chart can break the dashed line across them.
+        var dailyMaxByDay = _records
+            .GroupBy(r => r.RecordedAt.ToLocalTime().Date)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Any(r => r.ErrorRatePercent < r.ErrorThresholdPercent)
+                    ? g.Where(r => r.ErrorRatePercent < r.ErrorThresholdPercent).Max(r => (double)r.AverageWpm)
+                    : double.NaN);
+
         foreach (var point in _records
             .Select(r => new PracticeTrendPoint
             {
@@ -108,6 +126,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
                 ErrorRatePercent = r.ErrorRatePercent,
                 ErrorThresholdPercent = r.ErrorThresholdPercent,
                 NoiseLevelDb = r.NoiseLevelDb,
+                DailyMaxWpm = dailyMaxByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var max) ? max : double.NaN,
             })
             .OrderBy(x => x.RecordedAt))
         {
