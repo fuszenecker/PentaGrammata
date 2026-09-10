@@ -39,6 +39,9 @@ public sealed class PracticeControllerTests
         config.Audio.Noise.ApfEnabled = false;
         config.Audio.Noise.ApfBandwidthHz = 80;
         config.Audio.Noise.ApfPeakGainDb = -6;
+        config.Audio.Noise.QsbEnabled = true;
+        config.Audio.Noise.QsbDepthDb = 12;
+        config.Audio.Noise.QsbPeriodSeconds = 6.5;
         configService.Current.Returns(config);
 
         morseGenerator.GenerateGroupsOf5("ABCDE", 28).Returns("ABCDE FGHIJ");
@@ -66,7 +69,10 @@ public sealed class PracticeControllerTests
                 s.AgcDelaySeconds == 0.75 &&
                 s.ApfEnabled == false &&
                 s.ApfBandwidthHz == 80 &&
-                s.ApfPeakGainDb == -6),
+                s.ApfPeakGainDb == -6 &&
+                s.QsbEnabled == true &&
+                s.QsbDepthDb == 12 &&
+                s.QsbPeriodSeconds == 6.5),
             Arg.Any<CancellationToken>());
     }
 

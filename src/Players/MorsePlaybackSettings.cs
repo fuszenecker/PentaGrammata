@@ -47,4 +47,13 @@ public sealed record MorsePlaybackSettings
 
     /// <summary>Peak amplification of the peak-filtered signal blended in, in decibels.</summary>
     public double ApfPeakGainDb { get; init; } = -9.0;
+
+    /// <summary>Whether QSB (signal fading) is applied to the generated Morse audio.</summary>
+    public bool QsbEnabled { get; init; }
+
+    /// <summary>Deepest fade below full signal strength, in decibels.</summary>
+    public double QsbDepthDb { get; init; } = 10.0;
+
+    /// <summary>Fade period, in seconds; larger = slower fading.</summary>
+    public double QsbPeriodSeconds { get; init; } = 5.0;
 }

@@ -171,6 +171,9 @@ public class PracticeController : IPracticeController
                     ApfEnabled = audio.Noise.ApfEnabled,
                     ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
                     ApfPeakGainDb = audio.Noise.ApfPeakGainDb,
+                    QsbEnabled = audio.Noise.QsbEnabled,
+                    QsbDepthDb = audio.Noise.QsbDepthDb,
+                    QsbPeriodSeconds = audio.Noise.QsbPeriodSeconds,
                 };
 
                 await _morsePlayer.PlayMorseCodeAsync(
