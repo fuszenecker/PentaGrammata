@@ -26,7 +26,7 @@ public sealed class MorsePlayerTests
         => PlayAndCaptureAsync(text, settings, new NoiseGeneratorFactory());
 
     private static async Task<(short[] Audio, int SampleRate)> PlayAndCaptureAsync(
-        string text, MorsePlaybackSettings settings, INoiseGeneratorFactory noiseFactory)
+        string text, MorsePlaybackSettings settings, INoiseGeneratorFactory noiseFactory, System.Random? random = null)
     {
         var audioPlayer = Substitute.For<IAudioPlayer>();
         short[] captured = [];
@@ -35,7 +35,7 @@ public sealed class MorsePlayerTests
             .PlayAudioAsync(Arg.Do<short[]>(a => captured = a), Arg.Do<int>(r => capturedRate = r), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var sut = new MorsePlayer(audioPlayer, noiseFactory);
+        var sut = new MorsePlayer(audioPlayer, noiseFactory, random);
         await sut.PlayMorseCodeAsync(text, settings, CancellationToken.None);
 
         return (captured, capturedRate);
@@ -299,5 +299,54 @@ public sealed class MorsePlayerTests
             () => sut.PlayMorseCodeAsync("PARIS", Settings(), cts.Token));
 
         await audioPlayer.DidNotReceive().PlayAudioAsync(Arg.Any<short[]>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_WithQsbEnabled_LowersRmsAndKeepsLength()
+    {
+        // Random fading with a 20 dB depth spends most of its time well below full
+        // strength, so the whole-buffer RMS must drop measurably versus the unfaded
+        // render of the same message.
+        const int sampleRate = 8000;
+        const string text = "PARIS PARIS PARIS";
+        var qsbOff = Settings() with { SampleRate = sampleRate };
+        var qsbOn = qsbOff with { QsbEnabled = true, QsbDepthDb = 20, QsbPeriodSeconds = 1 };
+
+        var (off, _) = await PlayAndCaptureAsync(text, qsbOff, new NoiseGeneratorFactory());
+        var (on, _) = await PlayAndCaptureAsync(text, qsbOn, new NoiseGeneratorFactory(), new System.Random(123));
+
+        Assert.HasCount(off.Length, on);
+
+        double rmsOff = Rms(off, 0, off.Length);
+        double rmsOn = Rms(on, 0, on.Length);
+        Assert.IsGreaterThan(0.0, rmsOn);
+        Assert.IsLessThan(0.8 * rmsOff, rmsOn,
+            $"expected the fade to lower the RMS, got {rmsOn:F1} vs {rmsOff:F1}");
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_WithQsbEnabledAndNoiseNone_TrailingSilenceStaysZero()
+    {
+        // QSB is applied to the signal before the receiver chain and multiplies rather
+        // than adds, so with noise off the trailing gap must stay pure silence.
+        var settings = Settings() with { NoiseType = NoiseType.None, QsbEnabled = true, QsbDepthDb = 20, QsbPeriodSeconds = 1 };
+
+        var (audio, _) = await PlayAndCaptureAsync("e", settings, new NoiseGeneratorFactory(), new System.Random(7));
+
+        Assert.IsTrue(audio.Any(s => s != 0), "expected the beep to produce non-zero samples");
+        Assert.AreEqual(0, audio[^1]);
+    }
+
+    [TestMethod]
+    public async Task PlayMorseCodeAsync_WithQsb_SameSeedProducesIdenticalBuffers()
+    {
+        // The fader draws from the injected Random, so a fixed seed makes the fade —
+        // and therefore the whole rendered buffer — reproducible.
+        var settings = Settings() with { QsbEnabled = true, QsbDepthDb = 15, QsbPeriodSeconds = 2 };
+
+        var (first, _) = await PlayAndCaptureAsync("PARIS", settings, new NoiseGeneratorFactory(), new System.Random(42));
+        var (second, _) = await PlayAndCaptureAsync("PARIS", settings, new NoiseGeneratorFactory(), new System.Random(42));
+
+        CollectionAssert.AreEqual(first, second);
     }
 }

@@ -86,6 +86,29 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="6" Spacing="12">
 
+                        <!-- QSB (signal fading) -->
+                        <GroupBox Header="QSB (signal fading)" CornerRadius="0" Background="#101010">
+                            <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                                <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="QSB enabled"
+                                          IsChecked="{Binding QsbEnabled}"
+                                          ToolTip.Tip="Ionospheric signal fading (QSB). The signal strength wanders down and recovers unpredictably, like a real sky-wave signal. Applied before the receiver chain, so it also works with noise off; with AGC enabled the receiver partly compensates, as a real rig would."/>
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <TextBlock Text="Fade depth (dB)"/>
+                                    <NumericUpDown Minimum="1" Maximum="40" Increment="1" FormatString="0.##"
+                                                   Value="{Binding QsbDepthDb}"
+                                                   IsEnabled="{Binding QsbEnabled}"
+                                                   ToolTip.Tip="Deepest fade below full signal strength. The signal wanders between full strength and this depth. 10 dB ≈ 3× down (default)."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="8">
+                                    <TextBlock Text="Fade period (s)"/>
+                                    <NumericUpDown Minimum="1" Maximum="20" Increment="0.5" FormatString="0.##"
+                                                   Value="{Binding QsbPeriodSeconds}"
+                                                   IsEnabled="{Binding QsbEnabled}"
+                                                   ToolTip.Tip="Seconds per fade cycle; larger = slower, more gradual fading. 5 s default."/>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
+
                         <!-- Noise source -->
                         <GroupBox Header="Noise" CornerRadius="0" Background="#101010">
                             <Grid Margin="10" ColumnDefinitions="*,*,*" ColumnSpacing="10">

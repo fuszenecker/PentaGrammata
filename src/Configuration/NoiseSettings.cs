@@ -60,6 +60,25 @@ public sealed class NoiseSettings
     /// </summary>
     public double ApfPeakGainDb { get; set; } = -9.0;
 
+    /// <summary>
+    /// When true, the generated Morse signal is faded by simulated ionospheric QSB before
+    /// the receiver chain: its strength wanders down and recovers unpredictably,
+    /// independently of whether noise is enabled. When false the signal strength is constant.
+    /// </summary>
+    public bool QsbEnabled { get; set; }
+
+    /// <summary>
+    /// Deepest fade below full signal strength, in decibels. The signal wanders between
+    /// full strength and this depth. 10 dB ≈ 3× down (default).
+    /// </summary>
+    public double QsbDepthDb { get; set; } = 10.0;
+
+    /// <summary>
+    /// Fade period, in seconds: roughly how long one fade cycle takes. Larger = slower,
+    /// more gradual fading; smaller = faster, choppier fading. 5 s (default).
+    /// </summary>
+    public double QsbPeriodSeconds { get; set; } = 5.0;
+
     public NoiseSettings Clone() => new()
     {
         Type = Type,
@@ -71,5 +90,8 @@ public sealed class NoiseSettings
         ApfEnabled = ApfEnabled,
         ApfBandwidthHz = ApfBandwidthHz,
         ApfPeakGainDb = ApfPeakGainDb,
+        QsbEnabled = QsbEnabled,
+        QsbDepthDb = QsbDepthDb,
+        QsbPeriodSeconds = QsbPeriodSeconds,
     };
 }
