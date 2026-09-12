@@ -14,6 +14,10 @@ public sealed class PracticeResultStatisticsRecord
     public double ErrorRatePercent { get; init; }
     public double ErrorThresholdPercent { get; init; }
 
+    public bool QsbEnabled { get; init; }
+    public double QsbDepthDb { get; init; }
+    public double QsbPeriodSeconds { get; init; }
+
     public NoiseType NoiseType { get; init; }
     public double NoiseLevelDb { get; init; }
     public double NoiseBandwidthHz { get; init; }

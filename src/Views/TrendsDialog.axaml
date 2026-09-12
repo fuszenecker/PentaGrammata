@@ -47,6 +47,12 @@
                     <TextBlock Text="SNR" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
+            <CheckBox IsChecked="{Binding ShowQsbSeries}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="14" Height="8" CornerRadius="2" Background="#FF4D4D" VerticalAlignment="Center"/>
+                    <TextBlock Text="QSB depth" VerticalAlignment="Center"/>
+                </StackPanel>
+            </CheckBox>
         </WrapPanel>
 
         <controls:TrendsTimelineChart Grid.Row="1"
@@ -57,6 +63,7 @@
                                       ShowErrorSeries="{Binding ShowErrorSeries}"
                                       ShowLimitSeries="{Binding ShowLimitSeries}"
                                       ShowNoiseSeries="{Binding ShowNoiseSeries}"
+                                      ShowQsbSeries="{Binding ShowQsbSeries}"
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Stretch"/>
 

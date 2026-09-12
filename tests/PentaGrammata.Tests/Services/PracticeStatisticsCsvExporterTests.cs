@@ -36,7 +36,7 @@ public sealed class PracticeStatisticsCsvExporterTests
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.HasCount(1, lines);
         Assert.AreEqual(
-            "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount,ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb,NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,AgcMaxGainDb,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb",
+            "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount,ErrorRatePercent,ErrorThresholdPercent,QsbEnabled,QsbDepthDb,QsbPeriodSeconds,NoiseType,NoiseLevelDb,NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,AgcMaxGainDb,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb",
             lines[0]);
     }
 
@@ -52,6 +52,9 @@ public sealed class PracticeStatisticsCsvExporterTests
             ErrorCount = 7,
             ErrorRatePercent = 5.5,
             ErrorThresholdPercent = 5.0,
+            QsbEnabled = true,
+            QsbDepthDb = 12.5,
+            QsbPeriodSeconds = 7.5,
             NoiseType = NoiseType.Gaussian,
             NoiseLevelDb = -10.25,
             NoiseBandwidthHz = 600,
@@ -68,7 +71,7 @@ public sealed class PracticeStatisticsCsvExporterTests
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.HasCount(2, lines);
         Assert.AreEqual(
-            "2026-08-07T12:00:00.0000000+00:00,20,15,120,7,5.5,5,Gaussian,-10.25,600,1,0.5,18,0,100,3",
+            "2026-08-07T12:00:00.0000000+00:00,20,15,120,7,5.5,5,1,12.5,7.5,Gaussian,-10.25,600,1,0.5,18,0,100,3",
             lines[1]);
     }
 

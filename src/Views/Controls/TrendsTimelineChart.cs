@@ -35,6 +35,9 @@ public sealed class TrendsTimelineChart : Control
     public static readonly StyledProperty<bool> ShowDailyMaxSeriesProperty =
         AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowDailyMaxSeries), true);
 
+    public static readonly StyledProperty<bool> ShowQsbSeriesProperty =
+        AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowQsbSeries), true);
+
     private const double LeftAxisWidth = 52;
     private const double RightAxisWidth = 58;
     private const double TopPadding = 10;
@@ -42,8 +45,19 @@ public sealed class TrendsTimelineChart : Control
     // drawn just above chartRect.Top and would otherwise be clipped off the top edge.
     private const double AxisTitleHeight = 18;
     private const double BottomPadding = 8;
-    private const double NoiseBandHeight = 34;
+    // The band carries two series (the SNR area and the QSB line) plus two stacked axis
+    // titles, so it gets double the height a single-series strip would need.
+    private const double NoiseBandHeight = 68;
     private const double TimeAxisHeight = 26;
+
+    // Full scale of the right-hand percent axis. Error rates and thresholds worth reading
+    // sit well under this, so the axis stops here instead of at 100 % and the series get
+    // four times the vertical resolution.
+    private const double PercentMax = 25;
+
+    // Full-scale QSB fade depth for the noise band, matching the settings dialog's maximum.
+    // Fixed rather than data-derived so the line's height is comparable across zoom levels.
+    private const double QsbDepthScaleDb = 40;
 
     private double _viewStart;
     private double _viewSpan = 1;
@@ -63,6 +77,10 @@ public sealed class TrendsTimelineChart : Control
     private static readonly Color ErrorColor = Color.Parse("#E66767");
     private static readonly Color LimitColor = Color.Parse("#C98500");
     private static readonly Color NoiseColor = Color.Parse("#008300");
+
+    // QSB shares the noise band with the SNR area, so it needs a hue that separates from
+    // the green fill at a glance: a solid, bright red line drawn on top of it.
+    private static readonly Color QsbColor = Color.Parse("#FF4D4D");
 
     public IReadOnlyList<PracticeTrendPoint>? Items
     {
@@ -104,6 +122,12 @@ public sealed class TrendsTimelineChart : Control
     {
         get => GetValue(ShowDailyMaxSeriesProperty);
         set => SetValue(ShowDailyMaxSeriesProperty, value);
+    }
+
+    public bool ShowQsbSeries
+    {
+        get => GetValue(ShowQsbSeriesProperty);
+        set => SetValue(ShowQsbSeriesProperty, value);
     }
 
     public TrendsTimelineChart()
@@ -156,6 +180,7 @@ public sealed class TrendsTimelineChart : Control
         DrawDailyMaxSeries(context, chartRect, visible);
         DrawPercentSeries(context, chartRect, visible);
         DrawNoiseBand(context, noiseRect, visible);
+        DrawQsbSeries(context, noiseRect, visible);
         DrawTimeAxis(context, chartRect, xAxisY, visible);
 
         if (_isHovering)
@@ -277,7 +302,8 @@ public sealed class TrendsTimelineChart : Control
             || change.Property == ShowErrorSeriesProperty
             || change.Property == ShowLimitSeriesProperty
             || change.Property == ShowNoiseSeriesProperty
-            || change.Property == ShowDailyMaxSeriesProperty)
+            || change.Property == ShowDailyMaxSeriesProperty
+            || change.Property == ShowQsbSeriesProperty)
         {
             InvalidateVisual();
         }
@@ -290,7 +316,8 @@ public sealed class TrendsTimelineChart : Control
             || ShowErrorSeries
             || ShowLimitSeries
             || ShowNoiseSeries
-            || ShowDailyMaxSeries;
+            || ShowDailyMaxSeries
+            || ShowQsbSeries;
     }
 
     private void DrawAxes(DrawingContext context, Rect chartRect)
@@ -315,8 +342,8 @@ public sealed class TrendsTimelineChart : Control
             var speedLabel = CreateText(speedValue.ToString("0", CultureInfo.InvariantCulture), 10, "#CBD5E1");
             context.DrawText(speedLabel, new Point(Math.Max(0, chartRect.Left - speedLabel.Width - 8), y - speedLabel.Height / 2));
 
-            var percentValue = ratio * 100;
-            var percentLabel = CreateText($"{percentValue:0}%", 10, "#CBD5E1");
+            var percentValue = ratio * PercentMax;
+            var percentLabel = CreateText($"{percentValue:0.#}%", 10, "#CBD5E1");
             context.DrawText(percentLabel, new Point(chartRect.Right + 8, y - percentLabel.Height / 2));
         }
 
@@ -413,16 +440,16 @@ public sealed class TrendsTimelineChart : Control
 
     private void DrawPercentSeries(DrawingContext context, Rect chartRect, IReadOnlyList<PracticeTrendPoint> visible)
     {
-        const double percentMax = 100;
-
+        // DrawLineSeries clamps to the range, so a session worse than PercentMax rides
+        // along the top of the plot rather than disappearing.
         if (ShowErrorSeries)
         {
-            DrawLineSeries(context, chartRect, visible, p => p.ErrorRatePercent, 0, percentMax, ErrorColor);
+            DrawLineSeries(context, chartRect, visible, p => p.ErrorRatePercent, 0, PercentMax, ErrorColor);
         }
 
         if (ShowLimitSeries)
         {
-            DrawLineSeries(context, chartRect, visible, p => p.ErrorThresholdPercent, 0, percentMax, LimitColor, isDashed: true);
+            DrawLineSeries(context, chartRect, visible, p => p.ErrorThresholdPercent, 0, PercentMax, LimitColor, isDashed: true);
         }
     }
 
@@ -434,12 +461,7 @@ public sealed class TrendsTimelineChart : Control
 
         if (!ShowNoiseSeries || visible.Count == 0)
         {
-            var muted = CreateText("SNR (dB)", 10.5, "#6B7280");
-            context.DrawText(
-                muted,
-                new Point(
-                    Math.Max(0, noiseRect.Left - muted.Width - 8),
-                    noiseRect.Top + (noiseRect.Height - muted.Height) / 2));
+            DrawNoiseBandLabels(context, noiseRect, snrMin: null, snrMax: null);
             return;
         }
 
@@ -473,14 +495,152 @@ public sealed class TrendsTimelineChart : Control
             new Pen(new SolidColorBrush(NoiseColor), 1.4),
             fillGeometry);
 
-        // Axis title in the left gutter, matching the "WPM"/"Percent" titles rather
-        // than overlaying a value readout on the band itself.
-        var title = CreateText("SNR (dB)", 10.5, "#BBF7D0");
-        context.DrawText(
-            title,
-            new Point(
-                Math.Max(0, noiseRect.Left - title.Width - 8),
-                noiseRect.Top + (noiseRect.Height - title.Height) / 2));
+        DrawNoiseBandLabels(context, noiseRect, snrMin: min, snrMax: max);
+    }
+
+    /// <summary>
+    /// Axis titles and value scales for the shared noise band, matching the "WPM"/"Percent"
+    /// gutters of the main plot: the SNR scale sits in the left gutter, the QSB scale in the
+    /// right one. The SNR scale is data-derived (<paramref name="snrMin"/> to
+    /// <paramref name="snrMax"/> across the visible sessions), so it is omitted while the
+    /// series is off; the QSB scale is the fixed 0 to <see cref="QsbDepthScaleDb"/> dB range
+    /// the line is drawn against.
+    /// </summary>
+    private void DrawNoiseBandLabels(DrawingContext context, Rect noiseRect, double? snrMin, double? snrMax)
+    {
+        // Both series inset their top by 6 px (see DrawNoiseBand / DrawQsbSeries), so the
+        // scale extremes have to line up with that same plot area, not the band border.
+        var plotTop = noiseRect.Top + 6;
+
+        var snrTitle = CreateText("SNR (dB)", 9.5, snrMin.HasValue ? "#BBF7D0" : "#6B7280");
+        DrawGutterTitle(context, snrTitle, noiseRect, isLeftGutter: true);
+
+        if (snrMin.HasValue && snrMax.HasValue)
+        {
+            // A flat SNR across the visible sessions collapses the scale: the area is drawn
+            // along the bottom, so the single value is labelled there and the top is left
+            // blank rather than repeating the same number twice.
+            var isFlat = Math.Abs(snrMax.Value - snrMin.Value) < 0.05;
+            if (!isFlat)
+            {
+                DrawScaleValue(context, snrMax.Value, plotTop, noiseRect, "#BBF7D0", isLeftGutter: true, isTop: true);
+            }
+
+            DrawScaleValue(context, snrMin.Value, noiseRect.Bottom, noiseRect, "#BBF7D0", isLeftGutter: true, isTop: false);
+        }
+
+        if (!ShowQsbSeries)
+        {
+            return;
+        }
+
+        var qsbTitle = CreateText("QSB (dB)", 9.5, "#FCA5A5");
+        DrawGutterTitle(context, qsbTitle, noiseRect, isLeftGutter: false);
+        DrawScaleValue(context, QsbDepthScaleDb, plotTop, noiseRect, "#FCA5A5", isLeftGutter: false, isTop: true);
+        DrawScaleValue(context, 0, noiseRect.Bottom, noiseRect, "#FCA5A5", isLeftGutter: false, isTop: false);
+    }
+
+    private static void DrawGutterTitle(DrawingContext context, FormattedText title, Rect noiseRect, bool isLeftGutter)
+    {
+        var x = isLeftGutter
+            ? Math.Max(0, noiseRect.Left - title.Width - 8)
+            : noiseRect.Right + 8;
+
+        context.DrawText(title, new Point(x, noiseRect.Top + (noiseRect.Height - title.Height) / 2));
+    }
+
+    /// <summary>
+    /// Draws one end of a noise-band scale in the gutter. The label is pinned inside the band
+    /// (top edge for the maximum, bottom edge for the minimum) rather than centered on the
+    /// tick, so it never spills over the band border into the time axis or the plot above.
+    /// </summary>
+    private static void DrawScaleValue(
+        DrawingContext context,
+        double value,
+        double tickY,
+        Rect noiseRect,
+        string colorHex,
+        bool isLeftGutter,
+        bool isTop)
+    {
+        var text = CreateText(value.ToString("0.#", CultureInfo.InvariantCulture), 9, colorHex);
+
+        var x = isLeftGutter
+            ? Math.Max(0, noiseRect.Left - text.Width - 8)
+            : noiseRect.Right + 8;
+
+        var y = isTop
+            ? Math.Max(noiseRect.Top, tickY - text.Height)
+            : Math.Min(noiseRect.Bottom - text.Height, tickY - text.Height);
+
+        context.DrawText(text, new Point(x, y));
+    }
+
+    /// <summary>
+    /// Draws the QSB fade depth as a solid red line inside the noise band, on top of the SNR
+    /// area. The scale is fixed at 0 to <see cref="QsbDepthScaleDb"/> dB — the range the
+    /// settings dialog allows — so the height means the same thing at any zoom level and
+    /// stays comparable between sessions. NaN depth (fading off for that session) breaks the
+    /// line, so a run of faded sessions reads as its own segment.
+    /// </summary>
+    private void DrawQsbSeries(DrawingContext context, Rect noiseRect, IReadOnlyList<PracticeTrendPoint> visible)
+    {
+        if (!ShowQsbSeries || visible.Count == 0)
+        {
+            return;
+        }
+
+        var pen = new Pen(new SolidColorBrush(QsbColor), 1.8);
+        var runPoints = new List<Point>();
+
+        for (var i = 0; i < visible.Count; i++)
+        {
+            var depth = visible[i].QsbDepthDb;
+            if (double.IsNaN(depth))
+            {
+                DrawQsbRun(context, pen, runPoints);
+                runPoints.Clear();
+                continue;
+            }
+
+            var x = noiseRect.Left + (double)i / Math.Max(1, visible.Count - 1) * noiseRect.Width;
+            var normalized = Math.Clamp(depth / QsbDepthScaleDb, 0, 1);
+            var y = noiseRect.Bottom - normalized * (noiseRect.Height - 6);
+            runPoints.Add(new Point(x, y));
+        }
+
+        DrawQsbRun(context, pen, runPoints);
+    }
+
+    private static void DrawQsbRun(DrawingContext context, Pen pen, List<Point> runPoints)
+    {
+        if (runPoints.Count == 0)
+        {
+            return;
+        }
+
+        // A single faded session surrounded by clean ones is a one-point run, which a
+        // polyline cannot show. Give it a short horizontal stub so it is still visible.
+        if (runPoints.Count == 1)
+        {
+            var point = runPoints[0];
+            context.DrawLine(pen, new Point(point.X - 2, point.Y), new Point(point.X + 2, point.Y));
+            return;
+        }
+
+        var geometry = new StreamGeometry();
+        using (var gc = geometry.Open())
+        {
+            gc.BeginFigure(runPoints[0], false);
+            for (var i = 1; i < runPoints.Count; i++)
+            {
+                gc.LineTo(runPoints[i]);
+            }
+
+            gc.EndFigure(false);
+        }
+
+        context.DrawGeometry(null, pen, geometry);
     }
 
     private static void DrawTimeAxis(
@@ -578,6 +738,13 @@ public sealed class TrendsTimelineChart : Control
         if (ShowNoiseSeries)
         {
             lines.Add($"SNR: {-point.NoiseLevelDb:0.##} dB");
+        }
+
+        if (ShowQsbSeries)
+        {
+            lines.Add(point.QsbEnabled
+                ? $"QSB: {point.QsbDepthDb:0.##} dB depth, {point.QsbPeriodSeconds:0.##} s period"
+                : "QSB: off");
         }
 
         var texts = lines.Select(line => CreateText(line, 11, "#F9FAFB")).ToArray();
