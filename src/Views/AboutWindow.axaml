@@ -68,6 +68,10 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Ionospheric QSB (signal fading) with adjustable fade depth and period"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
                         <TextBlock Grid.Column="1" Text="Accuracy scoring with sent/received diff and error threshold"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">

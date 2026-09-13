@@ -9,6 +9,8 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 - Generates random 5-character groups from configurable character sets (letters, digits, punctuation, prosigns)
 - Optional custom text: enter your own text in Settings to send it verbatim instead of random groups
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
+- Receiver simulation: noise, band-pass filter, AGC and audio peak filter
+- Ionospheric QSB (signal fading) with adjustable fade depth and period
 - Timed practice sessions with a live countdown
 - Accuracy scoring with per-group diff output and a configurable error-rate threshold
 - Optional auto-adjusting WPM: after each scored session the practice speed slows down when recent errors are high and speeds up when they are low (driven by the average error rate of the last N sessions); the dynamic WPM is kept in memory only and restarts from the configured WPM on each app start
@@ -125,9 +127,13 @@ podman run --rm --userns=keep-id -v "${PWD}:/src:Z" -v pentagrammata-nuget:/tmp/
 | `Audio.Noise` | `BandwidthHz` | `500.0` | Shared receiver filter width (Hz) |
 | `Audio.Noise` | `AgcEnabled` | `true` | Automatic gain control on/off |
 | `Audio.Noise` | `AgcDelaySeconds` | `0.4` | AGC release/delay (s) |
+| `Audio.Noise` | `AgcMaxGainDb` | `18.0` | Maximum amount the AGC may boost a weak signal or the noise floor (dB); caps the gain so the gaps between characters don't swell uncontrollably. 18 dB ≈ 8× |
 | `Audio.Noise` | `ApfEnabled` | `true` | Audio peak filter on/off |
 | `Audio.Noise` | `ApfBandwidthHz` | `120.0` | Audio peak filter width (Hz) |
 | `Audio.Noise` | `ApfPeakGainDb` | `-9.0` | Blend gain of the narrow-peak signal added on top of the passband, in dB relative to the passband level after AGC (0 dB = peak as loud as the passband; negative = subtler ring) |
+| `Audio.Noise` | `QsbEnabled` | `false` | Ionospheric signal fading (QSB) on/off: the signal strength wanders down and recovers unpredictably, independently of noise |
+| `Audio.Noise` | `QsbDepthDb` | `10.0` | Deepest fade below full signal strength (dB); the signal wanders between full strength and this depth. 10 dB ≈ 3× down |
+| `Audio.Noise` | `QsbPeriodSeconds` | `5.0` | Seconds per fade cycle; larger = slower, more gradual fading |
 | `Practice` | `DefaultDurationMins` | `1` | Session length (minutes) |
 | `Practice` | `CharacterWpm` | `18` | Character speed (WPM) |
 | `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |
@@ -204,6 +210,8 @@ When a noise type other than `None` is selected, the audio passes through a four
 2. **Receiver filter** — a biquad band-pass filter centred on the tone frequency and `BandwidthHz` wide removes out-of-band noise, emulating a CW receiver's IF or audio filter. Narrower = tighter filter, less noise, easier copy.
 3. **AGC** — an automatic gain control rides the combined level so the noise floor breathes up in the gaps and ducks under the tone, simulating the characteristic swelling of a real receiver. `AgcDelaySeconds` controls how slowly the gain recovers after a tone ends; larger values keep the floor suppressed longer between characters. Disable with `AgcEnabled = false` for a flat level.
 4. **APF (audio peak filter)** — a second, narrower band-pass filter (`ApfBandwidthHz`) is run over the AGC-levelled signal and its output is *added* on top, creating a resonant peak at the tone frequency. This produces the characteristic CW "ring" that makes individual tones easier to distinguish in noise. `ApfPeakGainDb` sets the blend level relative to the passband signal after AGC: 0 dB adds the peak at full passband amplitude (very prominent ring); −9 dB (default) blends it at ≈ 35 % for a subtle ring. The APF runs after the AGC so the gain control never fights the peak contribution.
+
+Before the receiver chain, an optional **QSB** stage can act on the clean Morse tone itself: with `QsbEnabled` the signal strength wanders down and recovers like a real sky-wave path — a new fade depth between full strength and `QsbDepthDb` is drawn roughly twice per `QsbPeriodSeconds`, and the gain eases toward it. QSB is applied independently of the noise setting (it also works with noise off), and a downstream AGC partly compensates for the fade, as a real rig would.
 
 ## Project structure
 
