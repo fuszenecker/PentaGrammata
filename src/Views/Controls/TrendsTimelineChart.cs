@@ -465,10 +465,10 @@ public sealed class TrendsTimelineChart : Control
             return;
         }
 
-        // Stored noise_level_db is relative to the CW signal; the UI shows the
-        // signal-to-noise ratio, which is its negation (SNR = -NoiseLevelDb).
-        var min = visible.Min(x => -x.NoiseLevelDb);
-        var max = visible.Max(x => -x.NoiseLevelDb);
+        // Scaled over the whole data set, not the visible slice, so the band keeps one
+        // fixed scale while zooming and panning: the labelled extremes stay put and a
+        // session's height stays comparable with every other session's.
+        var (min, max) = GetSnrRange();
         var range = Math.Max(0.001, max - min);
 
         var fillGeometry = new StreamGeometry();
@@ -501,10 +501,10 @@ public sealed class TrendsTimelineChart : Control
     /// <summary>
     /// Axis titles and value scales for the shared noise band, matching the "WPM"/"Percent"
     /// gutters of the main plot: the SNR scale sits in the left gutter, the QSB scale in the
-    /// right one. The SNR scale is data-derived (<paramref name="snrMin"/> to
-    /// <paramref name="snrMax"/> across the visible sessions), so it is omitted while the
+    /// right one. The SNR scale is derived from the whole data set
+    /// (<paramref name="snrMin"/> to <paramref name="snrMax"/>), so it is omitted while the
     /// series is off; the QSB scale is the fixed 0 to <see cref="QsbDepthScaleDb"/> dB range
-    /// the line is drawn against.
+    /// the line is drawn against. Neither depends on the zoom window.
     /// </summary>
     private void DrawNoiseBandLabels(DrawingContext context, Rect noiseRect, double? snrMin, double? snrMax)
     {
@@ -517,8 +517,8 @@ public sealed class TrendsTimelineChart : Control
 
         if (snrMin.HasValue && snrMax.HasValue)
         {
-            // A flat SNR across the visible sessions collapses the scale: the area is drawn
-            // along the bottom, so the single value is labelled there and the top is left
+            // A single SNR value across every session collapses the scale: the area is
+            // drawn along the bottom, so that value is labelled there and the top is left
             // blank rather than repeating the same number twice.
             var isFlat = Math.Abs(snrMax.Value - snrMin.Value) < 0.05;
             if (!isFlat)
@@ -769,6 +769,24 @@ public sealed class TrendsTimelineChart : Control
             context.DrawText(text, new Point(tooltipRect.Left + 7, drawY));
             drawY += text.Height;
         }
+    }
+
+    /// <summary>
+    /// SNR range across the whole data set. Like <see cref="GetSpeedMax"/> this reads
+    /// <see cref="Items"/> rather than the visible slice, so zooming and panning never
+    /// rescale the noise band under the user.
+    /// </summary>
+    private (double Min, double Max) GetSnrRange()
+    {
+        var points = Items;
+        if (points is null || points.Count == 0)
+        {
+            return (0, 1);
+        }
+
+        // Stored noise_level_db is relative to the CW signal; the UI shows the
+        // signal-to-noise ratio, which is its negation (SNR = -NoiseLevelDb).
+        return (points.Min(x => -x.NoiseLevelDb), points.Max(x => -x.NoiseLevelDb));
     }
 
     private double GetSpeedMax()
