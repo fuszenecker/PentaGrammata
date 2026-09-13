@@ -16,7 +16,8 @@ public sealed class PracticeStatisticsCsvExporter : IPracticeStatisticsExporter
 {
     private const string Header =
         "RecordedAt,CharacterWpm,AverageWpm,CharacterCount,ErrorCount," +
-        "ErrorRatePercent,ErrorThresholdPercent,NoiseType,NoiseLevelDb," +
+        "ErrorRatePercent,ErrorThresholdPercent," +
+        "QsbEnabled,QsbDepthDb,QsbPeriodSeconds,NoiseType,NoiseLevelDb," +
         "NoiseBandwidthHz,AgcEnabled,AgcDelaySeconds,AgcMaxGainDb,ApfEnabled,ApfBandwidthHz,ApfPeakGainDb";
 
     public void Write(IEnumerable<PracticeResultStatisticsRecord> records, TextWriter writer)
@@ -39,6 +40,12 @@ public sealed class PracticeStatisticsCsvExporter : IPracticeStatisticsExporter
             writer.Write(r.ErrorRatePercent.ToString(CultureInfo.InvariantCulture));
             writer.Write(',');
             writer.Write(r.ErrorThresholdPercent.ToString(CultureInfo.InvariantCulture));
+            writer.Write(',');
+            writer.Write(r.QsbEnabled ? "1" : "0");
+            writer.Write(',');
+            writer.Write(r.QsbDepthDb.ToString(CultureInfo.InvariantCulture));
+            writer.Write(',');
+            writer.Write(r.QsbPeriodSeconds.ToString(CultureInfo.InvariantCulture));
             writer.Write(',');
             writer.Write(EscapeCsvField(r.NoiseType.ToString()));
             writer.Write(',');

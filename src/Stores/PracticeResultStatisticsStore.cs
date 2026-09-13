@@ -16,7 +16,7 @@ namespace PentaGrammata.Stores;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private const int BusyTimeoutMs = 5000;
 
     private readonly ILogger<PracticeResultStatisticsStore> _logger;
@@ -88,6 +88,9 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         error_count,
                         error_rate_percent,
                         error_threshold_percent,
+                        qsb_enabled,
+                        qsb_depth_db,
+                        qsb_period_seconds,
                         noise_type,
                         noise_level_db,
                         noise_bandwidth_hz,
@@ -114,15 +117,18 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         ErrorCount = reader.GetInt32(4),
                         ErrorRatePercent = reader.GetDouble(5),
                         ErrorThresholdPercent = reader.GetDouble(6),
-                        NoiseType = Enum.Parse<NoiseType>(reader.GetString(7), ignoreCase: true),
-                        NoiseLevelDb = reader.GetDouble(8),
-                        NoiseBandwidthHz = reader.GetDouble(9),
-                        AgcEnabled = reader.GetInt32(10) != 0,
-                        AgcDelaySeconds = reader.GetDouble(11),
-                        AgcMaxGainDb = reader.GetDouble(12),
-                        ApfEnabled = reader.GetInt32(13) != 0,
-                        ApfBandwidthHz = reader.GetDouble(14),
-                        ApfPeakGainDb = reader.GetDouble(15),
+                        QsbEnabled = reader.GetInt32(7) != 0,
+                        QsbDepthDb = reader.GetDouble(8),
+                        QsbPeriodSeconds = reader.GetDouble(9),
+                        NoiseType = Enum.Parse<NoiseType>(reader.GetString(10), ignoreCase: true),
+                        NoiseLevelDb = reader.GetDouble(11),
+                        NoiseBandwidthHz = reader.GetDouble(12),
+                        AgcEnabled = reader.GetInt32(13) != 0,
+                        AgcDelaySeconds = reader.GetDouble(14),
+                        AgcMaxGainDb = reader.GetDouble(15),
+                        ApfEnabled = reader.GetInt32(16) != 0,
+                        ApfBandwidthHz = reader.GetDouble(17),
+                        ApfPeakGainDb = reader.GetDouble(18),
                     });
                 }
 
@@ -235,6 +241,9 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 error_count,
                 error_rate_percent,
                 error_threshold_percent,
+                qsb_enabled,
+                qsb_depth_db,
+                qsb_period_seconds,
                 noise_type,
                 noise_level_db,
                 noise_bandwidth_hz,
@@ -253,6 +262,9 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 $error_count,
                 $error_rate_percent,
                 $error_threshold_percent,
+                $qsb_enabled,
+                $qsb_depth_db,
+                $qsb_period_seconds,
                 $noise_type,
                 $noise_level_db,
                 $noise_bandwidth_hz,
@@ -272,6 +284,9 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$error_count", record.ErrorCount);
         insertCommand.Parameters.AddWithValue("$error_rate_percent", record.ErrorRatePercent);
         insertCommand.Parameters.AddWithValue("$error_threshold_percent", record.ErrorThresholdPercent);
+        insertCommand.Parameters.AddWithValue("$qsb_enabled", record.QsbEnabled ? 1 : 0);
+        insertCommand.Parameters.AddWithValue("$qsb_depth_db", record.QsbDepthDb);
+        insertCommand.Parameters.AddWithValue("$qsb_period_seconds", record.QsbPeriodSeconds);
         insertCommand.Parameters.AddWithValue("$noise_type", record.NoiseType.ToString());
         insertCommand.Parameters.AddWithValue("$noise_level_db", record.NoiseLevelDb);
         insertCommand.Parameters.AddWithValue("$noise_bandwidth_hz", record.NoiseBandwidthHz);
@@ -368,6 +383,9 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     error_count INTEGER NOT NULL,
                     error_rate_percent REAL NOT NULL,
                     error_threshold_percent REAL NOT NULL DEFAULT 0,
+                    qsb_enabled INTEGER NOT NULL DEFAULT 0,
+                    qsb_depth_db REAL NOT NULL DEFAULT 10.0,
+                    qsb_period_seconds REAL NOT NULL DEFAULT 5.0,
                     noise_type TEXT NOT NULL,
                     noise_level_db REAL NOT NULL,
                     noise_bandwidth_hz REAL NOT NULL,
@@ -481,6 +499,44 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 await v3VersionCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            if (currentVersion < 4)
+            {
+                // Add the QSB (signal fading) columns to databases that predate them. The
+                // defaults mark existing rows as recorded without fading, carrying the
+                // settings defaults for depth and period so the columns stay NOT NULL.
+                var existingColumns = await GetColumnNamesAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+
+                var qsbColumns = new (string Name, string Definition)[]
+                {
+                    ("qsb_enabled", "INTEGER NOT NULL DEFAULT 0"),
+                    ("qsb_depth_db", "REAL NOT NULL DEFAULT 10.0"),
+                    ("qsb_period_seconds", "REAL NOT NULL DEFAULT 5.0"),
+                };
+
+                foreach (var (name, definition) in qsbColumns)
+                {
+                    if (existingColumns.Contains(name))
+                    {
+                        continue;
+                    }
+
+                    var addColumnCommand = connection.CreateCommand();
+                    addColumnCommand.Transaction = transaction;
+                    addColumnCommand.CommandText = $"ALTER TABLE practice_result_statistics ADD COLUMN {name} {definition};";
+                    await addColumnCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                var v4VersionCommand = connection.CreateCommand();
+                v4VersionCommand.Transaction = transaction;
+                v4VersionCommand.CommandText =
+                    """
+                    DELETE FROM schema_info;
+                    INSERT INTO schema_info(version) VALUES ($version);
+                    """;
+                v4VersionCommand.Parameters.AddWithValue("$version", CurrentSchemaVersion);
+                await v4VersionCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             _schemaInitialized = true;
         }
@@ -488,5 +544,28 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         {
             _schemaLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Column names currently present on <c>practice_result_statistics</c>. SQLite has no
+    /// "ADD COLUMN IF NOT EXISTS", so a migration step checks here before altering.
+    /// </summary>
+    private static async Task<HashSet<string>> GetColumnNamesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "PRAGMA table_info(practice_result_statistics);";
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            names.Add(reader.GetString(1));
+        }
+
+        return names;
     }
 }

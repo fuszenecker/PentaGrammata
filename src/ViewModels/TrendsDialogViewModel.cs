@@ -24,6 +24,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     private bool _showLimitSeries = true;
     private bool _showNoiseSeries = true;
     private bool _showDailyMaxSeries = true;
+    private bool _showQsbSeries = true;
 
     public event Action? CloseRequested;
 
@@ -76,6 +77,12 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         set => SetProperty(ref _showDailyMaxSeries, value);
     }
 
+    public bool ShowQsbSeries
+    {
+        get => _showQsbSeries;
+        set => SetProperty(ref _showQsbSeries, value);
+    }
+
     public string SummaryText
     {
         get => _summaryText;
@@ -126,6 +133,11 @@ public sealed class TrendsDialogViewModel : ViewModelBase
                 ErrorRatePercent = r.ErrorRatePercent,
                 ErrorThresholdPercent = r.ErrorThresholdPercent,
                 NoiseLevelDb = r.NoiseLevelDb,
+                QsbEnabled = r.QsbEnabled,
+                // NaN for sessions recorded without fading, so the QSB line breaks there
+                // instead of drawing a depth that was never applied.
+                QsbDepthDb = r.QsbEnabled ? r.QsbDepthDb : double.NaN,
+                QsbPeriodSeconds = r.QsbEnabled ? r.QsbPeriodSeconds : double.NaN,
                 DailyMaxWpm = dailyMaxByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var max) ? max : double.NaN,
             })
             .OrderBy(x => x.RecordedAt))

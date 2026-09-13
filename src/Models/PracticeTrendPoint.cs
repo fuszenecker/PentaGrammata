@@ -11,6 +11,21 @@ public sealed class PracticeTrendPoint
     public double ErrorThresholdPercent { get; init; }
     public double NoiseLevelDb { get; init; }
 
+    /// <summary>Whether QSB (signal fading) was active for the session.</summary>
+    public bool QsbEnabled { get; init; }
+
+    /// <summary>
+    /// Deepest fade below full signal strength, in decibels, or <see cref="double.NaN"/>
+    /// when the session ran without QSB. The chart draws this in the noise band, so the
+    /// solid red line breaks across sessions recorded with fading off.
+    /// </summary>
+    public double QsbDepthDb { get; init; }
+
+    /// <summary>
+    /// Fade period, in seconds, or <see cref="double.NaN"/> when the session ran without QSB.
+    /// </summary>
+    public double QsbPeriodSeconds { get; init; }
+
     /// <summary>
     /// The maximum <see cref="AverageWpm"/> reached on <see cref="RecordedAt"/>'s local
     /// day across sessions whose error rate was below their error threshold. This is a

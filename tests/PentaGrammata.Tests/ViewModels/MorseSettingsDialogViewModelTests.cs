@@ -155,6 +155,9 @@ public sealed class MorseSettingsDialogViewModelTests
             ApfEnabled = false,
             ApfBandwidthHz = 100,
             ApfPeakGainDb = -2,
+            QsbEnabled = true,
+            QsbDepthDb = 12,
+            QsbPeriodSeconds = 3.5,
             CharacterSetsText = "Default = ABCDE",
         };
 
@@ -170,6 +173,9 @@ public sealed class MorseSettingsDialogViewModelTests
         Assert.IsFalse(settings.Audio.Noise.ApfEnabled);
         Assert.AreEqual(100, settings.Audio.Noise.ApfBandwidthHz);
         Assert.AreEqual(-2, settings.Audio.Noise.ApfPeakGainDb);
+        Assert.IsTrue(settings.Audio.Noise.QsbEnabled);
+        Assert.AreEqual(12, settings.Audio.Noise.QsbDepthDb);
+        Assert.AreEqual(3.5, settings.Audio.Noise.QsbPeriodSeconds);
     }
 
     [TestMethod]
@@ -187,6 +193,9 @@ public sealed class MorseSettingsDialogViewModelTests
             ApfEnabled = false,
             ApfBandwidthHz = 150,
             ApfPeakGainDb = -1,
+            QsbEnabled = true,
+            QsbDepthDb = 17,
+            QsbPeriodSeconds = 7.25,
         };
 
         var sut = new MorseSettingsDialogViewModel(config, validator);
@@ -200,6 +209,34 @@ public sealed class MorseSettingsDialogViewModelTests
         Assert.IsFalse(sut.ApfEnabled);
         Assert.AreEqual(150, sut.ApfBandwidthHz);
         Assert.AreEqual(-1, sut.ApfPeakGainDb);
+        Assert.IsTrue(sut.QsbEnabled);
+        Assert.AreEqual(17, sut.QsbDepthDb);
+        Assert.AreEqual(7.25, sut.QsbPeriodSeconds);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_QsbDefaultsToDisabledWithHouseDefaults()
+    {
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        {
+            CharacterSetsText = "Default = ABCDE",
+        };
+
+        var success = sut.TryBuildSettings(out var settings);
+
+        Assert.IsTrue(success);
+        Assert.IsFalse(sut.QsbEnabled);
+        Assert.IsFalse(settings.Audio.Noise.QsbEnabled);
+        Assert.AreEqual(10, settings.Audio.Noise.QsbDepthDb);
+        Assert.AreEqual(5, settings.Audio.Noise.QsbPeriodSeconds);
     }
 
     [TestMethod]

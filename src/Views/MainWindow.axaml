@@ -125,6 +125,22 @@
             <Label Grid.Column="0" Grid.Row="2" Content="You received:"
                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,15,10,10"/>
 
+            <!-- Right margin 10 matches the received-text box below, so the two right edges align. -->
+            <Button Grid.Column="3" Grid.Row="2" HorizontalAlignment="Right"
+                VerticalAlignment="Center" Margin="0,15,10,10"
+                Width="30" Height="30" Padding="0" CornerRadius="15"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                ToolTip.Tip="Open the Morse settings dialog (speed, tone, noise &amp; QSB, character sets)."
+                Command="{Binding OpenSettingsCommand}">
+            <!-- Fixed-size vector dots: identical geometry in every state (unlike font glyphs),
+                 and no PathIcon/Shape stretch semantics that render oversized. -->
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Ellipse Width="3" Height="3" Fill="{Binding $parent[Button].Foreground}"/>
+                <Ellipse Width="3" Height="3" Fill="{Binding $parent[Button].Foreground}"/>
+                <Ellipse Width="3" Height="3" Fill="{Binding $parent[Button].Foreground}"/>
+            </StackPanel>
+        </Button>
+
             <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Practice.ReceivedText}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"
                 Padding="8,6" TextWrapping="WrapWithOverflow"

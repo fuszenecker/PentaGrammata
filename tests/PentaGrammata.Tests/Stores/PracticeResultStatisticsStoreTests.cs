@@ -83,6 +83,9 @@ public sealed class PracticeResultStatisticsStoreTests
             ErrorCount = record.ErrorCount,
             ErrorRatePercent = record.ErrorRatePercent,
             ErrorThresholdPercent = 5.0,
+            QsbEnabled = true,
+            QsbDepthDb = 12.5,
+            QsbPeriodSeconds = 7.5,
             NoiseType = record.NoiseType,
             NoiseLevelDb = record.NoiseLevelDb,
             NoiseBandwidthHz = record.NoiseBandwidthHz,
@@ -117,6 +120,9 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.AreEqual(record.ErrorCount, actual.ErrorCount);
         Assert.AreEqual(record.ErrorRatePercent, actual.ErrorRatePercent);
         Assert.AreEqual(record.ErrorThresholdPercent, actual.ErrorThresholdPercent);
+        Assert.AreEqual(record.QsbEnabled, actual.QsbEnabled);
+        Assert.AreEqual(record.QsbDepthDb, actual.QsbDepthDb);
+        Assert.AreEqual(record.QsbPeriodSeconds, actual.QsbPeriodSeconds);
         Assert.AreEqual(record.NoiseType, actual.NoiseType);
         Assert.AreEqual(record.NoiseLevelDb, actual.NoiseLevelDb);
         Assert.AreEqual(record.NoiseBandwidthHz, actual.NoiseBandwidthHz);
@@ -176,7 +182,63 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.AreEqual(0.0, records[0].ErrorThresholdPercent);
         // The v3 migration backfills the AGC max-gain column with the old hardcoded value.
         Assert.AreEqual(18.0, records[0].AgcMaxGainDb);
-        Assert.AreEqual(3L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+        // The v4 migration backfills QSB as off, with the settings defaults behind it.
+        Assert.IsFalse(records[0].QsbEnabled);
+        Assert.AreEqual(10.0, records[0].QsbDepthDb);
+        Assert.AreEqual(5.0, records[0].QsbPeriodSeconds);
+        Assert.AreEqual(4L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+    }
+
+    [TestMethod]
+    public async Task GetStatisticsRecordsAsync_MigratesSchemaVersion3Database()
+    {
+        // A v3 database already has error_threshold_percent, the confusion table and
+        // agc_max_gain_db; only the QSB columns are missing.
+        var databasePath = Path.Combine(_tempDirectory, "practice-results.db");
+        Directory.CreateDirectory(_tempDirectory);
+        await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+        {
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE practice_result_statistics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at TEXT NOT NULL,
+                    character_wpm INTEGER NOT NULL,
+                    average_wpm INTEGER NOT NULL,
+                    character_count INTEGER NOT NULL,
+                    error_count INTEGER NOT NULL,
+                    error_rate_percent REAL NOT NULL,
+                    error_threshold_percent REAL NOT NULL DEFAULT 0,
+                    noise_type TEXT NOT NULL,
+                    noise_level_db REAL NOT NULL,
+                    noise_bandwidth_hz REAL NOT NULL,
+                    agc_enabled INTEGER NOT NULL,
+                    agc_delay_seconds REAL NOT NULL,
+                    agc_max_gain_db REAL NOT NULL DEFAULT 18.0,
+                    apf_enabled INTEGER NOT NULL,
+                    apf_bandwidth_hz REAL NOT NULL,
+                    apf_peak_gain_db REAL NOT NULL
+                );
+                CREATE TABLE schema_info (version INTEGER NOT NULL);
+                INSERT INTO schema_info(version) VALUES (3);
+                INSERT INTO practice_result_statistics VALUES
+                    (1, '1970-01-01T00:00:00.0000000+00:00', 20, 15, 10, 1, 10.0, 5.0,
+                     'Gaussian', -15.0, 500.0, 1, 0.4, 18.0, 1, 120.0, -9.0);
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        var records = await sut.GetStatisticsRecordsAsync();
+
+        Assert.HasCount(1, records);
+        Assert.AreEqual(5.0, records[0].ErrorThresholdPercent);
+        Assert.IsFalse(records[0].QsbEnabled);
+        Assert.AreEqual(10.0, records[0].QsbDepthDb);
+        Assert.AreEqual(5.0, records[0].QsbPeriodSeconds);
+        Assert.AreEqual(4L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
     }
 
     [TestMethod]

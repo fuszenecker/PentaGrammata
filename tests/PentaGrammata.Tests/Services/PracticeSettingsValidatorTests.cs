@@ -162,6 +162,68 @@ public sealed class PracticeSettingsValidatorTests
     }
 
     [TestMethod]
+    public void TryValidate_QsbEnabledWithNonPositiveDepth_ReturnsFalse()
+    {
+        // QSB is a property of the signal, not the receiver chain, so it must be
+        // validated even with the noise type set to None.
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.None;
+        settings.Audio.Noise.QsbEnabled = true;
+        settings.Audio.Noise.QsbDepthDb = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("QSB fade depth must be greater than 0.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_QsbEnabledWithNonPositivePeriod_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.None;
+        settings.Audio.Noise.QsbEnabled = true;
+        settings.Audio.Noise.QsbPeriodSeconds = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        Assert.AreEqual("QSB fade period must be greater than 0.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_QsbEnabledWithNoiseNone_ReturnsTrue()
+    {
+        // Fading with a clean signal is a valid combination: QSB works independently
+        // of the noise chain.
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.Type = NoiseType.None;
+        settings.Audio.Noise.QsbEnabled = true;
+        settings.Audio.Noise.QsbDepthDb = 10;
+        settings.Audio.Noise.QsbPeriodSeconds = 5;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
+    public void TryValidate_QsbDisabledWithBadValues_ReturnsTrue()
+    {
+        // QSB params are only validated when the stage is enabled.
+        var settings = CreateValidSettings();
+        settings.Audio.Noise.QsbEnabled = false;
+        settings.Audio.Noise.QsbDepthDb = 0;
+        settings.Audio.Noise.QsbPeriodSeconds = 0;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, error);
+    }
+
+    [TestMethod]
     public void TryValidate_DefaultCharacterSetNotConfigured_ReturnsFalse()
     {
         var settings = CreateValidSettings();

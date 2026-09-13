@@ -86,6 +86,23 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             }
         }
 
+        // QSB is a property of the signal, not the receiver chain, so it is validated
+        // independently of the noise type.
+        if (settings.Audio.Noise.QsbEnabled)
+        {
+            if (settings.Audio.Noise.QsbDepthDb <= 0)
+            {
+                error = "QSB fade depth must be greater than 0.";
+                return false;
+            }
+
+            if (settings.Audio.Noise.QsbPeriodSeconds <= 0)
+            {
+                error = "QSB fade period must be greater than 0.";
+                return false;
+            }
+        }
+
         if (settings.Practice.ErrorThreshold < 0 || settings.Practice.ErrorThreshold > 100)
         {
             error = "Error rate threshold must be between 0 and 100.";

@@ -223,6 +223,9 @@ public sealed class ConfigurationServiceTests
                     ApfEnabled = false,
                     ApfBandwidthHz = 70,
                     ApfPeakGainDb = -4,
+                    QsbEnabled = true,
+                    QsbDepthDb = 11,
+                    QsbPeriodSeconds = 4.5,
                 },
             },
             CharacterSets = new CharacterSets
@@ -255,6 +258,9 @@ public sealed class ConfigurationServiceTests
         Assert.IsFalse(sut.Current.Audio.Noise.ApfEnabled);
         Assert.AreEqual(70, sut.Current.Audio.Noise.ApfBandwidthHz);
         Assert.AreEqual(-4, sut.Current.Audio.Noise.ApfPeakGainDb);
+        Assert.IsTrue(sut.Current.Audio.Noise.QsbEnabled);
+        Assert.AreEqual(11, sut.Current.Audio.Noise.QsbDepthDb);
+        Assert.AreEqual(4.5, sut.Current.Audio.Noise.QsbPeriodSeconds);
         Assert.HasCount(1, sut.Current.CharacterSets);
         Assert.AreEqual("ABCDE", sut.Current.CharacterSets["Custom"]);
         await store.Received(1).SaveAsync(Arg.Any<AppConfig>());

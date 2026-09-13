@@ -10,10 +10,11 @@ using PentaGrammata.Services;
 
 namespace PentaGrammata.Players;
 
-public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseGeneratorFactory) : IMorsePlayer
+public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseGeneratorFactory, Random? random = null) : IMorsePlayer
 {
     private readonly IAudioPlayer _audioPlayer = audioPlayer;
     private readonly INoiseGeneratorFactory _noiseGeneratorFactory = noiseGeneratorFactory;
+    private readonly Random _random = random ?? new Random();
 
     public async Task PlayMorseCodeAsync(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken)
     {
@@ -146,6 +147,16 @@ public class MorsePlayer(IAudioPlayer audioPlayer, INoiseGeneratorFactory noiseG
             audioData.AddRange(GenerateSilence(sampleRate, interCharMs));
 
         var samples = audioData.ToArray();
+
+        if (settings.QsbEnabled)
+        {
+            // QSB rides on the signal itself, before the receiver chain: it works with the
+            // noise off, and the downstream AGC reacts to the fade the way a real rig would.
+            // A fresh fader per buffer keeps the singleton player stateless across playbacks
+            // and lets every message start at full strength.
+            new QsbFader(settings.QsbDepthDb, settings.QsbPeriodSeconds, sampleRate, _random).Apply(samples);
+        }
+
         ApplyReceiverChain(samples, settings);
         return samples;
     }

@@ -34,6 +34,9 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Audio.Noise.ApfEnabled, clone.Audio.Noise.ApfEnabled);
         Assert.AreEqual(original.Audio.Noise.ApfBandwidthHz, clone.Audio.Noise.ApfBandwidthHz);
         Assert.AreEqual(original.Audio.Noise.ApfPeakGainDb, clone.Audio.Noise.ApfPeakGainDb);
+        Assert.AreEqual(original.Audio.Noise.QsbEnabled, clone.Audio.Noise.QsbEnabled);
+        Assert.AreEqual(original.Audio.Noise.QsbDepthDb, clone.Audio.Noise.QsbDepthDb);
+        Assert.AreEqual(original.Audio.Noise.QsbPeriodSeconds, clone.Audio.Noise.QsbPeriodSeconds);
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontFamily, clone.UiPreferences.ReceivedTextFontFamily);
         Assert.AreEqual(original.UiPreferences.ReceivedTextFontSize, clone.UiPreferences.ReceivedTextFontSize);
         Assert.AreEqual(original.UiPreferences.RevealSentTextAfterPractice, clone.UiPreferences.RevealSentTextAfterPractice);
@@ -134,6 +137,9 @@ public sealed class AppConfigurationCloneTests
                     ApfEnabled = false,
                     ApfBandwidthHz = 90,
                     ApfPeakGainDb = -6,
+                    QsbEnabled = true,
+                    QsbDepthDb = 13,
+                    QsbPeriodSeconds = 2.5,
                 },
             },
             CharacterSets = new CharacterSets

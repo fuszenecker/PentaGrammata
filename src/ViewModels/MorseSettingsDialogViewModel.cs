@@ -92,6 +92,15 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private double apfPeakGainDb;
 
     [ObservableProperty]
+    private bool qsbEnabled;
+
+    [ObservableProperty]
+    private double qsbDepthDb;
+
+    [ObservableProperty]
+    private double qsbPeriodSeconds;
+
+    [ObservableProperty]
     private double errorThreshold;
 
     /// <summary>
@@ -145,6 +154,9 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         ApfEnabled = config.Audio.Noise.ApfEnabled;
         ApfBandwidthHz = config.Audio.Noise.ApfBandwidthHz;
         ApfPeakGainDb = config.Audio.Noise.ApfPeakGainDb;
+        QsbEnabled = config.Audio.Noise.QsbEnabled;
+        QsbDepthDb = config.Audio.Noise.QsbDepthDb;
+        QsbPeriodSeconds = config.Audio.Noise.QsbPeriodSeconds;
         ErrorThreshold = config.Practice.ErrorThreshold;
         AutoAdjustWpm = config.Practice.AutoAdjustWpm;
         AutoAdjustWindowSize = config.Practice.AutoAdjustWindowSize;
@@ -236,6 +248,9 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                     ApfEnabled = ApfEnabled,
                     ApfBandwidthHz = ApfBandwidthHz,
                     ApfPeakGainDb = ApfPeakGainDb,
+                    QsbEnabled = QsbEnabled,
+                    QsbDepthDb = QsbDepthDb,
+                    QsbPeriodSeconds = QsbPeriodSeconds,
                 },
             },
             CharacterSets = characterSets,
