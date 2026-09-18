@@ -102,7 +102,7 @@
                            HorizontalAlignment="Center" Foreground="#9aa0a6"/>
                 <TextBlock Text="{Binding CopyrightText}" TextAlignment="Center"
                            HorizontalAlignment="Center" Foreground="#9aa0a6"/>
-                <TextBlock Text="MIT licensed — see the LICENSE file for details." TextAlignment="Center"
+                <TextBlock Text="MIT licensed — see the LICENSE file for details. 𓂀" TextAlignment="Center"
                            HorizontalAlignment="Center" Foreground="#9aa0a6"/>
             </StackPanel>
         </Border>
