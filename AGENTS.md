@@ -27,6 +27,8 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 - A session is marked **successful** when `ErrorRatePercent ≤ ErrorThreshold` (default 5 %).
 - A side-by-side diff of sent vs. received groups is displayed in the results window.
 - Every session result (WPM settings, character count, error count, error rate) is persisted to a **SQLite database** (`practice-results.db`) in the per-user config directory.
+- The **Trends** dialog charts every saved session (character and average speed, error rate and threshold, SNR, QSB depth) and exports the same records to CSV.
+- The chart's shaded yellow band is the **daily speed range**: for each local calendar day, the lowest and the highest `AverageWpm` among that day's sessions whose error rate stayed below their own error threshold (`PracticeTrendPoint.DailyMinWpm` / `DailyMaxWpm`). Both ends are `NaN` on days where no session passed, and the band breaks across those days.
 
 ### Auto-adjusting WPM
 

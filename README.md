@@ -13,6 +13,7 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 - Ionospheric QSB (signal fading) with adjustable fade depth and period
 - Timed practice sessions with a live countdown
 - Accuracy scoring with per-group diff output and a configurable error-rate threshold
+- Performance trends over saved sessions, exportable to CSV: character and average speed, error rate and threshold, SNR and QSB depth, plus a shaded daily speed range band spanning the lowest to the highest average WPM among that day's sessions that stayed under their error threshold
 - Optional auto-adjusting WPM: after each scored session the practice speed slows down when recent errors are high and speeds up when they are low (driven by the average error rate of the last N sessions); the dynamic WPM is kept in memory only and restarts from the configured WPM on each app start
 - Fully configurable: tone frequency, volume, sample rate, WPM, session duration, and character set
 - Settings are persisted across sessions

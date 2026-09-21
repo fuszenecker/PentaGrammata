@@ -32,8 +32,8 @@ public sealed class TrendsTimelineChart : Control
     public static readonly StyledProperty<bool> ShowNoiseSeriesProperty =
         AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowNoiseSeries), true);
 
-    public static readonly StyledProperty<bool> ShowDailyMaxSeriesProperty =
-        AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowDailyMaxSeries), true);
+    public static readonly StyledProperty<bool> ShowDailyRangeSeriesProperty =
+        AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowDailyRangeSeries), true);
 
     public static readonly StyledProperty<bool> ShowQsbSeriesProperty =
         AvaloniaProperty.Register<TrendsTimelineChart, bool>(nameof(ShowQsbSeries), true);
@@ -55,6 +55,10 @@ public sealed class TrendsTimelineChart : Control
     // four times the vertical resolution.
     private const double PercentMax = 25;
 
+    // Hairline height, in pixels, the daily band keeps when a day's passing minimum equals its
+    // maximum, so a day with a single passing session is still visible instead of collapsing.
+    private const double MinDailyBandThickness = 1.5;
+
     // Full-scale QSB fade depth for the noise band, matching the settings dialog's maximum.
     // Fixed rather than data-derived so the line's height is comparable across zoom levels.
     private const double QsbDepthScaleDb = 40;
@@ -73,7 +77,7 @@ public sealed class TrendsTimelineChart : Control
     // longer read as the same color.
     private static readonly Color CharacterColor = Color.Parse("#DC2626");
     private static readonly Color AverageColor = Color.Parse("#3987E5");
-    private static readonly Color DailyMaxFillColor = Color.FromArgb(28, 250, 204, 21);
+    private static readonly Color DailyRangeFillColor = Color.FromArgb(28, 250, 204, 21);
     private static readonly Color ErrorColor = Color.Parse("#E66767");
     private static readonly Color LimitColor = Color.Parse("#C98500");
     private static readonly Color NoiseColor = Color.Parse("#008300");
@@ -118,10 +122,10 @@ public sealed class TrendsTimelineChart : Control
         set => SetValue(ShowNoiseSeriesProperty, value);
     }
 
-    public bool ShowDailyMaxSeries
+    public bool ShowDailyRangeSeries
     {
-        get => GetValue(ShowDailyMaxSeriesProperty);
-        set => SetValue(ShowDailyMaxSeriesProperty, value);
+        get => GetValue(ShowDailyRangeSeriesProperty);
+        set => SetValue(ShowDailyRangeSeriesProperty, value);
     }
 
     public bool ShowQsbSeries
@@ -177,7 +181,7 @@ public sealed class TrendsTimelineChart : Control
 
         DrawAxes(context, chartRect);
         DrawSpeedSeries(context, chartRect, visible);
-        DrawDailyMaxSeries(context, chartRect, visible);
+        DrawDailyRangeSeries(context, chartRect, visible);
         DrawPercentSeries(context, chartRect, visible);
         DrawNoiseBand(context, noiseRect, visible);
         DrawQsbSeries(context, noiseRect, visible);
@@ -302,7 +306,7 @@ public sealed class TrendsTimelineChart : Control
             || change.Property == ShowErrorSeriesProperty
             || change.Property == ShowLimitSeriesProperty
             || change.Property == ShowNoiseSeriesProperty
-            || change.Property == ShowDailyMaxSeriesProperty
+            || change.Property == ShowDailyRangeSeriesProperty
             || change.Property == ShowQsbSeriesProperty)
         {
             InvalidateVisual();
@@ -316,7 +320,7 @@ public sealed class TrendsTimelineChart : Control
             || ShowErrorSeries
             || ShowLimitSeries
             || ShowNoiseSeries
-            || ShowDailyMaxSeries
+            || ShowDailyRangeSeries
             || ShowQsbSeries;
     }
 
@@ -373,9 +377,9 @@ public sealed class TrendsTimelineChart : Control
         }
     }
 
-    private void DrawDailyMaxSeries(DrawingContext context, Rect chartRect, IReadOnlyList<PracticeTrendPoint> visible)
+    private void DrawDailyRangeSeries(DrawingContext context, Rect chartRect, IReadOnlyList<PracticeTrendPoint> visible)
     {
-        if (!ShowDailyMaxSeries)
+        if (!ShowDailyRangeSeries)
         {
             return;
         }
@@ -388,53 +392,64 @@ public sealed class TrendsTimelineChart : Control
 
         var range = Math.Max(0.001, speedMax);
 
-        // The daily max is a per-day value repeated on every session of the day, so the
-        // fill's top edge traces every daily value as a step. NaN marks days with no
-        // passing session; the fill breaks there, so each contiguous run of valid points
-        // becomes its own shaded lobe. Every point in the run is included so the top edge
-        // follows the real daily-max profile rather than a straight line run-start→run-end.
+        // Daily max and daily min are per-day values repeated on every session of the day, so
+        // the band's top and bottom edges each trace their daily value as a step. NaN marks
+        // days with no passing session; the band breaks there, so each contiguous run of valid
+        // points becomes its own shaded lobe. Every point in the run is included so both edges
+        // follow the real daily profile rather than a straight line run-start→run-end.
         var fillGeometry = new StreamGeometry();
         using (var fillGc = fillGeometry.Open())
         {
-            var runPoints = new List<Point>();
+            var topPoints = new List<Point>();
+            var bottomPoints = new List<Point>();
             for (var i = 0; i < visible.Count; i++)
             {
-                var value = visible[i].DailyMaxWpm;
-                if (double.IsNaN(value))
+                var max = visible[i].DailyMaxWpm;
+                var min = visible[i].DailyMinWpm;
+                if (double.IsNaN(max) || double.IsNaN(min))
                 {
-                    CloseFillRun(fillGc, chartRect, runPoints);
-                    runPoints.Clear();
+                    CloseFillRun(fillGc, topPoints, bottomPoints);
+                    topPoints.Clear();
+                    bottomPoints.Clear();
                     continue;
                 }
 
                 var x = chartRect.Left + (double)i / Math.Max(1, visible.Count - 1) * chartRect.Width;
-                var normalized = Math.Clamp(value / range, 0, 1);
-                var y = chartRect.Bottom - normalized * chartRect.Height;
-                runPoints.Add(new Point(x, y));
+                topPoints.Add(new Point(x, chartRect.Bottom - Math.Clamp(max / range, 0, 1) * chartRect.Height));
+                bottomPoints.Add(new Point(x, chartRect.Bottom - Math.Clamp(min / range, 0, 1) * chartRect.Height));
             }
 
-            CloseFillRun(fillGc, chartRect, runPoints);
+            CloseFillRun(fillGc, topPoints, bottomPoints);
         }
 
-        context.DrawGeometry(new SolidColorBrush(DailyMaxFillColor), null, fillGeometry);
+        context.DrawGeometry(new SolidColorBrush(DailyRangeFillColor), null, fillGeometry);
     }
 
-    private static void CloseFillRun(StreamGeometryContext gc, Rect chartRect, List<Point> runPoints)
+    private static void CloseFillRun(StreamGeometryContext gc, List<Point> topPoints, List<Point> bottomPoints)
     {
-        if (runPoints.Count == 0)
+        if (topPoints.Count == 0)
         {
             return;
         }
 
-        // Fill down to the baseline so each gap-free run reads as its own shaded area:
-        // baseline → first point → …every daily point… → last point → baseline.
-        gc.BeginFigure(new Point(runPoints[0].X, chartRect.Bottom), true);
-        foreach (var p in runPoints)
+        // Each gap-free run is one closed ribbon: along the daily maxima left→right, then back
+        // along the daily minima right→left.
+        // A day whose only passing session is also its fastest has min == max, which would
+        // collapse the ribbon to an invisible zero-height line, so the lower edge is pushed
+        // down by a hairline to keep such a day on screen.
+        gc.BeginFigure(topPoints[0], true);
+        for (var i = 1; i < topPoints.Count; i++)
         {
-            gc.LineTo(p);
+            gc.LineTo(topPoints[i]);
         }
 
-        gc.LineTo(new Point(runPoints[^1].X, chartRect.Bottom));
+        for (var i = bottomPoints.Count - 1; i >= 0; i--)
+        {
+            var bottom = bottomPoints[i];
+            var y = Math.Max(bottom.Y, topPoints[i].Y + MinDailyBandThickness);
+            gc.LineTo(new Point(bottom.X, y));
+        }
+
         gc.EndFigure(true);
     }
 
@@ -718,11 +733,11 @@ public sealed class TrendsTimelineChart : Control
             lines.Add($"Average speed: {point.AverageWpm:0.##} WPM");
         }
 
-        if (ShowDailyMaxSeries)
+        if (ShowDailyRangeSeries)
         {
-            lines.Add(double.IsNaN(point.DailyMaxWpm)
-                ? "Daily max: no passing session"
-                : $"Daily max: {point.DailyMaxWpm:0.##} WPM");
+            lines.Add(double.IsNaN(point.DailyMaxWpm) || double.IsNaN(point.DailyMinWpm)
+                ? "Daily range: no passing session"
+                : $"Daily range: {point.DailyMinWpm:0.##} to {point.DailyMaxWpm:0.##} WPM");
         }
 
         if (ShowErrorSeries)

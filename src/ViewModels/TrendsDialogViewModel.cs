@@ -23,7 +23,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     private bool _showErrorSeries = true;
     private bool _showLimitSeries = true;
     private bool _showNoiseSeries = true;
-    private bool _showDailyMaxSeries = true;
+    private bool _showDailyRangeSeries = true;
     private bool _showQsbSeries = true;
 
     public event Action? CloseRequested;
@@ -71,10 +71,10 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         set => SetProperty(ref _showNoiseSeries, value);
     }
 
-    public bool ShowDailyMaxSeries
+    public bool ShowDailyRangeSeries
     {
-        get => _showDailyMaxSeries;
-        set => SetProperty(ref _showDailyMaxSeries, value);
+        get => _showDailyRangeSeries;
+        set => SetProperty(ref _showDailyRangeSeries, value);
     }
 
     public bool ShowQsbSeries
@@ -113,16 +113,22 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         Points.Clear();
         _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(false);
 
-        // Daily-max speed: for each local calendar day, take the highest AverageWpm among
-        // sessions whose error rate stayed below their error threshold. Days with no such
-        // session map to NaN so the chart can break the dashed line across them.
-        var dailyMaxByDay = _records
+        // Daily speed range: for each local calendar day, the highest and the lowest
+        // AverageWpm among sessions whose error rate stayed below their error threshold. Both
+        // ends come from the same passing set, so the chart can shade the day's range instead
+        // of filling down to zero. Days with no passing session map to NaN on both ends so the
+        // shading breaks across them.
+        var dailyRangeByDay = _records
             .GroupBy(r => r.RecordedAt.ToLocalTime().Date)
             .ToDictionary(
                 g => g.Key,
-                g => g.Any(r => r.ErrorRatePercent < r.ErrorThresholdPercent)
-                    ? g.Where(r => r.ErrorRatePercent < r.ErrorThresholdPercent).Max(r => (double)r.AverageWpm)
-                    : double.NaN);
+                g =>
+                {
+                    var passing = g.Where(r => r.ErrorRatePercent < r.ErrorThresholdPercent).ToArray();
+                    return passing.Length == 0
+                        ? (Min: double.NaN, Max: double.NaN)
+                        : (Min: passing.Min(r => (double)r.AverageWpm), Max: passing.Max(r => (double)r.AverageWpm));
+                });
 
         foreach (var point in _records
             .Select(r => new PracticeTrendPoint
@@ -138,7 +144,8 @@ public sealed class TrendsDialogViewModel : ViewModelBase
                 // instead of drawing a depth that was never applied.
                 QsbDepthDb = r.QsbEnabled ? r.QsbDepthDb : double.NaN,
                 QsbPeriodSeconds = r.QsbEnabled ? r.QsbPeriodSeconds : double.NaN,
-                DailyMaxWpm = dailyMaxByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var max) ? max : double.NaN,
+                DailyMaxWpm = dailyRangeByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var range) ? range.Max : double.NaN,
+                DailyMinWpm = dailyRangeByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var sameRange) ? sameRange.Min : double.NaN,
             })
             .OrderBy(x => x.RecordedAt))
         {

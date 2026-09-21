@@ -23,10 +23,10 @@
                     <TextBlock Text="Average speed" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
-            <CheckBox IsChecked="{Binding ShowDailyMaxSeries}">
+            <CheckBox IsChecked="{Binding ShowDailyRangeSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Width="14" Height="8" CornerRadius="2" Background="#FACC15" Opacity="0.5" VerticalAlignment="Center"/>
-                    <TextBlock Text="Daily max speed" VerticalAlignment="Center"/>
+                    <TextBlock Text="Daily speed range" VerticalAlignment="Center"/>
                 </StackPanel>
             </CheckBox>
             <CheckBox IsChecked="{Binding ShowErrorSeries}">
@@ -59,7 +59,7 @@
                                       Items="{Binding Points}"
                                       ShowCharacterSeries="{Binding ShowCharacterSeries}"
                                       ShowAverageSeries="{Binding ShowAverageSeries}"
-                                      ShowDailyMaxSeries="{Binding ShowDailyMaxSeries}"
+                                      ShowDailyRangeSeries="{Binding ShowDailyRangeSeries}"
                                       ShowErrorSeries="{Binding ShowErrorSeries}"
                                       ShowLimitSeries="{Binding ShowLimitSeries}"
                                       ShowNoiseSeries="{Binding ShowNoiseSeries}"

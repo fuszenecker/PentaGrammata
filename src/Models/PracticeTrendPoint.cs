@@ -29,9 +29,18 @@ public sealed class PracticeTrendPoint
     /// <summary>
     /// The maximum <see cref="AverageWpm"/> reached on <see cref="RecordedAt"/>'s local
     /// day across sessions whose error rate was below their error threshold. This is a
-    /// per-day aggregate repeated on every session of the day so the daily-max line can
+    /// per-day aggregate repeated on every session of the day so the band's upper edge can
     /// align with the session-indexed x-axis. <see cref="double.NaN"/> when no session on
-    /// that day cleared the error threshold — the dashed line breaks (gaps) there.
+    /// that day cleared the error threshold, and the shading breaks (gaps) there.
     /// </summary>
     public double DailyMaxWpm { get; init; }
+
+    /// <summary>
+    /// The minimum <see cref="AverageWpm"/> reached on <see cref="RecordedAt"/>'s local day
+    /// across sessions whose error rate was below their error threshold, computed exactly like
+    /// <see cref="DailyMaxWpm"/> but taking the minimum. It forms the lower edge of the shaded
+    /// daily band, so the band spans the day's passing range instead of starting at zero.
+    /// <see cref="double.NaN"/> on the same days <see cref="DailyMaxWpm"/> is NaN.
+    /// </summary>
+    public double DailyMinWpm { get; init; }
 }
