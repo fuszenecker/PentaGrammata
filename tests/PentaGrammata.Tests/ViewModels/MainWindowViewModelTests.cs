@@ -192,6 +192,7 @@ public sealed class MainWindowViewModelTests
             aboutDialogService ?? Substitute.For<IAboutDialogService>(),
             Substitute.For<ITrendsDialogService>(),
             confusionsDialogService ?? Substitute.For<IConfusionsDialogService>(),
+            Substitute.For<ICorrelationDialogService>(),
             Substitute.For<IUpdateChecker>(),
             Substitute.For<IInfoDialogService>(),
             practice,

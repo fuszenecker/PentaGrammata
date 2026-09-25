@@ -58,6 +58,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDynamicWpmAdjuster, DynamicWpmAdjuster>();
             services.AddSingleton<IPracticeResultStatisticsService, PracticeResultStatisticsService>();
             services.AddSingleton<IConfusionAnalysisService, ConfusionAnalysisService>();
+            services.AddSingleton<ICorrelationAnalysisService, CorrelationAnalysisService>();
             services.AddSingleton<IPracticeStatisticsExporter, PracticeStatisticsCsvExporter>();
             services.AddSingleton<IPracticeController, PracticeController>();
             services.AddSingleton<IInfoDialogService, InfoDialogService>();
@@ -67,6 +68,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IAboutDialogService, AboutDialogService>();
             services.AddSingleton<ITrendsDialogService, TrendsDialogService>();
             services.AddSingleton<IConfusionsDialogService, ConfusionsDialogService>();
+            services.AddSingleton<ICorrelationDialogService, CorrelationDialogService>();
         }
 
         /// <summary>

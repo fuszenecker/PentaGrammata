@@ -30,4 +30,6 @@ public interface IDialogViewModelFactory
     TrendsDialogViewModel CreateTrends();
 
     ConfusionsDialogViewModel CreateConfusions();
+
+    CorrelationDialogViewModel CreateCorrelation();
 }

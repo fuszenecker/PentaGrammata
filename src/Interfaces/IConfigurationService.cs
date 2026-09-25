@@ -75,6 +75,11 @@ public interface IConfigurationService
     void SetConfusionsHalfLife(double days);
 
     /// <summary>
+    /// Sets the correlation analysis window (days) and persists if it changed.
+    /// </summary>
+    void SetCorrelationWindowDays(double days);
+
+    /// <summary>
     /// Inserts or replaces a named character set and selects it, awaiting persistence.
     /// Used by "Practice confusions" to publish the generated set.
     /// </summary>

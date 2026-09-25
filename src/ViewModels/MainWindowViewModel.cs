@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IAboutDialogService _aboutDialogService;
     private readonly ITrendsDialogService _trendsDialogService;
     private readonly IConfusionsDialogService _confusionsDialogService;
+    private readonly ICorrelationDialogService _correlationDialogService;
     private readonly IUpdateChecker _updateChecker;
     private readonly IInfoDialogService _infoDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
@@ -42,6 +43,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand OpenAboutCommand { get; }
     public IAsyncRelayCommand OpenTrendsCommand { get; }
     public IAsyncRelayCommand OpenConfusionsCommand { get; }
+    public IAsyncRelayCommand OpenCorrelationCommand { get; }
     public IAsyncRelayCommand CheckUpdatesCommand { get; }
 
     [ObservableProperty]
@@ -64,6 +66,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IAboutDialogService aboutDialogService,
         ITrendsDialogService trendsDialogService,
         IConfusionsDialogService confusionsDialogService,
+        ICorrelationDialogService correlationDialogService,
         IUpdateChecker updateChecker,
         IInfoDialogService infoDialogService,
         PracticeViewModel practice,
@@ -76,6 +79,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _aboutDialogService = aboutDialogService;
         _trendsDialogService = trendsDialogService;
         _confusionsDialogService = confusionsDialogService;
+        _correlationDialogService = correlationDialogService;
         _updateChecker = updateChecker;
         _infoDialogService = infoDialogService;
         _logger = logger;
@@ -90,6 +94,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         OpenTrendsCommand = new AsyncRelayCommand(OpenTrendsAsync);
         OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
+        OpenCorrelationCommand = new AsyncRelayCommand(OpenCorrelationAsync);
         CheckUpdatesCommand = new AsyncRelayCommand(CheckUpdatesAsync);
     }
 
@@ -163,6 +168,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         await _confusionsDialogService.ShowConfusionsAsync();
         RefreshCharacterSets();
+    }
+
+    public Task OpenCorrelationAsync()
+    {
+        return _correlationDialogService.ShowCorrelationAsync();
     }
 
     /// <summary>

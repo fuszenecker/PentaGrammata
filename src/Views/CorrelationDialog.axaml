@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PentaGrammata.ViewModels"
+        xmlns:controls="using:PentaGrammata.Views.Controls"
+        x:Class="PentaGrammata.Views.CorrelationDialog"
+        x:DataType="vm:CorrelationDialogViewModel"
+        Width="820" Height="580"
+        MinWidth="620" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Title="Speed and Error Correlation">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Analysis window (days)" VerticalAlignment="Center"
+                           ToolTip.Tip="Only sessions recorded within this many days are correlated."/>
+                <NumericUpDown Width="130"
+                               Minimum="{Binding MinWindowDays}"
+                               Maximum="{Binding MaxWindowDays}"
+                               Increment="1"
+                               FormatString="0"
+                               Value="{Binding WindowDays}"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse Width="10" Height="10" Fill="#3987E5" VerticalAlignment="Center"/>
+                <TextBlock Text="Session" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Border Width="14" Height="3" CornerRadius="2" Background="#C98500" VerticalAlignment="Center"/>
+                <TextBlock Text="Linear fit" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        ToolTip.Tip="One residual standard deviation either side of the fit: roughly two thirds of sessions land inside it.">
+                <Border Width="14" Height="11" CornerRadius="2" Background="#C98500" Opacity="0.28" VerticalAlignment="Center"/>
+                <TextBlock Text="±1 σ" VerticalAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
+
+        <controls:CorrelationScatterChart Grid.Row="1"
+                                          Correlation="{Binding Correlation}"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"/>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding SummaryText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"/>
+
+            <Button Grid.Column="1"
+                    Content="Close"
+                    MinWidth="100"
+                    IsDefault="True"
+                    Command="{Binding CloseCommand}"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Background="#1D4ED8"
+                    Foreground="White"/>
+        </Grid>
+    </Grid>
+</Window>

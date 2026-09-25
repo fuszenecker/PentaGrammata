@@ -28,6 +28,7 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 - A side-by-side diff of sent vs. received groups is displayed in the results window.
 - Every session result (WPM settings, character count, error count, error rate) is persisted to a **SQLite database** (`practice-results.db`) in the per-user config directory.
 - The **Trends** dialog charts every saved session (character and average speed, error rate and threshold, SNR, QSB depth) and exports the same records to CSV.
+- The **Correlation** dialog plots one dot per session inside a rolling analysis window (`Analytics.CorrelationWindowDays`, persisted, default 10): average WPM on the horizontal axis, error rate percent on the vertical axis. `CorrelationAnalysisService` fits the least-squares line of error rate on average speed and reports the Pearson coefficient; the dialog shows the line, r, R² and the slope in percent per WPM. `SpeedErrorCorrelation.HasFit` is false (no line drawn) when the window holds fewer than two sessions or when every session shares one speed or one error rate, because the fit is then undefined.
 - The chart's shaded yellow band is the **daily speed range**: for each local calendar day, the lowest and the highest `AverageWpm` among that day's sessions whose error rate stayed below their own error threshold (`PracticeTrendPoint.DailyMinWpm` / `DailyMaxWpm`). Both ends are `NaN` on days where no session passed, and the band breaks across those days.
 
 ### Auto-adjusting WPM

@@ -178,6 +178,17 @@ public sealed class ConfigurationService : IConfigurationService
         RequestSave();
     }
 
+    public void SetCorrelationWindowDays(double days)
+    {
+        if (Current.Analytics.CorrelationWindowDays == days)
+        {
+            return;
+        }
+
+        Current.Analytics.CorrelationWindowDays = days;
+        RequestSave();
+    }
+
     public Task UpsertCharacterSetAndSelectAsync(string name, string characters)
     {
         Current.CharacterSets[name] = characters;

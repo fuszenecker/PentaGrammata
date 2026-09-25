@@ -88,6 +88,10 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Speed versus error correlation with a linear fit over a rolling window"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
                         <TextBlock Grid.Column="1" Text="Update check against the latest GitHub release"/>
                     </Grid>
                 </StackPanel>
