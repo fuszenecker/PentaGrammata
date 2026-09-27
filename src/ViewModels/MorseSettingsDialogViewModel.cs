@@ -229,7 +229,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         var report = _headroomAnalyzer.Analyze(MorsePlaybackSettings.From(BuildAudio(), CharacterWpm, AverageWpm));
 
         DistortionWarning = report.WillClip
-            ? $"⚠ Distortion: peaks {report.PeakDbFs:+0.#;-0.#} dB over full scale, {FormatPercent(report.ClippedSampleRatio)} of samples clipped."
+            ? $"⚠ Distortion: peaks {report.PeakDbFs:+0.#;-0.#} dB over FS, {FormatPercent(report.ClippedSampleRatio)} of samples clipped."
             : string.Empty;
     }
 
