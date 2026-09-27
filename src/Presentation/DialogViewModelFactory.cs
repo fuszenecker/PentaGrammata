@@ -9,6 +9,7 @@ namespace PentaGrammata.Presentation;
 public sealed class DialogViewModelFactory : IDialogViewModelFactory
 {
     private readonly IPracticeSettingsValidator _settingsValidator;
+    private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
     private readonly IConfusionAnalysisService _confusionAnalysisService;
@@ -18,6 +19,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public DialogViewModelFactory(
         IPracticeSettingsValidator settingsValidator,
+        IAudioHeadroomAnalyzer headroomAnalyzer,
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
         IConfusionAnalysisService confusionAnalysisService,
@@ -26,6 +28,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
+        _headroomAnalyzer = headroomAnalyzer;
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
         _confusionAnalysisService = confusionAnalysisService;
@@ -36,7 +39,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public MorseSettingsDialogViewModel CreateMorseSettings(AppConfig currentSettings)
     {
-        return new MorseSettingsDialogViewModel(currentSettings, _settingsValidator);
+        return new MorseSettingsDialogViewModel(currentSettings, _settingsValidator, _headroomAnalyzer);
     }
 
     public PracticeResultWindowViewModel CreatePracticeResult(

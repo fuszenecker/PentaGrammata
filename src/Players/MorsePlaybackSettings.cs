@@ -56,4 +56,30 @@ public sealed record MorsePlaybackSettings
 
     /// <summary>Fade period, in seconds; larger = slower fading.</summary>
     public double QsbPeriodSeconds { get; init; } = 5.0;
+
+    /// <summary>
+    /// Maps the audio configuration plus the speeds actually in use onto playback settings, so
+    /// playback and the headroom analysis cannot drift apart on how a setting is carried over.
+    /// </summary>
+    public static MorsePlaybackSettings From(Audio audio, int characterWpm, int averageWpm) => new()
+    {
+        CharacterWpm = characterWpm,
+        AverageWpm = averageWpm,
+        SampleRate = audio.SampleRate,
+        Frequency = audio.Frequency,
+        VolumeDb = audio.VolumeDb,
+        BeepRampMs = audio.BeepRampMs,
+        NoiseType = audio.Noise.Type,
+        NoiseLevelDb = audio.Noise.LevelDb,
+        NoiseBandwidthHz = audio.Noise.BandwidthHz,
+        AgcEnabled = audio.Noise.AgcEnabled,
+        AgcDelaySeconds = audio.Noise.AgcDelaySeconds,
+        AgcMaxGainDb = audio.Noise.AgcMaxGainDb,
+        ApfEnabled = audio.Noise.ApfEnabled,
+        ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
+        ApfPeakGainDb = audio.Noise.ApfPeakGainDb,
+        QsbEnabled = audio.Noise.QsbEnabled,
+        QsbDepthDb = audio.Noise.QsbDepthDb,
+        QsbPeriodSeconds = audio.Noise.QsbPeriodSeconds,
+    };
 }

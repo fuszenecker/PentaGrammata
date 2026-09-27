@@ -8,14 +8,42 @@ using CommunityToolkit.Mvvm.Input;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Players;
 
 namespace PentaGrammata.ViewModels;
 
 public partial class MorseSettingsDialogViewModel : ViewModelBase
 {
+    /// <summary>
+    /// Properties that feed the audio signal chain: changing any of them can change how close
+    /// playback runs to full scale, so the distortion warning is recomputed.
+    /// </summary>
+    private static readonly HashSet<string> AudioChainPropertyNames =
+    [
+        nameof(CharacterWpm),
+        nameof(AverageWpm),
+        nameof(SelectedSampleRate),
+        nameof(Frequency),
+        nameof(VolumeDb),
+        nameof(BeepRampMs),
+        nameof(SelectedNoiseType),
+        nameof(NoiseSnrDb),
+        nameof(NoiseBandwidthHz),
+        nameof(AgcEnabled),
+        nameof(AgcDelaySeconds),
+        nameof(AgcMaxGainDb),
+        nameof(ApfEnabled),
+        nameof(ApfBandwidthHz),
+        nameof(ApfPeakGainDb),
+        nameof(QsbEnabled),
+        nameof(QsbDepthDb),
+        nameof(QsbPeriodSeconds),
+    ];
+
     private readonly int _defaultDurationMins;
     private readonly string _defaultCharacterSet;
     private readonly IPracticeSettingsValidator _settingsValidator;
+    private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
 
     [ObservableProperty]
     private int characterWpm;
@@ -127,14 +155,22 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string errorMessage = string.Empty;
 
+    /// <summary>
+    /// Empty unless the current audio and noise settings drive the output past full scale.
+    /// Shown next to the dialog buttons: the settings are still saveable, they just distort.
+    /// </summary>
+    [ObservableProperty]
+    private string distortionWarning = string.Empty;
+
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
 
     public event Action<bool>? CloseRequested;
 
-    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator)
+    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator, IAudioHeadroomAnalyzer headroomAnalyzer)
     {
         _settingsValidator = settingsValidator;
+        _headroomAnalyzer = headroomAnalyzer;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
         _defaultCharacterSet = config.Practice.DefaultCharacterSet;
 
@@ -171,6 +207,36 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
 
         SaveCommand = new RelayCommand(OnSave);
         CancelCommand = new RelayCommand(OnCancel);
+
+        // One handler instead of eighteen OnXChanged hooks; the recompute is a short render,
+        // so it can run inline as the user turns a knob.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is { } name && AudioChainPropertyNames.Contains(name))
+                UpdateDistortionWarning();
+        };
+
+        UpdateDistortionWarning();
+    }
+
+    /// <summary>
+    /// Renders a probe message through the real signal chain and reports how far past full
+    /// scale it goes. Everything above full scale is hard-clipped in the player before the
+    /// buffer reaches the operating system, so the audible result is distortion.
+    /// </summary>
+    private void UpdateDistortionWarning()
+    {
+        var report = _headroomAnalyzer.Analyze(MorsePlaybackSettings.From(BuildAudio(), CharacterWpm, AverageWpm));
+
+        DistortionWarning = report.WillClip
+            ? $"⚠ Distortion: peaks {report.PeakDbFs:+0.#;-0.#} dB over full scale, {FormatPercent(report.ClippedSampleRatio)} of samples clipped."
+            : string.Empty;
+    }
+
+    private static string FormatPercent(double ratio)
+    {
+        double percent = ratio * 100.0;
+        return percent < 0.1 ? "<0.1 %" : $"{percent:0.#} %";
     }
 
     public bool TryBuildSettings(out AppConfig settings)
@@ -231,29 +297,31 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 AutoAdjustWpm = AutoAdjustWpm,
                 AutoAdjustWindowSize = AutoAdjustWindowSize,
             },
-            Audio = new Audio
-            {
-                SampleRate = SelectedSampleRate,
-                Frequency = Frequency,
-                VolumeDb = VolumeDb,
-                BeepRampMs = BeepRampMs,
-                Noise = new NoiseSettings
-                {
-                    Type = SelectedNoiseType,
-                    LevelDb = -NoiseSnrDb,
-                    BandwidthHz = NoiseBandwidthHz,
-                    AgcEnabled = AgcEnabled,
-                    AgcDelaySeconds = AgcDelaySeconds,
-                    AgcMaxGainDb = AgcMaxGainDb,
-                    ApfEnabled = ApfEnabled,
-                    ApfBandwidthHz = ApfBandwidthHz,
-                    ApfPeakGainDb = ApfPeakGainDb,
-                    QsbEnabled = QsbEnabled,
-                    QsbDepthDb = QsbDepthDb,
-                    QsbPeriodSeconds = QsbPeriodSeconds,
-                },
-            },
+            Audio = BuildAudio(),
             CharacterSets = characterSets,
         };
     }
+
+    private Audio BuildAudio() => new()
+    {
+        SampleRate = SelectedSampleRate,
+        Frequency = Frequency,
+        VolumeDb = VolumeDb,
+        BeepRampMs = BeepRampMs,
+        Noise = new NoiseSettings
+        {
+            Type = SelectedNoiseType,
+            LevelDb = -NoiseSnrDb,
+            BandwidthHz = NoiseBandwidthHz,
+            AgcEnabled = AgcEnabled,
+            AgcDelaySeconds = AgcDelaySeconds,
+            AgcMaxGainDb = AgcMaxGainDb,
+            ApfEnabled = ApfEnabled,
+            ApfBandwidthHz = ApfBandwidthHz,
+            ApfPeakGainDb = ApfPeakGainDb,
+            QsbEnabled = QsbEnabled,
+            QsbDepthDb = QsbDepthDb,
+            QsbPeriodSeconds = QsbPeriodSeconds,
+        },
+    };
 }

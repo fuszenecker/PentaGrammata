@@ -210,8 +210,15 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#ff6b6b"
-                       Text="{Binding ErrorMessage}"/>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2" Margin="0,0,10,0">
+                <TextBlock Foreground="#ff6b6b" TextWrapping="Wrap"
+                           Text="{Binding ErrorMessage}"
+                           IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <TextBlock Foreground="#f0ad4e" TextWrapping="Wrap"
+                           Text="{Binding DistortionWarning}"
+                           IsVisible="{Binding DistortionWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           ToolTip.Tip="The signal chain drives the output past 16-bit full scale, and everything above it is hard-clipped before the buffer reaches the sound device, which is audible as harsh distortion. Lower the volume, the AGC max gain or the APF peak blend gain, or raise the signal-to-noise ratio."/>
+            </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
                 <Button Content="Save" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="#1D4ED8" Foreground="White" Command="{Binding SaveCommand}"/>
                 <Button Content="Cancel" MinWidth="90" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Command="{Binding CancelCommand}"/>

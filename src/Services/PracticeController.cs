@@ -154,27 +154,7 @@ public class PracticeController : IPracticeController
             {
                 string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
                 var audio = _configurationService.Current.Audio;
-                var playbackSettings = new MorsePlaybackSettings
-                {
-                    CharacterWpm = _lastUsedCharacterWpm,
-                    AverageWpm = _lastUsedAverageWpm,
-                    SampleRate = audio.SampleRate,
-                    Frequency = audio.Frequency,
-                    VolumeDb = audio.VolumeDb,
-                    BeepRampMs = audio.BeepRampMs,
-                    NoiseType = audio.Noise.Type,
-                    NoiseLevelDb = audio.Noise.LevelDb,
-                    NoiseBandwidthHz = audio.Noise.BandwidthHz,
-                    AgcEnabled = audio.Noise.AgcEnabled,
-                    AgcDelaySeconds = audio.Noise.AgcDelaySeconds,
-                    AgcMaxGainDb = audio.Noise.AgcMaxGainDb,
-                    ApfEnabled = audio.Noise.ApfEnabled,
-                    ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
-                    ApfPeakGainDb = audio.Noise.ApfPeakGainDb,
-                    QsbEnabled = audio.Noise.QsbEnabled,
-                    QsbDepthDb = audio.Noise.QsbDepthDb,
-                    QsbPeriodSeconds = audio.Noise.QsbPeriodSeconds,
-                };
+                var playbackSettings = MorsePlaybackSettings.From(audio, _lastUsedCharacterWpm, _lastUsedAverageWpm);
 
                 await _morsePlayer.PlayMorseCodeAsync(
                     morseCodeToPlay,

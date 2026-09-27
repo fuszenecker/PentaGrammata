@@ -3,6 +3,8 @@ using NSubstitute;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
+using PentaGrammata.Players;
 using PentaGrammata.ViewModels;
 
 namespace PentaGrammata.Tests.ViewModels;
@@ -14,7 +16,7 @@ public sealed class MorseSettingsDialogViewModelTests
     public void WpmUnlocked_EnablingLock_SetsAverageWpmToCharacterWpm()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator, Analyzer());
 
         Assert.IsFalse(sut.WpmLocked);
         Assert.AreEqual(30, sut.CharacterWpm);
@@ -30,7 +32,7 @@ public sealed class MorseSettingsDialogViewModelTests
     public void WpmLocked_ChangingOneWpm_UpdatesTheOther()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 20, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 20, "Default"), validator, Analyzer());
 
         Assert.IsTrue(sut.WpmLocked);
 
@@ -45,7 +47,7 @@ public sealed class MorseSettingsDialogViewModelTests
     public void WpmUnlocked_CharacterWpmDrop_ClampsAverageWpm()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(30, 20, "Default"), validator, Analyzer())
         {
             AverageWpm = 28,
         };
@@ -61,7 +63,7 @@ public sealed class MorseSettingsDialogViewModelTests
     public void TryBuildSettings_WhenCharacterSetsTextInvalid_ReturnsFalseAndParserError()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CharacterSetsText = "invalid line",
         };
@@ -85,7 +87,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return false;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CharacterSetsText = "Alpha = ABCDE",
         };
@@ -107,7 +109,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "MissingDefault"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "MissingDefault"), validator, Analyzer())
         {
             CharacterWpm = 28,
             AverageWpm = 17,
@@ -145,7 +147,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             SelectedNoiseType = NoiseType.Pink,
             NoiseSnrDb = 14,
@@ -198,7 +200,7 @@ public sealed class MorseSettingsDialogViewModelTests
             QsbPeriodSeconds = 7.25,
         };
 
-        var sut = new MorseSettingsDialogViewModel(config, validator);
+        var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer());
 
         Assert.AreEqual(NoiseType.Uniform, sut.SelectedNoiseType);
         // Config stores level -5 dB rel. signal, shown to the user as a +5 dB SNR.
@@ -225,7 +227,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CharacterSetsText = "Default = ABCDE",
         };
@@ -246,7 +248,7 @@ public sealed class MorseSettingsDialogViewModelTests
         var config = CreateConfig(20, 15, "Default");
         config.Practice.CustomText = "CQ CQ DE HA5XYZ";
 
-        var sut = new MorseSettingsDialogViewModel(config, validator);
+        var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer());
 
         Assert.AreEqual("CQ CQ DE HA5XYZ", sut.CustomText);
     }
@@ -259,7 +261,7 @@ public sealed class MorseSettingsDialogViewModelTests
         config.Practice.AutoAdjustWpm = true;
         config.Practice.AutoAdjustWindowSize = 8;
 
-        var sut = new MorseSettingsDialogViewModel(config, validator);
+        var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer());
 
         Assert.IsTrue(sut.AutoAdjustWpm);
         Assert.AreEqual(8, sut.AutoAdjustWindowSize);
@@ -276,7 +278,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             AutoAdjustWpm = true,
             AutoAdjustWindowSize = 4,
@@ -301,7 +303,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CustomText = "  CQ DE HA5XYZ  ",
             CharacterSetsText = "Default = ABCDE",
@@ -324,7 +326,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CharacterSetsText = "Default = ABCDE",
         };
@@ -346,7 +348,7 @@ public sealed class MorseSettingsDialogViewModelTests
                 return true;
             });
 
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator)
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer())
         {
             CharacterSetsText = "Default = ABCDE",
         };
@@ -363,7 +365,7 @@ public sealed class MorseSettingsDialogViewModelTests
     public void CancelCommand_RaisesCloseRequestedFalse()
     {
         var validator = Substitute.For<IPracticeSettingsValidator>();
-        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator);
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), validator, Analyzer());
 
         bool? closeResult = null;
         sut.CloseRequested += saved => closeResult = saved;
@@ -371,6 +373,76 @@ public sealed class MorseSettingsDialogViewModelTests
         sut.CancelCommand.Execute(null);
 
         Assert.IsFalse(closeResult);
+    }
+
+    [TestMethod]
+    public void Constructor_WithHeadroomToSpare_ShowsNoDistortionWarning()
+    {
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), Analyzer());
+
+        Assert.AreEqual(string.Empty, sut.DistortionWarning);
+    }
+
+    [TestMethod]
+    public void Constructor_WhenChainClips_ShowsDistortionWarningWithPeakAndShare()
+    {
+        var analyzer = Analyzer(new AudioHeadroomReport(5.3, 0.024, 6.0));
+
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer);
+
+        StringAssert.Contains(sut.DistortionWarning, "+5.3 dB");
+        StringAssert.Contains(sut.DistortionWarning, "2.4 %");
+    }
+
+    [TestMethod]
+    public void ChangingAnAudioSetting_ReanalyzesHeadroomWithTheNewValue()
+    {
+        var analyzer = Substitute.For<IAudioHeadroomAnalyzer>();
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(new AudioHeadroomReport(-6.0, 0.0, 6.0));
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer);
+
+        analyzer.ClearReceivedCalls();
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(new AudioHeadroomReport(2.0, 0.5, 6.0));
+        sut.VolumeDb = 0;
+
+        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.VolumeDb == 0));
+        StringAssert.Contains(sut.DistortionWarning, "+2 dB");
+    }
+
+    [TestMethod]
+    public void ChangingANonAudioSetting_DoesNotReanalyzeHeadroom()
+    {
+        var analyzer = Analyzer();
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer);
+
+        analyzer.ClearReceivedCalls();
+        sut.CustomText = "cq cq";
+
+        analyzer.DidNotReceive().Analyze(Arg.Any<MorsePlaybackSettings>());
+    }
+
+    [TestMethod]
+    public void HeadroomAnalysis_SeesTheNoiseLevelNegatedFromTheDisplayedSnr()
+    {
+        // The dialog shows an SNR (higher = cleaner); the chain wants the noise level
+        // relative to the signal, which is its negation.
+        var analyzer = Analyzer();
+        var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer);
+
+        analyzer.ClearReceivedCalls();
+        sut.NoiseSnrDb = 12;
+
+        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.NoiseLevelDb == -12));
+    }
+
+    /// <summary>A headroom analyzer that always reports 6 dB of headroom, so no warning shows.</summary>
+    private static IAudioHeadroomAnalyzer Analyzer() => Analyzer(new AudioHeadroomReport(-6.0, 0.0, 6.0));
+
+    private static IAudioHeadroomAnalyzer Analyzer(AudioHeadroomReport report)
+    {
+        var analyzer = Substitute.For<IAudioHeadroomAnalyzer>();
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(report);
+        return analyzer;
     }
 
     private static AppConfig CreateConfig(int charWpm, int avgWpm, string defaultSet)
