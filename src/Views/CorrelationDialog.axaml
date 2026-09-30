@@ -37,10 +37,17 @@
                 <Border Width="14" Height="11" CornerRadius="2" Background="#C98500" Opacity="0.28" VerticalAlignment="Center"/>
                 <TextBlock Text="±1 σ" VerticalAlignment="Center"/>
             </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        ToolTip.Tip="The error threshold currently configured in the settings. Sessions above the line would count as failed.">
+                <Border Width="14" Height="2" CornerRadius="1" Background="#E66767" VerticalAlignment="Center"/>
+                <TextBlock Text="Error threshold" VerticalAlignment="Center"/>
+            </StackPanel>
         </StackPanel>
 
         <controls:CorrelationScatterChart Grid.Row="1"
                                           Correlation="{Binding Correlation}"
+                                          ErrorThresholdPercent="{Binding ErrorThresholdPercent}"
                                           HorizontalAlignment="Stretch"
                                           VerticalAlignment="Stretch"/>
 

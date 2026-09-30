@@ -23,6 +23,9 @@ public sealed class CorrelationScatterChart : Control
     public static readonly StyledProperty<SpeedErrorCorrelation?> CorrelationProperty =
         AvaloniaProperty.Register<CorrelationScatterChart, SpeedErrorCorrelation?>(nameof(Correlation));
 
+    public static readonly StyledProperty<double> ErrorThresholdPercentProperty =
+        AvaloniaProperty.Register<CorrelationScatterChart, double>(nameof(ErrorThresholdPercent));
+
     private const double LeftAxisWidth = 52;
     private const double RightPadding = 18;
     private const double TopPadding = 10;
@@ -53,11 +56,23 @@ public sealed class CorrelationScatterChart : Control
     private static readonly Color SurfaceColor = Color.Parse("#0F111A");
     private static readonly Color MarkerColor = Color.Parse("#3987E5");
     private static readonly Color FitColor = Color.Parse("#C98500");
+    private static readonly Color ThresholdColor = Color.Parse("#E66767");
 
     public SpeedErrorCorrelation? Correlation
     {
         get => GetValue(CorrelationProperty);
         set => SetValue(CorrelationProperty, value);
+    }
+
+    /// <summary>
+    /// The error threshold currently configured for practice, in percent, drawn as a horizontal
+    /// red line. Only the current value is shown: the per-session thresholds a session was
+    /// actually judged against belong to the trends chart, not here.
+    /// </summary>
+    public double ErrorThresholdPercent
+    {
+        get => GetValue(ErrorThresholdPercentProperty);
+        set => SetValue(ErrorThresholdPercentProperty, value);
     }
 
     public CorrelationScatterChart()
@@ -89,10 +104,12 @@ public sealed class CorrelationScatterChart : Control
             Math.Max(1, bounds.Width - LeftAxisWidth - RightPadding),
             Math.Max(1, bounds.Height - TopPadding - AxisTitleHeight - TimeAxisHeight - BottomTitleHeight - BottomPadding));
 
+        var threshold = ErrorThresholdPercent;
         var speedScale = GetSpeedScale(points);
-        var errorMax = GetErrorMax(points);
+        var errorMax = GetErrorMax(points, threshold);
 
         DrawGrid(context, chartRect, speedScale, errorMax);
+        DrawThresholdLine(context, chartRect, threshold, errorMax);
         DrawFitLine(context, chartRect, correlation!, speedScale, errorMax);
         DrawMarkers(context, chartRect, points, speedScale, errorMax);
 
@@ -122,7 +139,7 @@ public sealed class CorrelationScatterChart : Control
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == CorrelationProperty)
+        if (change.Property == CorrelationProperty || change.Property == ErrorThresholdPercentProperty)
         {
             InvalidateVisual();
         }
@@ -148,11 +165,18 @@ public sealed class CorrelationScatterChart : Control
     /// <summary>
     /// Vertical full scale in percent: always anchored at zero (an error rate is a magnitude,
     /// so the baseline has to be zero) and rounded up to the next multiple of five, with five
-    /// percent as the floor so a clean window is not drawn on a hairline scale.
+    /// percent as the floor so a clean window is not drawn on a hairline scale. The threshold
+    /// is part of the domain, so a window where every session stayed well under it still shows
+    /// the line instead of hiding it above the top edge.
     /// </summary>
-    private static double GetErrorMax(IReadOnlyList<SpeedErrorPoint> points)
+    private static double GetErrorMax(IReadOnlyList<SpeedErrorPoint> points, double thresholdPercent)
     {
         var max = points.Max(p => p.ErrorRatePercent);
+        if (double.IsFinite(thresholdPercent))
+        {
+            max = Math.Max(max, thresholdPercent);
+        }
+
         return Math.Max(5, Math.Ceiling(max / 5.0) * 5.0);
     }
 
@@ -207,6 +231,42 @@ public sealed class CorrelationScatterChart : Control
             var center = Project(chartRect, point.AverageWpm, point.ErrorRatePercent, speedScale, errorMax);
             context.DrawEllipse(fill, ring, center, MarkerRadius, MarkerRadius);
         }
+    }
+
+    /// <summary>
+    /// Draws the configured error threshold as a horizontal red line across the plot, labelled
+    /// with its value. Sessions above it are the ones that failed, so the line tells apart the
+    /// dots without needing a per-session marker. Skipped for a negative or non-finite value,
+    /// which cannot be a rate at all.
+    /// </summary>
+    private static void DrawThresholdLine(DrawingContext context, Rect chartRect, double thresholdPercent, double errorMax)
+    {
+        if (!double.IsFinite(thresholdPercent) || thresholdPercent < 0)
+        {
+            return;
+        }
+
+        var y = chartRect.Bottom - thresholdPercent / Math.Max(0.001, errorMax) * chartRect.Height;
+
+        context.DrawLine(
+            new Pen(new SolidColorBrush(ThresholdColor), 1.5),
+            new Point(chartRect.Left, y),
+            new Point(chartRect.Right, y));
+
+        var label = CreateText(
+            string.Format(CultureInfo.InvariantCulture, "threshold {0:0.##}%", thresholdPercent),
+            10,
+            "#F2A3A3");
+
+        // Above the line normally, below it when the line sits too close to the top edge for the
+        // label to fit, so the text is never clipped by ClipToBounds.
+        var labelY = y - label.Height - 2;
+        if (labelY < chartRect.Top)
+        {
+            labelY = y + 2;
+        }
+
+        context.DrawText(label, new Point(Math.Max(chartRect.Left + 2, chartRect.Right - label.Width - 2), labelY));
     }
 
     /// <summary>

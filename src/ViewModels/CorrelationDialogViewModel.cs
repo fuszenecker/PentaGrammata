@@ -56,6 +56,14 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// The error threshold currently configured for practice, in percent, drawn as a horizontal
+    /// line on the chart. Read once when the dialog opens: the settings cannot be changed while
+    /// it is up, and the point is to show what the next session will be judged against, not what
+    /// each past session was.
+    /// </summary>
+    public double ErrorThresholdPercent { get; }
+
     /// <summary>The scatter and its fitted line, rendered by the correlation chart.</summary>
     public SpeedErrorCorrelation Correlation
     {
@@ -82,6 +90,7 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
             MinWindowDaysValue,
             MaxWindowDaysValue);
         _windowDays = configuredWindow;
+        ErrorThresholdPercent = _configurationService.Current.Practice.ErrorThreshold;
 
         // Persist the clamped value if the configured window was out of range, so the on-disk
         // configuration stays consistent with what the user sees.
