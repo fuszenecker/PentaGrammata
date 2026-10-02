@@ -47,6 +47,12 @@ public sealed class CorrelationScatterChart : Control
 
     private const int TickCount = 5;
 
+    // How much of the marker color the oldest session in the window keeps: the dots are faded
+    // towards the surface by age, so the newest one is at full strength and the oldest is this
+    // fraction of the way there. Not zero, because a mark that reaches the background is a mark
+    // that has disappeared.
+    private const double OldestMarkerStrength = 0.3;
+
     private bool _isHovering;
     private Point _hoverPoint;
 
@@ -55,6 +61,9 @@ public sealed class CorrelationScatterChart : Control
     // a second data series.
     private static readonly Color SurfaceColor = Color.Parse("#0F111A");
     private static readonly Color MarkerColor = Color.Parse("#3987E5");
+    // Today's sessions, in a brighter and more saturated yellow than the fitted line's amber so
+    // the two do not read as the same thing: the line is an annotation, these are data.
+    private static readonly Color TodayMarkerColor = Color.Parse("#FFD24A");
     private static readonly Color FitColor = Color.Parse("#C98500");
     private static readonly Color ThresholdColor = Color.Parse("#E66767");
 
@@ -216,6 +225,20 @@ public sealed class CorrelationScatterChart : Control
                 chartRect.Bottom + TimeAxisHeight));
     }
 
+    /// <summary>
+    /// Draws one dot per session, faded towards the surface with age: the newest session in the
+    /// window is at full marker color and the oldest is dimmed to
+    /// <see cref="OldestMarkerStrength"/> of it, so the direction of travel is readable without
+    /// a legend. The fade runs on the timestamps rather than on list position, so a cluster of
+    /// sessions practised in one evening reads as one age, and the points arrive oldest first so
+    /// the brighter recent dots are the ones on top where they overlap.
+    /// <para>
+    /// Sessions recorded today are drawn in <see cref="TodayMarkerColor"/> at full strength
+    /// instead: today is the run the user is actually in the middle of, so it is picked out by
+    /// hue rather than left to the last step of a brightness ramp. The day boundary is the local
+    /// calendar day, which is the one the user practises against.
+    /// </para>
+    /// </summary>
     private static void DrawMarkers(
         DrawingContext context,
         Rect chartRect,
@@ -223,14 +246,48 @@ public sealed class CorrelationScatterChart : Control
         (double Min, double Max) speedScale,
         double errorMax)
     {
-        var fill = new SolidColorBrush(Color.FromArgb(220, MarkerColor.R, MarkerColor.G, MarkerColor.B));
         var ring = new Pen(new SolidColorBrush(SurfaceColor), MarkerRingThickness);
+
+        var oldest = points.Min(p => p.RecordedAt).UtcTicks;
+        var span = (double)(points.Max(p => p.RecordedAt).UtcTicks - oldest);
+        var today = DateTimeOffset.Now.LocalDateTime.Date;
 
         foreach (var point in points)
         {
+            var isToday = point.RecordedAt.ToLocalTime().Date == today;
+
+            // A single session, or several recorded at the same instant, have no age to show and
+            // are all drawn as the newest.
+            var age = span > 0 ? (point.RecordedAt.UtcTicks - oldest) / span : 1.0;
+
             var center = Project(chartRect, point.AverageWpm, point.ErrorRatePercent, speedScale, errorMax);
-            context.DrawEllipse(fill, ring, center, MarkerRadius, MarkerRadius);
+            context.DrawEllipse(
+                isToday ? MarkerBrush(TodayMarkerColor, 1) : MarkerBrush(MarkerColor, age),
+                ring,
+                center,
+                MarkerRadius,
+                MarkerRadius);
         }
+    }
+
+    /// <summary>
+    /// The marker fill for a session at <paramref name="recency"/> of the window's age range
+    /// (0 oldest, 1 newest). Blends the color towards the opaque surface instead of lowering its
+    /// alpha, so two overlapping dots do not add up to a third, brighter shade.
+    /// </summary>
+    private static IBrush MarkerBrush(Color color, double recency)
+    {
+        var strength = OldestMarkerStrength + (1 - OldestMarkerStrength) * Math.Clamp(recency, 0, 1);
+
+        static byte Blend(byte from, byte to, double amount) =>
+            (byte)Math.Round(from + (to - from) * amount);
+
+        return new SolidColorBrush(
+            Color.FromArgb(
+                220,
+                Blend(SurfaceColor.R, color.R, strength),
+                Blend(SurfaceColor.G, color.G, strength),
+                Blend(SurfaceColor.B, color.B, strength)));
     }
 
     /// <summary>

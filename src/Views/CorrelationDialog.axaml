@@ -22,9 +22,15 @@
                                Value="{Binding WindowDays}"/>
             </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        ToolTip.Tip="One dot per session, dimmed with age: the oldest session in the window is the faintest.">
                 <Ellipse Width="10" Height="10" Fill="#3987E5" VerticalAlignment="Center"/>
                 <TextBlock Text="Session" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse Width="10" Height="10" Fill="#FFD24A" VerticalAlignment="Center"/>
+                <TextBlock Text="Today" VerticalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
