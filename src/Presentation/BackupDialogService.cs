@@ -43,7 +43,8 @@ public sealed class BackupDialogService : IBackupDialogService
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export PentaGrammata data",
-            SuggestedFileName = "pentagrammata-backup.zip",
+            // Dated so repeated exports on different days suggest different names.
+            SuggestedFileName = $"pentagrammata-backup-{DateTime.Now:yyyy-MM-dd}.zip",
             DefaultExtension = "zip",
             ShowOverwritePrompt = true,
             FileTypeChoices = [ZipFileType],
