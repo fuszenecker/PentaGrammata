@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using PentaGrammata.Players;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.Interfaces;
 

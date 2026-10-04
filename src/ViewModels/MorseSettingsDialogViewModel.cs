@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
-using PentaGrammata.Players;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.ViewModels;
 

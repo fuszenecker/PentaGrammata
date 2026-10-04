@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NSubstitute;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 using PentaGrammata.Players;
 
 namespace PentaGrammata.Tests.Players;

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.Players;
 

@@ -8,7 +8,6 @@ using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
-using PentaGrammata.Players;
 
 namespace PentaGrammata.Services;
 

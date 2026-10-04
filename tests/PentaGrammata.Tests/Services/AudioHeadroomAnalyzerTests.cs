@@ -1,5 +1,5 @@
 using PentaGrammata.Configuration;
-using PentaGrammata.Players;
+using PentaGrammata.Models;
 using PentaGrammata.Services;
 
 namespace PentaGrammata.Tests.Services;

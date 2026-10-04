@@ -1,10 +1,10 @@
 using PentaGrammata.Configuration;
 
-namespace PentaGrammata.Players;
+namespace PentaGrammata.Models;
 
 /// <summary>
 /// Immutable bundle of the parameters needed to render Morse code to audio.
-/// Replaces a long positional parameter list on <see cref="IMorsePlayer"/>.
+/// Replaces a long positional parameter list on <see cref="PentaGrammata.Interfaces.IMorsePlayer"/>.
 /// </summary>
 public sealed record MorsePlaybackSettings
 {
