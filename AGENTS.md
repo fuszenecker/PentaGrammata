@@ -90,7 +90,7 @@ dotnet test tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj
 
 - ViewModels use `[ObservableProperty]` and `[RelayCommand]` source generators — keep classes `partial`.
 - Commands must preserve `canExecute` (enable/disable semantics); do not remove `CanExecute` logic.
-- Dependency injection: register everything in `Program.cs`; never use `new` for services.
+- Dependency injection: register everything in `Composition/ServiceCollectionExtensions.cs`; the container is built in `App.axaml.cs` (`Program.cs` holds no DI). Never use `new` for services.
 - Nullable reference types are enabled project-wide — no `null!` suppressions without justification.
 - Target framework: `net10.0`; do not downgrade or add TFM conditions.
 - Avalonia compiled bindings are on by default (`AvaloniaUseCompiledBindingsByDefault`); keep bindings compile-time safe.
