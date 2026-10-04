@@ -35,5 +35,5 @@ public interface IDialogViewModelFactory
 
     ConfirmDialogViewModel CreateConfirm(string title, string message, string confirmButtonText);
 
-    InfoDialogViewModel CreateInfo(string title, string primaryMessage, string? detailMessage, bool showDoNotShowAgain, string? detailHeading);
+    InfoDialogViewModel CreateInfo(string title, string primaryMessage, string detailMessage, bool showDoNotShowAgain, string? detailHeading);
 }

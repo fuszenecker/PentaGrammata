@@ -12,6 +12,7 @@
     <Window.Resources>
         <conv:ConfusionCellBackgroundConverter x:Key="CellBackground"/>
         <conv:ConfusionCellForegroundConverter x:Key="CellForeground"/>
+        <conv:ZebraBackgroundConverter x:Key="ZebraBackground"/>
     </Window.Resources>
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
@@ -38,15 +39,9 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ConfusionMatrixHeaderViewModel">
-                                <Border Width="34" Height="24" BorderBrush="#0B1020" BorderThickness="0">
-                                    <Border.Background>
-                                        <!-- The header row has no row parity of its own: zebra tint only. -->
-                                        <MultiBinding Converter="{StaticResource CellBackground}">
-                                            <x:Double>0</x:Double>
-                                            <x:Boolean>False</x:Boolean>
-                                            <Binding Path="IsEvenColumn"/>
-                                        </MultiBinding>
-                                    </Border.Background>
+                                <Border Width="34" Height="24"
+                                        Background="{Binding IsEvenColumn, Converter={StaticResource ZebraBackground}}"
+                                        BorderBrush="#0B1020" BorderThickness="0">
                                     <TextBlock Text="{Binding Symbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                 </Border>
                             </DataTemplate>
@@ -58,15 +53,9 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ConfusionMatrixRowViewModel">
                             <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Border Width="36" Height="24" BorderBrush="#0B1020" BorderThickness="0">
-                                    <Border.Background>
-                                        <!-- The row header sits outside the column zebra: tint only. -->
-                                        <MultiBinding Converter="{StaticResource CellBackground}">
-                                            <x:Double>0</x:Double>
-                                            <Binding Path="IsEvenRow"/>
-                                            <x:Boolean>False</x:Boolean>
-                                        </MultiBinding>
-                                    </Border.Background>
+                                <Border Width="36" Height="24"
+                                        Background="{Binding IsEvenRow, Converter={StaticResource ZebraBackground}}"
+                                        BorderBrush="#0B1020" BorderThickness="0">
                                     <TextBlock Text="{Binding ExpectedSymbol}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                 </Border>
                                 <ItemsControl ItemsSource="{Binding Cells}">
