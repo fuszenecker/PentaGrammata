@@ -396,6 +396,27 @@ public sealed class ConfigurationServiceTests
         await store.Received(1).SaveAsync(Arg.Any<AppConfig>());
     }
 
+    [TestMethod]
+    public void ApplyPracticeSettings_WhenPassedTheLiveCurrentItself_KeepsCharacterSets()
+    {
+        // The backup-import path re-applies the live config through the same wholesale
+        // copy, with settings and Current being the same object. Clearing and then
+        // enumerating the same shared collection would wipe every character set and
+        // persist the loss.
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        sut.Current.CharacterSets["Letters"] = "ABCDE";
+
+        sut.ApplyPracticeSettings(sut.Current);
+
+        Assert.HasCount(2, sut.Current.CharacterSets);
+        Assert.AreEqual("ABCDE", sut.Current.CharacterSets["Default"]);
+        Assert.AreEqual("ABCDE", sut.Current.CharacterSets["Letters"]);
+        Assert.AreEqual("Default", sut.Current.Practice.DefaultCharacterSet);
+    }
+
     private static AppConfig CreateConfig()
     {
         return new AppConfig

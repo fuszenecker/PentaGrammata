@@ -310,7 +310,6 @@ public sealed class PracticeResultStatisticsStoreTests
     {
         var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
         await sut.SaveAsync(CreateRecord());
-        Assert.IsTrue(File.Exists(sut.DatabasePath + "-wal"));
 
         var otherDirectory = Path.Combine(_tempDirectory, "other");
         var other = new PracticeResultStatisticsStore(FakePaths(otherDirectory), Logger());
@@ -319,6 +318,13 @@ public sealed class PracticeResultStatisticsStoreTests
         await other.SaveAsync(CreateRecord());
         var sourcePath = Path.Combine(_tempDirectory, "source.db");
         await other.CreateConsistentCopyAsync(sourcePath);
+
+        // Stale sidecars, as a live WAL would leave them. Whether a -wal file survives
+        // SaveAsync depends on pooled-connection cleanup timing (SQLite deletes it on
+        // the last clean close), so they are created directly instead — a zero-length
+        // WAL is valid, SQLite treats it as empty.
+        await File.WriteAllTextAsync(sut.DatabasePath + "-wal", string.Empty);
+        await File.WriteAllTextAsync(sut.DatabasePath + "-shm", string.Empty);
 
         await sut.ReplaceDatabaseAsync(sourcePath);
 

@@ -149,8 +149,14 @@ public sealed class ConfigurationService : IConfigurationService
         config.Practice.AutoAdjustWpm = settings.Practice.AutoAdjustWpm;
         config.Practice.AutoAdjustWindowSize = settings.Practice.AutoAdjustWindowSize;
 
+        // Snapshot before clearing: when the caller passes the live config itself
+        // (the backup-import path does), settings.CharacterSets IS
+        // config.CharacterSets, and clearing first would empty the very collection
+        // the loop then enumerates — silently wiping every character set.
+        var characterSets = settings.CharacterSets.ToList();
+
         config.CharacterSets.Clear();
-        foreach (var item in settings.CharacterSets)
+        foreach (var item in characterSets)
         {
             if (!string.IsNullOrWhiteSpace(item.Key) && !string.IsNullOrWhiteSpace(item.Value))
             {

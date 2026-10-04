@@ -570,6 +570,49 @@ public sealed class PracticeControllerTests
         Assert.AreEqual(15, sut.LastUsedAverageWpm);
     }
 
+    [TestMethod]
+    public void TryApplySettings_WhenPassedTheLiveCurrent_KeepsCharacterSets()
+    {
+        // The backup-import path applies the reloaded live config to the controller
+        // as-is; the wholesale copy inside ApplyPracticeSettings must not wipe the
+        // shared CharacterSets collection while it is being re-applied to itself.
+        var config = CreateDefaultConfiguration();
+        config.CharacterSets["Letters"] = "ABCDE";
+        config.CharacterSets["Koch-LCWO-01-KM"] = "KM";
+        config.Practice.DefaultCharacterSet = "Letters";
+
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(config);
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var configService = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        var settingsValidator = Substitute.For<IPracticeSettingsValidator>();
+        settingsValidator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var sut = new PracticeController(
+            Substitute.For<IMorsePlayer>(),
+            Substitute.For<IMorseGenerator>(),
+            settingsValidator,
+            Substitute.For<IPracticeResultEvaluator>(),
+            configService,
+            CreateAdjuster(),
+            Substitute.For<ILogger<PracticeController>>());
+
+        Assert.IsTrue(sut.TryApplySettings(configService.Current, out var error));
+        Assert.AreEqual(string.Empty, error);
+
+        Assert.HasCount(3, configService.Current.CharacterSets);
+        Assert.AreEqual("ABCDEFGHIJKLMNOPQRSTUVWXYZ", configService.Current.CharacterSets["Default"]);
+        Assert.AreEqual("ABCDE", configService.Current.CharacterSets["Letters"]);
+        Assert.AreEqual("KM", configService.Current.CharacterSets["Koch-LCWO-01-KM"]);
+        Assert.AreEqual("Letters", configService.Current.Practice.DefaultCharacterSet);
+    }
+
     private static DynamicWpmAdjuster CreateAdjuster()
         => new(Substitute.For<ILogger<DynamicWpmAdjuster>>());
 
