@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 using Avalonia.Platform.Storage;
 
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Presentation;

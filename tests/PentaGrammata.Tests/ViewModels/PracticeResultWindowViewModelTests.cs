@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;

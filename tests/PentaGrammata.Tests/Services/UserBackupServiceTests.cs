@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Services;

@@ -40,7 +40,7 @@ public interface IUserBackupService
     /// change live. Only the entries present in the archive are replaced; entries
     /// recognized are the three flat names appsettings.json, practice-results.db and
     /// window-sizes.json (anything else in the archive is ignored, which also rules out
-    /// path traversal). Throws <see cref="UserBackupException"/> with a user-facing
+    /// path traversal). Throws <see cref="PentaGrammata.Exceptions.UserBackupException"/> with a user-facing
     /// message on any failure. Must be called on the UI thread: it mutates the live
     /// configuration, which its owner documents as UI-thread-only.
     /// </summary>

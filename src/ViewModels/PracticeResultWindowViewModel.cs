@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;

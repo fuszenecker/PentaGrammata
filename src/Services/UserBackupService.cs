@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Services;

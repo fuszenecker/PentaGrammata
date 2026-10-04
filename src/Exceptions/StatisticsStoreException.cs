@@ -1,6 +1,6 @@
 using System;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Exceptions;
 
 /// <summary>
 /// Thrown by <see cref="IPracticeResultStatisticsStore"/> when a statistics

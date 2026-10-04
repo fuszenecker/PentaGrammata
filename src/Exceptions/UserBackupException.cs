@@ -1,6 +1,6 @@
 using System;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Exceptions;
 
 /// <summary>
 /// Thrown by <see cref="IUserBackupService"/> when an export or import fails, or when a

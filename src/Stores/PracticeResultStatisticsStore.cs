@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 

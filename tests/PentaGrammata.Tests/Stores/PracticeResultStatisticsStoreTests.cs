@@ -7,6 +7,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Stores;
