@@ -85,4 +85,14 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     {
         return new CorrelationDialogViewModel(_statisticsService, _configurationService, _correlationAnalysisService);
     }
+
+    public ConfirmDialogViewModel CreateConfirm(string title, string message, string confirmButtonText)
+    {
+        return new ConfirmDialogViewModel(title, message, confirmButtonText);
+    }
+
+    public InfoDialogViewModel CreateInfo(string title, string primaryMessage, string? detailMessage, bool showDoNotShowAgain, string? detailHeading)
+    {
+        return new InfoDialogViewModel(title, primaryMessage, detailMessage, showDoNotShowAgain, detailHeading);
+    }
 }

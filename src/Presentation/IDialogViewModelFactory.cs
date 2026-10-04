@@ -32,4 +32,8 @@ public interface IDialogViewModelFactory
     ConfusionsDialogViewModel CreateConfusions();
 
     CorrelationDialogViewModel CreateCorrelation();
+
+    ConfirmDialogViewModel CreateConfirm(string title, string message, string confirmButtonText);
+
+    InfoDialogViewModel CreateInfo(string title, string primaryMessage, string? detailMessage, bool showDoNotShowAgain, string? detailHeading);
 }

@@ -10,10 +10,12 @@ namespace PentaGrammata.Presentation;
 public sealed class ConfirmDialogService : IConfirmDialogService
 {
     private readonly IWindowContext _windowContext;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public ConfirmDialogService(IWindowContext windowContext)
+    public ConfirmDialogService(IWindowContext windowContext, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext ?? throw new ArgumentNullException(nameof(windowContext));
+        _viewModelFactory = viewModelFactory ?? throw new ArgumentNullException(nameof(viewModelFactory));
     }
 
     public async Task<bool> ShowConfirmAsync(string title, string message, string confirmButtonText)
@@ -24,7 +26,7 @@ public sealed class ConfirmDialogService : IConfirmDialogService
             return false;
         }
 
-        var viewModel = new ConfirmDialogViewModel(title, message, confirmButtonText);
+        var viewModel = _viewModelFactory.CreateConfirm(title, message, confirmButtonText);
         return await new ConfirmDialog(viewModel).ShowDialog<bool>(owner);
     }
 }

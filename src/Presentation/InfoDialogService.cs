@@ -10,11 +10,13 @@ public sealed class InfoDialogService : IInfoDialogService
 {
     private readonly IWindowContext _windowContext;
     private readonly IConfigurationService _configurationService;
+    private readonly IDialogViewModelFactory _viewModelFactory;
 
-    public InfoDialogService(IWindowContext windowContext, IConfigurationService configurationService)
+    public InfoDialogService(IWindowContext windowContext, IConfigurationService configurationService, IDialogViewModelFactory viewModelFactory)
     {
         _windowContext = windowContext ?? throw new ArgumentNullException(nameof(windowContext));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _viewModelFactory = viewModelFactory ?? throw new ArgumentNullException(nameof(viewModelFactory));
     }
 
     public async Task ShowInfoAsync(string title, string message, string? dialogKey = null, string? detailHeading = null)
@@ -31,7 +33,7 @@ public sealed class InfoDialogService : IInfoDialogService
         }
 
         var (primaryMessage, detailMessage) = SplitMessage(message);
-        var viewModel = new InfoDialogViewModel(title, primaryMessage, detailMessage, dialogKey is not null, detailHeading);
+        var viewModel = _viewModelFactory.CreateInfo(title, primaryMessage, detailMessage, dialogKey is not null, detailHeading);
         await new InfoDialog(viewModel).ShowDialog(owner);
 
         if (viewModel.DoNotShowAgain && dialogKey is not null)
