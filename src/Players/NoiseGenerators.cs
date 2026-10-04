@@ -1,5 +1,7 @@
 using System;
 
+using PentaGrammata.Interfaces;
+
 namespace PentaGrammata.Players;
 
 /// <summary>

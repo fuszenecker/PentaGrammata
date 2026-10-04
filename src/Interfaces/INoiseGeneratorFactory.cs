@@ -1,6 +1,6 @@
 using PentaGrammata.Configuration;
 
-namespace PentaGrammata.Players;
+namespace PentaGrammata.Interfaces;
 
 public interface INoiseGeneratorFactory
 {
