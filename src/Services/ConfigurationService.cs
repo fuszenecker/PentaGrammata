@@ -196,6 +196,34 @@ public sealed class ConfigurationService : IConfigurationService
         return SaveAsync();
     }
 
+    public void ReloadFromDisk()
+    {
+        ReplaceCurrentContents(_store.Load());
+    }
+
+    public void ApplyImported(AppConfig imported)
+    {
+        ReplaceCurrentContents(imported);
+    }
+
+    /// <summary>
+    /// Replaces the contents of the live <see cref="Current"/> instance in place —
+    /// consumers hold that same instance, so reassigning the property would leave them
+    /// reading stale values. The replacement is cloned first so the caller's instance can
+    /// never alias the live configuration, then invariants are re-established.
+    /// </summary>
+    private void ReplaceCurrentContents(AppConfig replacement)
+    {
+        var copy = replacement.Clone();
+        var config = Current;
+        config.Audio = copy.Audio;
+        config.Practice = copy.Practice;
+        config.Analytics = copy.Analytics;
+        config.CharacterSets = copy.CharacterSets;
+        config.UiPreferences = copy.UiPreferences;
+        Normalize();
+    }
+
     private async Task PersistAsync(AppConfig snapshot)
     {
         try

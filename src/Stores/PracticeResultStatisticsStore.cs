@@ -200,6 +200,76 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         }
     }
 
+    public async Task CreateConsistentCopyAsync(string destinationPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await using var connection = new SqliteConnection($"Data Source={_databasePath}");
+                await connection.OpenAsync(cancellationToken);
+                await ApplyPragmasAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                // VACUUM INTO snapshots the database (including all committed WAL content)
+                // into a brand-new self-contained file in one atomic operation, with no
+                // window in which a concurrent writer could change the result and no need
+                // to disturb the connection pool. VACUUM cannot run inside a transaction,
+                // so this stays outside BeginTransaction. The destination is an SQL
+                // expression, which is why a bound parameter works here.
+                var command = connection.CreateCommand();
+                command.CommandText = "VACUUM INTO $destination;";
+                command.Parameters.AddWithValue("$destination", destinationPath);
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to create a consistent copy of {DatabasePath} at {DestinationPath}", _databasePath, destinationPath);
+            throw new StatisticsStoreException("Could not create a copy of the practice statistics database.", ex);
+        }
+    }
+
+    public async Task ReplaceDatabaseAsync(string sourcePath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Pooled connections keep the file open even after Dispose, so release
+                // every handle before deleting — otherwise the deletion fails outright.
+                // No new connection can open against the half-replaced file while the
+                // gate is held.
+                SqliteConnection.ClearAllPools();
+                _schemaInitialized = false;
+
+                foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
+
+                File.Copy(sourcePath, _databasePath);
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to replace the statistics database at {DatabasePath} from {SourcePath}", _databasePath, sourcePath);
+            throw new StatisticsStoreException("Could not replace the practice statistics database.", ex);
+        }
+    }
+
     /// <summary>
     /// Enables WAL journaling (persistent for the database file) and a per-connection busy
     /// timeout so a reader/writer contention window waits instead of throwing "database is

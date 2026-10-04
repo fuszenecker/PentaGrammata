@@ -9,8 +9,10 @@
         WindowStartupLocation="CenterOwner"
         Title="Performance Trends">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
-        <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
+    <!-- No outer margin: the chart's grey surface runs from window side to window
+         side; the rows above and below carry their own margins instead. -->
+    <Grid RowDefinitions="Auto,*,Auto">
+        <WrapPanel Grid.Row="0" Margin="10,10,10,8" Orientation="Horizontal" ItemHeight="24" ItemWidth="170">
             <CheckBox IsChecked="{Binding ShowCharacterSeries}">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Border Width="14" Height="8" CornerRadius="2" Background="#DC2626" VerticalAlignment="Center"/>
@@ -67,7 +69,7 @@
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Stretch"/>
 
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="10,8,10,10">
             <TextBlock Grid.Column="0"
                        Text="{Binding SummaryText}"
                        VerticalAlignment="Center"

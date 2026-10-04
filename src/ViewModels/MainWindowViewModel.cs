@@ -13,7 +13,7 @@ namespace PentaGrammata.ViewModels;
 
 /// <summary>
 /// Shell view model for the main window: owns the menu/dialog orchestration (settings, UI
-/// settings, about, trends, confusions, updates) and the character-set selection shared by the
+/// settings, about, trends, confusions, updates, backup export/import) and the character-set selection shared by the
 /// combo and the confusions flow. The practice session itself lives on
 /// <see cref="Practice"/>, exposed for the main window's bindings.
 /// </summary>
@@ -29,6 +29,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ICorrelationDialogService _correlationDialogService;
     private readonly IUpdateChecker _updateChecker;
     private readonly IInfoDialogService _infoDialogService;
+    private readonly IBackupDialogService _backupDialogService;
     private readonly ILogger<MainWindowViewModel> _logger;
 
     // Set while the character-set list is being swapped: the bound ComboBox reacts to a new
@@ -45,6 +46,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand OpenConfusionsCommand { get; }
     public IAsyncRelayCommand OpenCorrelationCommand { get; }
     public IAsyncRelayCommand CheckUpdatesCommand { get; }
+    public IAsyncRelayCommand ExportCommand { get; }
+    public IAsyncRelayCommand ImportCommand { get; }
 
     [ObservableProperty]
     private string[] characterSets = [];
@@ -69,6 +72,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ICorrelationDialogService correlationDialogService,
         IUpdateChecker updateChecker,
         IInfoDialogService infoDialogService,
+        IBackupDialogService backupDialogService,
         PracticeViewModel practice,
         ILogger<MainWindowViewModel> logger)
     {
@@ -82,6 +86,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _correlationDialogService = correlationDialogService;
         _updateChecker = updateChecker;
         _infoDialogService = infoDialogService;
+        _backupDialogService = backupDialogService;
         _logger = logger;
         Practice = practice;
 
@@ -96,6 +101,8 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
         OpenCorrelationCommand = new AsyncRelayCommand(OpenCorrelationAsync);
         CheckUpdatesCommand = new AsyncRelayCommand(CheckUpdatesAsync);
+        ExportCommand = new AsyncRelayCommand(ExportAsync);
+        ImportCommand = new AsyncRelayCommand(ImportAsync);
     }
 
     public async Task OpenSettingsDialogAsync()
@@ -173,6 +180,38 @@ public partial class MainWindowViewModel : ViewModelBase
     public Task OpenCorrelationAsync()
     {
         return _correlationDialogService.ShowCorrelationAsync();
+    }
+
+    public Task ExportAsync()
+    {
+        return _backupDialogService.ShowExportAsync();
+    }
+
+    public async Task ImportAsync()
+    {
+        if (await _backupDialogService.ShowImportAsync() != BackupDialogOutcome.Completed)
+        {
+            return;
+        }
+
+        // The backup service already reloaded the live configuration in place; push the
+        // (possibly new) settings through the same validated apply path as the settings
+        // dialog, which also resets the dynamic WPM from the imported values.
+        if (!_practiceController.TryApplySettings(_configurationService.Current, out var error))
+        {
+            Practice.DisplayStatusMessage(error, StatusLevel.Error);
+            return;
+        }
+
+        RefreshCharacterSets();
+        Practice.RefreshFromAppliedSettings();
+
+        // Mirror OpenUiSettingsDialogAsync for the main-window-owned UI preferences.
+        var prefs = _configurationService.Current.UiPreferences;
+        ReceivedTextFontFamily = new FontFamily(prefs.ReceivedTextFontFamily);
+        ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+
+        Practice.DisplayStatusMessage("Backup imported.", StatusLevel.Neutral);
     }
 
     /// <summary>

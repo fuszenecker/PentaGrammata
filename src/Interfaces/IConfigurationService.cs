@@ -84,4 +84,20 @@ public interface IConfigurationService
     /// Used by "Practice confusions" to publish the generated set.
     /// </summary>
     Task UpsertCharacterSetAndSelectAsync(string name, string characters);
+
+    /// <summary>
+    /// Re-reads the persisted configuration (bundled defaults layered with the per-user
+    /// files) and replaces the contents of the live <see cref="Current"/> instance in
+    /// place. Used after a backup import replaced the per-user appsettings.json on disk.
+    /// Like every other mutation, must be called on the UI thread.
+    /// </summary>
+    void ReloadFromDisk();
+
+    /// <summary>
+    /// Replaces the contents of the live <see cref="Current"/> instance in place with the
+    /// given configuration, without touching disk. Used on platforms with no per-user
+    /// config file, where an imported configuration can only be applied in memory. Like
+    /// every other mutation, must be called on the UI thread.
+    /// </summary>
+    void ApplyImported(AppConfig imported);
 }

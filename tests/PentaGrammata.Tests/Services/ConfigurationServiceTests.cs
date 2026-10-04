@@ -307,6 +307,81 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
+    public void ReloadFromDisk_ReplacesContentsOfTheSameCurrentInstance()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        var liveInstance = sut.Current;
+
+        var reloaded = new AppConfig
+        {
+            Practice = new Practice { CharacterWpm = 40, AverageWpm = 25, DefaultCharacterSet = "Letters" },
+            Analytics = new Analytics { ConfusionsHalfLifeDays = 21 },
+            CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
+            UiPreferences = new UiPreferences { ReceivedTextFontSize = 33 },
+        };
+        store.Load().Returns(reloaded);
+
+        sut.ReloadFromDisk();
+
+        // Consumers hold the same instance, so the reload must be visible through it.
+        Assert.AreSame(liveInstance, sut.Current);
+        Assert.AreEqual(40, sut.Current.Practice.CharacterWpm);
+        Assert.AreEqual(25, sut.Current.Practice.AverageWpm);
+        Assert.AreEqual("Letters", sut.Current.Practice.DefaultCharacterSet);
+        Assert.AreEqual(21, sut.Current.Analytics.ConfusionsHalfLifeDays);
+        Assert.AreEqual(33, sut.Current.UiPreferences.ReceivedTextFontSize);
+        Assert.AreEqual("ABCDEF", sut.Current.CharacterSets["Letters"]);
+        store.Received(2).Load();
+    }
+
+    [TestMethod]
+    public void ReloadFromDisk_RenormalizesConfigWithNoUsableCharacterSet()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        store.Load().Returns(new AppConfig
+        {
+            Practice = new Practice { DefaultCharacterSet = null! },
+            CharacterSets = new CharacterSets(),
+        });
+
+        sut.ReloadFromDisk();
+
+        Assert.HasCount(1, sut.Current.CharacterSets);
+        Assert.IsTrue(sut.Current.CharacterSets.ContainsKey("Default"));
+        Assert.AreEqual("Default", sut.Current.Practice.DefaultCharacterSet);
+    }
+
+    [TestMethod]
+    public async Task ApplyImported_DeepCopiesFromSource()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        var imported = new AppConfig
+        {
+            Practice = new Practice { CharacterWpm = 40, DefaultCharacterSet = "Letters" },
+            CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
+        };
+
+        sut.ApplyImported(imported);
+
+        // Mutating the source afterwards must not leak into the live configuration.
+        imported.Practice.CharacterWpm = 99;
+        imported.CharacterSets["Letters"] = "XXXXX";
+
+        Assert.AreEqual(40, sut.Current.Practice.CharacterWpm);
+        Assert.AreEqual("ABCDEF", sut.Current.CharacterSets["Letters"]);
+        Assert.AreEqual("Letters", sut.Current.Practice.DefaultCharacterSet);
+        await store.DidNotReceive().SaveAsync(Arg.Any<AppConfig>());
+    }
+
+    [TestMethod]
     public async Task UpsertCharacterSetAndSelectAsync_AddsSetSelectsItAndPersists()
     {
         var store = Substitute.For<IConfigurationStore>();

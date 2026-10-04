@@ -157,6 +157,99 @@ public sealed class MainWindowViewModelTests
         CollectionAssert.AreEqual(new[] { "Practice confusions" }, writes);
     }
 
+    [TestMethod]
+    public async Task ExportAsync_DelegatesToBackupDialogService()
+    {
+        var practiceController = CreateController();
+        var backupDialogService = Substitute.For<IBackupDialogService>();
+        backupDialogService.ShowExportAsync().Returns(BackupDialogOutcome.Completed);
+
+        var sut = CreateSut(practiceController, backupDialogService: backupDialogService);
+
+        await sut.ExportAsync();
+
+        await backupDialogService.Received(1).ShowExportAsync();
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenCancelled_DoesNotApplySettings()
+    {
+        var practiceController = CreateController();
+        var backupDialogService = Substitute.For<IBackupDialogService>();
+        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Cancelled);
+
+        var sut = CreateSut(practiceController, backupDialogService: backupDialogService);
+
+        await sut.ImportAsync();
+
+        practiceController.DidNotReceive().TryApplySettings(Arg.Any<AppConfig>(), out Arg.Any<string>());
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenCompleted_AppliesReloadedConfigToController()
+    {
+        var practiceController = CreateController();
+        var backupDialogService = Substitute.For<IBackupDialogService>();
+        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Completed);
+
+        var initialSets = new List<KeyValuePair<string, string>> { new("Default", "ABCDE") };
+        var importedSets = new List<KeyValuePair<string, string>>
+        {
+            new("Custom", "XYZ"),
+            new("Numbers", "12345"),
+        };
+        practiceController.PracticeDurationMins.Returns(5, 9);
+        practiceController.CharacterSets.Returns(initialSets, importedSets);
+        practiceController.SelectedCharacterSet.Returns("Default", "Custom");
+        practiceController.TryApplySettings(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = string.Empty;
+                return true;
+            });
+
+        var configService = Substitute.For<IConfigurationService>();
+        configService.Current.Returns(new AppConfig
+        {
+            Practice = new Practice { DefaultDurationMins = 9, DefaultCharacterSet = "Custom" },
+            CharacterSets = new CharacterSets { ["Custom"] = "XYZ" },
+            UiPreferences = new UiPreferences { ReceivedTextFontFamily = "Comic Sans", ReceivedTextFontSize = 42 },
+        });
+
+        var sut = CreateSut(practiceController, configService: configService, backupDialogService: backupDialogService);
+
+        await sut.ImportAsync();
+
+        practiceController.Received(1).TryApplySettings(
+            Arg.Is<AppConfig>(config => config.Practice.DefaultCharacterSet == "Custom"), out _);
+        CollectionAssert.AreEqual(new[] { "Custom", "Numbers" }, sut.CharacterSets);
+        Assert.AreEqual("Custom", sut.SelectedCharacterSet);
+        Assert.AreEqual(9, sut.Practice.PracticeDuration);
+        Assert.AreEqual(new Avalonia.Media.FontFamily("Comic Sans"), sut.ReceivedTextFontFamily);
+        Assert.AreEqual(42, sut.ReceivedTextFontSize);
+        Assert.AreEqual("Backup imported.", sut.Practice.TimeCounterText);
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenApplyFails_ShowsErrorOnPracticeStatusBar()
+    {
+        var practiceController = CreateController();
+        var backupDialogService = Substitute.For<IBackupDialogService>();
+        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Completed);
+        practiceController.TryApplySettings(Arg.Any<AppConfig>(), out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = "Invalid settings";
+                return false;
+            });
+
+        var sut = CreateSut(practiceController, backupDialogService: backupDialogService);
+
+        await sut.ImportAsync();
+
+        Assert.AreEqual("Invalid settings", sut.Practice.TimeCounterText);
+    }
+
     private static IPracticeController CreateController()
     {
         var practiceController = Substitute.For<IPracticeController>();
@@ -176,9 +269,11 @@ public sealed class MainWindowViewModelTests
         IConfusionsDialogService? confusionsDialogService = null,
         ILogger<MainWindowViewModel>? logger = null,
         bool revealSentText = true,
-        bool revealInLowercase = false)
+        bool revealInLowercase = false,
+        IConfigurationService? configService = null,
+        IBackupDialogService? backupDialogService = null)
     {
-        var configService = CreateConfigService(revealSentText, revealInLowercase);
+        configService ??= CreateConfigService(revealSentText, revealInLowercase);
         var practice = new PracticeViewModel(
             practiceController,
             Substitute.For<IPracticeResultWindowService>(),
@@ -195,6 +290,7 @@ public sealed class MainWindowViewModelTests
             Substitute.For<ICorrelationDialogService>(),
             Substitute.For<IUpdateChecker>(),
             Substitute.For<IInfoDialogService>(),
+            backupDialogService ?? Substitute.For<IBackupDialogService>(),
             practice,
             logger ?? Substitute.For<ILogger<MainWindowViewModel>>());
     }

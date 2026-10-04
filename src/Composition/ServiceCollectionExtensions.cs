@@ -70,6 +70,9 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ITrendsDialogService, TrendsDialogService>();
             services.AddSingleton<IConfusionsDialogService, ConfusionsDialogService>();
             services.AddSingleton<ICorrelationDialogService, CorrelationDialogService>();
+            services.AddSingleton<IUserBackupService, UserBackupService>();
+            services.AddSingleton<IConfirmDialogService, ConfirmDialogService>();
+            services.AddSingleton<IBackupDialogService, BackupDialogService>();
         }
 
         /// <summary>

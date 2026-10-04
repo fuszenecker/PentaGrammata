@@ -277,6 +277,106 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.HasCount(8, records);
     }
 
+    [TestMethod]
+    public async Task CreateConsistentCopyAsync_CreatesSelfContainedSnapshotWithSavedData()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        await sut.SaveAsync(CreateRecord());
+        await sut.SaveAsync(CreateRecord());
+        var copyPath = Path.Combine(_tempDirectory, "snapshot.db");
+
+        await sut.CreateConsistentCopyAsync(copyPath);
+
+        // The copy must be readable on its own (no WAL sidecars), even though the live
+        // database has its committed data in WAL mode.
+        Assert.AreEqual(2L, await ScalarAsync(copyPath, "SELECT COUNT(*) FROM practice_result_statistics;"));
+        Assert.IsFalse(File.Exists(copyPath + "-wal"));
+    }
+
+    [TestMethod]
+    public async Task CreateConsistentCopyAsync_WhenDestinationExists_ThrowsStatisticsStoreException()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        await sut.SaveAsync(CreateRecord());
+        var copyPath = Path.Combine(_tempDirectory, "snapshot.db");
+        await File.WriteAllTextAsync(copyPath, "existing");
+
+        await Assert.ThrowsExactlyAsync<StatisticsStoreException>(
+            () => sut.CreateConsistentCopyAsync(copyPath));
+    }
+
+    [TestMethod]
+    public async Task ReplaceDatabaseAsync_SwapsContentAndRemovesSidecars()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        await sut.SaveAsync(CreateRecord());
+        Assert.IsTrue(File.Exists(sut.DatabasePath + "-wal"));
+
+        var otherDirectory = Path.Combine(_tempDirectory, "other");
+        var other = new PracticeResultStatisticsStore(FakePaths(otherDirectory), Logger());
+        await other.SaveAsync(CreateRecord());
+        await other.SaveAsync(CreateRecord());
+        await other.SaveAsync(CreateRecord());
+        var sourcePath = Path.Combine(_tempDirectory, "source.db");
+        await other.CreateConsistentCopyAsync(sourcePath);
+
+        await sut.ReplaceDatabaseAsync(sourcePath);
+
+        // Sidecars of the replaced database are gone before any new operation recreates them.
+        Assert.IsFalse(File.Exists(sut.DatabasePath + "-wal"));
+        Assert.IsFalse(File.Exists(sut.DatabasePath + "-shm"));
+        Assert.AreEqual(3, await CountRowsAsync(sut.DatabasePath));
+        Assert.HasCount(3, await sut.GetStatisticsRecordsAsync());
+    }
+
+    [TestMethod]
+    public async Task ReplaceDatabaseAsync_RerunsSchemaInitializationOnOlderSchema()
+    {
+        // A legacy (pre-v2) database handed to the store that was already initialized
+        // against the current schema: the schema flag reset must re-run migration.
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        await sut.SaveAsync(CreateRecord());
+
+        var sourcePath = Path.Combine(_tempDirectory, "legacy.db");
+        await using (var connection = new SqliteConnection($"Data Source={sourcePath}"))
+        {
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE practice_result_statistics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recorded_at TEXT NOT NULL,
+                    character_wpm INTEGER NOT NULL,
+                    average_wpm INTEGER NOT NULL,
+                    character_count INTEGER NOT NULL,
+                    error_count INTEGER NOT NULL,
+                    error_rate_percent REAL NOT NULL,
+                    noise_type TEXT NOT NULL,
+                    noise_level_db REAL NOT NULL,
+                    noise_bandwidth_hz REAL NOT NULL,
+                    agc_enabled INTEGER NOT NULL,
+                    agc_delay_seconds REAL NOT NULL,
+                    apf_enabled INTEGER NOT NULL,
+                    apf_bandwidth_hz REAL NOT NULL,
+                    apf_peak_gain_db REAL NOT NULL
+                );
+                INSERT INTO practice_result_statistics VALUES
+                    (1, '1970-01-01T00:00:00.0000000+00:00', 20, 15, 10, 1, 10.0,
+                     'None', -15.0, 500.0, 1, 0.4, 1, 120.0, -9.0);
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await sut.ReplaceDatabaseAsync(sourcePath);
+
+        var records = await sut.GetStatisticsRecordsAsync();
+        Assert.HasCount(1, records);
+        Assert.AreEqual(0.0, records[0].ErrorThresholdPercent);
+        Assert.AreEqual(18.0, records[0].AgcMaxGainDb);
+        Assert.AreEqual(4L, await ScalarAsync(sut.DatabasePath, "SELECT version FROM schema_info;"));
+    }
+
     private static IAppPaths FakePaths(string directory)
     {
         var paths = Substitute.For<IAppPaths>();

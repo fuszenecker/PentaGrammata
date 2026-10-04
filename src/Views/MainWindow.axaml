@@ -22,6 +22,10 @@
         <Menu DockPanel.Dock="Top"
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
 
+            <MenuItem Header="_File">
+                <MenuItem Header="_Export" Command="{Binding ExportCommand}"/>
+                <MenuItem Header="_Import" Command="{Binding ImportCommand}"/>
+            </MenuItem>
             <MenuItem Header="_Settings">
                 <MenuItem Header="_Morse settings" Command="{Binding OpenSettingsCommand}"/>
                 <MenuItem Header="_UI settings" Command="{Binding OpenUiSettingsCommand}"/>

@@ -143,7 +143,10 @@ public sealed class TrendsTimelineChart : Control
     {
         base.Render(context);
 
-        var bounds = Bounds;
+        // Bounds is parent-relative, so its origin is where the control sits in the dialog grid,
+        // not (0, 0) of the drawing space. Everything below is drawn in local coordinates, so the
+        // surface has to be the control's own size or the fill lands offset from the chart.
+        var bounds = new Rect(Bounds.Size);
         context.FillRectangle(new SolidColorBrush(Color.Parse("#0F111A")), bounds);
 
         var points = Items;

@@ -19,4 +19,11 @@ public interface IWindowSizeStore
     /// ignored. Failures are swallowed (logged) so storage problems never surface to the UI.
     /// </summary>
     void SaveSize(string key, double width, double height);
+
+    /// <summary>
+    /// Discards the in-memory cache so the next read re-reads the backing file from disk.
+    /// Called after a backup import replaced the file; without this, the next
+    /// <see cref="SaveSize"/> would re-serialize the stale cache and wipe the imported sizes.
+    /// </summary>
+    void InvalidateCache();
 }
