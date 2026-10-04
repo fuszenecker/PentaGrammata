@@ -16,7 +16,6 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly IConfusionAnalysisService _confusionAnalysisService;
     private readonly IConfusionObservationExtractor _confusionExtractor;
     private readonly ICorrelationAnalysisService _correlationAnalysisService;
-    private readonly IInfoDialogService _infoDialogService;
     private readonly IConfigurationService _configurationService;
 
     public DialogViewModelFactory(
@@ -28,7 +27,6 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         IConfusionAnalysisService confusionAnalysisService,
         IConfusionObservationExtractor confusionExtractor,
         ICorrelationAnalysisService correlationAnalysisService,
-        IInfoDialogService infoDialogService,
         IConfigurationService configurationService)
     {
         _settingsValidator = settingsValidator;
@@ -39,7 +37,6 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         _confusionAnalysisService = confusionAnalysisService;
         _confusionExtractor = confusionExtractor;
         _correlationAnalysisService = correlationAnalysisService;
-        _infoDialogService = infoDialogService;
         _configurationService = configurationService;
     }
 
@@ -54,7 +51,8 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         int averageWpm,
         bool alreadySaved,
         double errorThresholdPercent,
-        NoiseSettings noise)
+        NoiseSettings noise,
+        IInfoDialogService infoDialogService)
     {
         return new PracticeResultWindowViewModel(
             result,
@@ -65,7 +63,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
             noise,
             _confusionExtractor,
             _statisticsService,
-            _infoDialogService);
+            infoDialogService);
     }
 
     public UiSettingsDialogViewModel CreateUiSettings(UiPreferences current)
@@ -98,7 +96,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         return new ConfirmDialogViewModel(title, message, confirmButtonText);
     }
 
-    public InfoDialogViewModel CreateInfo(string title, string primaryMessage, string? detailMessage, bool showDoNotShowAgain, string? detailHeading)
+    public InfoDialogViewModel CreateInfo(string title, string primaryMessage, string detailMessage, bool showDoNotShowAgain, string? detailHeading)
     {
         return new InfoDialogViewModel(title, primaryMessage, detailMessage, showDoNotShowAgain, detailHeading);
     }

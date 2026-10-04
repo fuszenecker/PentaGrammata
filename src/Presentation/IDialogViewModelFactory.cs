@@ -1,5 +1,6 @@
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 
@@ -21,7 +22,8 @@ public interface IDialogViewModelFactory
         int averageWpm,
         bool alreadySaved,
         double errorThresholdPercent,
-        NoiseSettings noise);
+        NoiseSettings noise,
+        IInfoDialogService infoDialogService);
 
     UiSettingsDialogViewModel CreateUiSettings(UiPreferences current);
 

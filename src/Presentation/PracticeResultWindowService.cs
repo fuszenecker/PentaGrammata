@@ -12,15 +12,18 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
     private readonly IWindowContext _windowContext;
     private readonly IDialogViewModelFactory _viewModelFactory;
     private readonly IWindowSizeService _windowSizeService;
+    private readonly IInfoDialogService _infoDialogService;
 
     public PracticeResultWindowService(
         IWindowContext windowContext,
         IDialogViewModelFactory viewModelFactory,
-        IWindowSizeService windowSizeService)
+        IWindowSizeService windowSizeService,
+        IInfoDialogService infoDialogService)
     {
         _windowContext = windowContext;
         _viewModelFactory = viewModelFactory;
         _windowSizeService = windowSizeService;
+        _infoDialogService = infoDialogService;
     }
 
     public async Task<bool> ShowPracticeResultAsync(
@@ -43,7 +46,8 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             averageWpm,
             alreadySaved,
             errorThresholdPercent,
-            noise);
+            noise,
+            _infoDialogService);
         var resultWindow = new PracticeResultWindow
         {
             DataContext = viewModel
