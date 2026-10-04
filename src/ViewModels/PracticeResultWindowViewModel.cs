@@ -10,7 +10,6 @@ using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;
-using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
@@ -61,6 +60,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,
+        IConfusionObservationExtractor confusionExtractor,
         IPracticeResultStatisticsService statisticsService,
         IInfoDialogService infoDialogService)
     {
@@ -105,7 +105,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
             ApfEnabled = noise.ApfEnabled,
             ApfBandwidthHz = noise.ApfBandwidthHz,
             ApfPeakGainDb = noise.ApfPeakGainDb,
-            Confusions = LevenshteinConfusionExtractor.Extract(result.Rows, recordedAt)
+            Confusions = confusionExtractor.Extract(result.Rows, recordedAt)
         };
 
         SaveResultsCommand = new AsyncRelayCommand(SaveResultsAsync, CanSaveResults);

@@ -59,6 +59,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IDynamicWpmAdjuster, DynamicWpmAdjuster>();
             services.AddSingleton<IPracticeResultStatisticsService, PracticeResultStatisticsService>();
             services.AddSingleton<IConfusionAnalysisService, ConfusionAnalysisService>();
+            services.AddSingleton<IConfusionObservationExtractor, ConfusionObservationExtractor>();
             services.AddSingleton<ICorrelationAnalysisService, CorrelationAnalysisService>();
             services.AddSingleton<IPracticeStatisticsExporter, PracticeStatisticsCsvExporter>();
             services.AddSingleton<IPracticeController, PracticeController>();

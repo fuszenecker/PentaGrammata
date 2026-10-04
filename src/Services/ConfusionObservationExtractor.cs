@@ -3,15 +3,20 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
+using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.Services;
 
-public static class LevenshteinConfusionExtractor
+/// <summary>
+/// Extracts confusion observations by aligning each sent/received group pair with
+/// Levenshtein edit operations and counting the non-match edits per symbol pair.
+/// </summary>
+public sealed class ConfusionObservationExtractor : IConfusionObservationExtractor
 {
     private const string GapSymbol = "_";
 
-    public static IReadOnlyList<ConfusionObservation> Extract(IReadOnlyList<PracticeResultRow> rows, DateTimeOffset recordedAt)
+    public IReadOnlyList<ConfusionObservation> Extract(IReadOnlyList<PracticeResultRow> rows, DateTimeOffset recordedAt)
     {
         var counts = new Dictionary<(string Expected, string Actual, int Distance), int>(StringTupleComparer.Ordinal);
 

@@ -4,7 +4,7 @@ using PentaGrammata.Services;
 namespace PentaGrammata.Tests.Services;
 
 [TestClass]
-public sealed class LevenshteinConfusionExtractorTests
+public sealed class ConfusionObservationExtractorTests
 {
     [TestMethod]
     public void Extract_SpecialTokenSubstitution_StoresSingleNormalizedObservation()
@@ -20,7 +20,7 @@ public sealed class LevenshteinConfusionExtractorTests
             },
         };
 
-        var observations = LevenshteinConfusionExtractor.Extract(rows, recordedAt);
+        var observations = new ConfusionObservationExtractor().Extract(rows, recordedAt);
 
         Assert.HasCount(1, observations);
         Assert.AreEqual("<bk>", observations[0].ExpectedSymbol);
@@ -39,7 +39,7 @@ public sealed class LevenshteinConfusionExtractorTests
             new PracticeResultRow { SentGroup = "<bk>", ReceivedGroup = "X", Difference = string.Empty },
         };
 
-        var observations = LevenshteinConfusionExtractor.Extract(rows, recordedAt);
+        var observations = new ConfusionObservationExtractor().Extract(rows, recordedAt);
 
         Assert.HasCount(1, observations);
         Assert.AreEqual("<bk>", observations[0].ExpectedSymbol);

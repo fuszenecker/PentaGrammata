@@ -13,6 +13,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
     private readonly IConfusionAnalysisService _confusionAnalysisService;
+    private readonly IConfusionObservationExtractor _confusionExtractor;
     private readonly ICorrelationAnalysisService _correlationAnalysisService;
     private readonly IInfoDialogService _infoDialogService;
     private readonly IConfigurationService _configurationService;
@@ -23,6 +24,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
         IConfusionAnalysisService confusionAnalysisService,
+        IConfusionObservationExtractor confusionExtractor,
         ICorrelationAnalysisService correlationAnalysisService,
         IInfoDialogService infoDialogService,
         IConfigurationService configurationService)
@@ -32,6 +34,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
         _confusionAnalysisService = confusionAnalysisService;
+        _confusionExtractor = confusionExtractor;
         _correlationAnalysisService = correlationAnalysisService;
         _infoDialogService = infoDialogService;
         _configurationService = configurationService;
@@ -57,6 +60,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
             alreadySaved,
             errorThresholdPercent,
             noise,
+            _confusionExtractor,
             _statisticsService,
             _infoDialogService);
     }
