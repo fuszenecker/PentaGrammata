@@ -44,6 +44,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private readonly string _defaultCharacterSet;
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
+    private readonly ICharacterSetTextCodec _characterSetTextCodec;
 
     [ObservableProperty]
     private int characterWpm;
@@ -167,10 +168,11 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
 
     public event Action<bool>? CloseRequested;
 
-    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator, IAudioHeadroomAnalyzer headroomAnalyzer)
+    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator, IAudioHeadroomAnalyzer headroomAnalyzer, ICharacterSetTextCodec characterSetTextCodec)
     {
         _settingsValidator = settingsValidator;
         _headroomAnalyzer = headroomAnalyzer;
+        _characterSetTextCodec = characterSetTextCodec;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
         _defaultCharacterSet = config.Practice.DefaultCharacterSet;
 
@@ -203,7 +205,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
             SelectedSampleRate = 44100;
         }
 
-        CharacterSetsText = CharacterSetTextCodec.FormatForEditor(config.CharacterSets);
+        CharacterSetsText = _characterSetTextCodec.FormatForEditor(config.CharacterSets);
 
         SaveCommand = new RelayCommand(OnSave);
         CancelCommand = new RelayCommand(OnCancel);
@@ -243,7 +245,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     {
         settings = new AppConfig();
 
-        if (!CharacterSetTextCodec.TryParse(CharacterSetsText, out var parsedSets, out var parserError))
+        if (!_characterSetTextCodec.TryParse(CharacterSetsText, out var parsedSets, out var parserError))
         {
             ErrorMessage = parserError;
             return false;

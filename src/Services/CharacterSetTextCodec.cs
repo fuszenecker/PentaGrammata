@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace PentaGrammata.Configuration;
+using PentaGrammata.Interfaces;
 
-public static class CharacterSetTextCodec
+namespace PentaGrammata.Services;
+
+public sealed class CharacterSetTextCodec : ICharacterSetTextCodec
 {
-    public static string FormatForEditor(IReadOnlyDictionary<string, string> characterSets)
+    public string FormatForEditor(IReadOnlyDictionary<string, string> characterSets)
     {
         return string.Join(Environment.NewLine,
             characterSets
@@ -14,7 +16,7 @@ public static class CharacterSetTextCodec
                 .Select(kv => $"{kv.Key} = {kv.Value}"));
     }
 
-    public static bool TryParse(string text, out Dictionary<string, string> parsedSets, out string error)
+    public bool TryParse(string text, out Dictionary<string, string> parsedSets, out string error)
     {
         parsedSets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);

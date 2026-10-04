@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PentaGrammata.Configuration;
+using PentaGrammata.Services;
 
 namespace PentaGrammata.Tests.Configuration;
 
@@ -18,7 +19,7 @@ public sealed class CharacterSetTextCodecTests
             ["beta"] = "B",
         };
 
-        var result = CharacterSetTextCodec.FormatForEditor(characterSets);
+        var result = new CharacterSetTextCodec().FormatForEditor(characterSets);
 
         var lines = result.Split(Environment.NewLine, StringSplitOptions.None);
         CollectionAssert.AreEqual(new[] { "Alpha = A", "beta = B", "zulu = Z" }, lines);
@@ -29,7 +30,7 @@ public sealed class CharacterSetTextCodecTests
     {
         const string text = "# first line comment\n\nAlpha = ABC\n beta = DEF \n# trailing comment";
 
-        var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
+        var success = new CharacterSetTextCodec().TryParse(text, out var parsedSets, out var error);
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
@@ -43,7 +44,7 @@ public sealed class CharacterSetTextCodecTests
     {
         const string text = "Alpha ABC";
 
-        var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
+        var success = new CharacterSetTextCodec().TryParse(text, out var parsedSets, out var error);
 
         Assert.IsFalse(success);
         Assert.IsEmpty(parsedSets);
@@ -55,7 +56,7 @@ public sealed class CharacterSetTextCodecTests
     {
         const string text = "# only comment\n\n";
 
-        var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
+        var success = new CharacterSetTextCodec().TryParse(text, out var parsedSets, out var error);
 
         Assert.IsFalse(success);
         Assert.IsEmpty(parsedSets);
@@ -67,7 +68,7 @@ public sealed class CharacterSetTextCodecTests
     {
         const string text = "A=B = ABCDE";
 
-        var success = CharacterSetTextCodec.TryParse(text, out var parsedSets, out var error);
+        var success = new CharacterSetTextCodec().TryParse(text, out var parsedSets, out var error);
 
         Assert.IsTrue(success);
         Assert.AreEqual(string.Empty, error);
@@ -80,8 +81,8 @@ public sealed class CharacterSetTextCodecTests
     {
         var characterSets = new Dictionary<string, string> { ["A=B"] = "ABCDE" };
 
-        var formatted = CharacterSetTextCodec.FormatForEditor(characterSets);
-        var success = CharacterSetTextCodec.TryParse(formatted, out var parsed, out var error);
+        var formatted = new CharacterSetTextCodec().FormatForEditor(characterSets);
+        var success = new CharacterSetTextCodec().TryParse(formatted, out var parsed, out var error);
 
         Assert.IsTrue(success);
         Assert.AreEqual("ABCDE", parsed["A=B"]);

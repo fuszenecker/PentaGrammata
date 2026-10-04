@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IWindowSizeService, WindowSizeService>();
             services.AddSingleton<IConfigurationService, ConfigurationService>();
             services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
+            services.AddSingleton<ICharacterSetTextCodec, CharacterSetTextCodec>();
             services.AddSingleton<IAudioHeadroomAnalyzer, AudioHeadroomAnalyzer>();
             services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
             services.AddSingleton<IDynamicWpmAdjuster, DynamicWpmAdjuster>();
