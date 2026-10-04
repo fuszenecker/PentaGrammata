@@ -84,6 +84,10 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Backup export/import: settings, statistics and window sizes in a single ZIP archive"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
                         <TextBlock Grid.Column="1" Text="Confusion matrix with time-weighted retention (half-life)"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">

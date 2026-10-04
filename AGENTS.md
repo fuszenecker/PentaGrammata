@@ -49,6 +49,12 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 - All settings (WPM, duration, character set, audio parameters) are editable in a Settings dialog and saved to a per-user `appsettings.json`.
 - Config location: `%AppData%\PentaGrammata` and `%LocalAppData%\PentaGrammata` on Windows (local is preferred for writing); `$XDG_CONFIG_HOME/PentaGrammata` (fallback `~/.config/PentaGrammata`) on Linux.
 
+### Backup Export & Import
+
+- The File menu (before Settings) has Export and Import. Export saves a ZIP containing the per-user `appsettings.json`, `practice-results.db` and `window-sizes.json`, with a dated suggested name (`pentagrammata-backup-YYYY-MM-DD.zip`). The database entry is a `VACUUM INTO` snapshot (consistent, no WAL sidecars); the settings entry is serialized from the live configuration, so it works on fresh profiles and platforms without a per-user config file (macOS), where the settings entry is omitted on export and applied in memory only on import.
+- Import picks such a ZIP, validates it (only the three flat entry names are honored — no path traversal), and shows a confirmation dialog before replacing anything. Everything is validated and extracted to temp files first; then the files present in the archive are replaced and the change is made **live**: pooled SQLite connections are cleared, the schema-initialized flag is reset (an older-schema database migrates on next use), the window-size cache is invalidated and the live configuration is reloaded in place into the shared `Current` instance. After the import, the same validated apply path as the settings dialog pushes the reloaded config into the practice controller.
+- `UserBackupService` (`Services/`, behind `IUserBackupService` in `Interfaces/`) owns the archive logic; `BackupDialogService` and `ConfirmDialogService` (`Presentation/`) own the pickers and the confirmation dialog.
+
 ## Architecture
 
 ```
