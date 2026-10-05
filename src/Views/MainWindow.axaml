@@ -149,7 +149,7 @@
             <TextBox x:Name="ReceivedTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding Practice.ReceivedText}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"
                 Padding="8,6" TextWrapping="WrapWithOverflow"
-                FontFamily="{Binding ReceivedTextFontFamily}"
+                FontFamily="{Binding ReceivedTextFontFamily, Converter={StaticResource FontFamilyConverter}}"
                 FontSize="{Binding ReceivedTextFontSize}"/>
 
             <!-- Fourth row: Check result button -->

@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.Input;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
 
 namespace PentaGrammata.ViewModels;
 
@@ -16,6 +18,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
 {
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
+    private readonly ITrendsCsvExportService _csvExportService;
     private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
@@ -25,19 +28,13 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     private bool _showNoiseSeries = true;
     private bool _showDailyRangeSeries = true;
     private bool _showQsbSeries = true;
+    private string _exportStatusText = string.Empty;
 
     public event Action? CloseRequested;
 
-    /// <summary>
-    /// Raised when the user requests a CSV export, carrying the fully formatted
-    /// CSV text. The view handles the actual file-save dialog, keeping the VM free
-    /// of any window or storage dependency.
-    /// </summary>
-    public event Action<string>? ExportCsvRequested;
-
     public IRelayCommand CloseCommand { get; }
 
-    public IRelayCommand ExportCsvCommand { get; }
+    public IAsyncRelayCommand ExportCsvCommand { get; }
 
     public ObservableCollection<PracticeTrendPoint> Points { get; } = [];
 
@@ -89,23 +86,47 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         private set => SetProperty(ref _summaryText, value);
     }
 
+    public string ExportStatusText
+    {
+        get => _exportStatusText;
+        private set => SetProperty(ref _exportStatusText, value);
+    }
+
     public TrendsDialogViewModel(
         IPracticeResultStatisticsService statisticsService,
-        IPracticeStatisticsExporter statisticsExporter)
+        IPracticeStatisticsExporter statisticsExporter,
+        ITrendsCsvExportService csvExportService)
     {
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
-        CloseCommand = new RelayCommand(() => CloseRequested?.Invoke());
-        ExportCsvCommand = new RelayCommand(ExportCsv, CanExportCsv);
+        _csvExportService = csvExportService;
+        ExportCsvCommand = new AsyncRelayCommand(ExportCsvAsync, CanExportCsv);
+        CloseCommand = new RelayCommand(() => CloseRequested?.Invoke(), () => !ExportCsvCommand.IsRunning);
+        ExportCsvCommand.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(IAsyncRelayCommand.IsRunning))
+            {
+                CloseCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
 
     private bool CanExportCsv() => _records.Count > 0;
 
-    private void ExportCsv()
+    private async Task ExportCsvAsync()
     {
-        using var writer = new StringWriter();
-        _statisticsExporter.Write(_records, writer);
-        ExportCsvRequested?.Invoke(writer.ToString());
+        ExportStatusText = string.Empty;
+        try
+        {
+            using var writer = new StringWriter();
+            _statisticsExporter.Write(_records, writer);
+            bool exported = await _csvExportService.ExportAsync(writer.ToString(), CancellationToken.None).ConfigureAwait(true);
+            ExportStatusText = exported ? "CSV exported." : "CSV export cancelled.";
+        }
+        catch (Exception ex)
+        {
+            ExportStatusText = $"CSV export failed: {ex.Message}";
+        }
     }
 
     public async Task InitializeAsync()

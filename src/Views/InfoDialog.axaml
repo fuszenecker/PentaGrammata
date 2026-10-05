@@ -10,42 +10,45 @@
         CanResize="False"
         ShowInTaskbar="False">
 
-    <Grid Margin="18" RowDefinitions="Auto,Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto">
         <TextBlock Grid.Row="0"
                    Text="{Binding PrimaryMessage}"
                    FontSize="14"
                    TextWrapping="Wrap"
                    TextAlignment="Left"
                    HorizontalAlignment="Stretch"
-                   Margin="0,0,0,10"/>
+                   Margin="10,10,10,8"/>
 
-        <TextBlock Grid.Row="1"
-                   Text="{Binding DetailHeading}"
-                   IsVisible="{Binding HasDetailHeading}"
-                   TextAlignment="Left"
-                   HorizontalAlignment="Stretch"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,6"/>
+        <Border Grid.Row="1"
+                IsVisible="{Binding HasDetail}"
+                Background="#101010"
+                Padding="10">
+            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                <TextBlock Grid.Row="0"
+                           Text="{Binding DetailHeading}"
+                           IsVisible="{Binding HasDetailHeading}"
+                           TextAlignment="Left"
+                           HorizontalAlignment="Stretch"
+                           FontWeight="SemiBold"/>
 
-        <TextBox Grid.Row="2"
-                 Text="{Binding DetailMessage}"
-                 IsVisible="{Binding HasDetail}"
-                 IsReadOnly="True"
-                 TextWrapping="Wrap"
-                 FontFamily="{StaticResource MonospaceFont}"
-                 MinHeight="70"
-                 VerticalContentAlignment="Top"
-                 HorizontalAlignment="Stretch"/>
+                <SelectableTextBlock Grid.Row="1"
+                                     Text="{Binding DetailMessage}"
+                                     TextWrapping="Wrap"
+                                     FontFamily="{StaticResource MonospaceFont}"
+                                     MinHeight="70"
+                                     HorizontalAlignment="Stretch"/>
+            </Grid>
+        </Border>
 
-        <StackPanel Grid.Row="3"
+        <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Margin="0,12,0,0">
+                    Margin="10"
+                    Spacing="8">
             <Button Content="Do not show again"
                     IsVisible="{Binding HasDoNotShowAgain}"
                     Command="{Binding DoNotShowAgainCommand}"
                     MinWidth="160"
-                    Margin="0,0,8,0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"/>
             <Button Content="OK"

@@ -13,11 +13,13 @@ public sealed class NoiseGeneratorFactory(Random? random = null) : INoiseGenerat
 {
     private readonly Random _random = random ?? Random.Shared;
 
-    public INoiseGenerator? Create(NoiseType type) => type switch
+    public INoiseGenerator? Create(NoiseType type) => Create(type, _random);
+
+    public INoiseGenerator? Create(NoiseType type, Random random) => type switch
     {
-        NoiseType.Gaussian => new GaussianNoiseGenerator(_random),
-        NoiseType.Uniform => new UniformNoiseGenerator(_random),
-        NoiseType.Pink => new PinkNoiseGenerator(_random),
+        NoiseType.Gaussian => new GaussianNoiseGenerator(random),
+        NoiseType.Uniform => new UniformNoiseGenerator(random),
+        NoiseType.Pink => new PinkNoiseGenerator(random),
         _ => null,
     };
 }

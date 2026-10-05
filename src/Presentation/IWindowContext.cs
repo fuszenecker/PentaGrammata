@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Presentation;
 
 public interface IWindowContext
 {

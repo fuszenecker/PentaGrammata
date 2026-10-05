@@ -1,9 +1,9 @@
 using System;
 using System.Linq;
+using System.Threading;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
-using PentaGrammata.Players;
 
 namespace PentaGrammata.Services;
 
@@ -14,7 +14,7 @@ namespace PentaGrammata.Services;
 /// makes the verdict trustworthy: AGC attack overshoot, the APF blend and the noise crest
 /// factor all interact, and none of them has a closed form.
 /// </summary>
-public sealed class AudioHeadroomAnalyzer : IAudioHeadroomAnalyzer
+public sealed class AudioHeadroomAnalyzer(IMorseSignalRendererFactory rendererFactory) : IAudioHeadroomAnalyzer
 {
     /// <summary>
     /// Probe word, repeated as needed. PARIS is the WPM yardstick: one word plus its trailing
@@ -50,11 +50,9 @@ public sealed class AudioHeadroomAnalyzer : IAudioHeadroomAnalyzer
 
     public AudioHeadroomReport Analyze(MorsePlaybackSettings settings)
     {
-        var renderer = new MorseSignalRenderer(
-            new NoiseGeneratorFactory(new Random(ProbeSeed)),
-            new Random(ProbeSeed));
+        var renderer = rendererFactory.Create(new Random(ProbeSeed));
 
-        var rendered = renderer.Render(BuildProbeText(settings), settings);
+        var rendered = renderer.Render(BuildProbeText(settings), settings, CancellationToken.None);
         if (rendered.Length == 0)
         {
             return new AudioHeadroomReport(double.NegativeInfinity, 0.0, 0.0);
@@ -71,14 +69,14 @@ public sealed class AudioHeadroomAnalyzer : IAudioHeadroomAnalyzer
                 peak = magnitude;
             }
 
-            if (magnitude > MorseSignalRenderer.FullScale)
+            if (magnitude > IMorseSignalRenderer.FullScale)
             {
                 clipped++;
             }
         }
 
         double peakDbFs = peak > 0.0
-            ? 20.0 * Math.Log10(peak / MorseSignalRenderer.FullScale)
+            ? 20.0 * Math.Log10(peak / IMorseSignalRenderer.FullScale)
             : double.NegativeInfinity;
 
         return new AudioHeadroomReport(

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -13,7 +14,7 @@ namespace PentaGrammata.Players;
 /// caller can either clamp it for playback (<see cref="MorsePlayer"/>) or measure how far
 /// the chain overshoots full scale (<see cref="Services.AudioHeadroomAnalyzer"/>).
 /// </summary>
-public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFactory, Random random)
+public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFactory, Random random) : IMorseSignalRenderer
 {
     /// <summary>Sample value that corresponds to 0 dBFS.</summary>
     public const double FullScale = short.MaxValue;
@@ -21,13 +22,14 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
     private readonly INoiseGeneratorFactory _noiseGeneratorFactory = noiseGeneratorFactory;
     private readonly Random _random = random;
 
-    public double[] Render(string morseCode, MorsePlaybackSettings settings)
+    public double[] Render(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken = default)
     {
-        var keyed = GenerateKeyedSignal(morseCode.ToLower(), settings);
-        return ApplyReceiverChain(keyed, settings);
+        cancellationToken.ThrowIfCancellationRequested();
+        var keyed = GenerateKeyedSignal(morseCode, settings, cancellationToken);
+        return ApplyReceiverChain(keyed, settings, cancellationToken);
     }
 
-    private static short[] GenerateBeep(int sampleRate, int durationMs, double frequency, double volume, int beepRampMs)
+    private static short[] GenerateBeep(int sampleRate, int durationMs, double frequency, double volume, int beepRampMs, CancellationToken cancellationToken)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
         int rampSamples = Math.Min((sampleRate * beepRampMs) / 1000, sampleCount / 2);
@@ -35,6 +37,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
 
         for (int i = 0; i < sampleCount; i++)
         {
+            ThrowIfCancellationRequested(i, cancellationToken);
             double envelope = 1.0;
 
             if (i < rampSamples)
@@ -52,16 +55,19 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         return audioData;
     }
 
-    private static short[] GenerateSilence(int sampleRate, int durationMs)
+    private static short[] GenerateSilence(int sampleRate, int durationMs, CancellationToken cancellationToken)
     {
         int sampleCount = (sampleRate * durationMs) / 1000;
-        return new short[sampleCount]; // 16-bit audio silence
+        cancellationToken.ThrowIfCancellationRequested();
+        var silence = new short[sampleCount]; // 16-bit audio silence
+        cancellationToken.ThrowIfCancellationRequested();
+        return silence;
     }
 
     /// <summary>Converts a decibel value to a linear amplitude ratio (0 dB == 1.0).</summary>
     private static double DecibelsToLinear(double decibels) => Math.Pow(10.0, decibels / 20.0);
 
-    private short[] GenerateKeyedSignal(string morseCode, MorsePlaybackSettings settings)
+    private short[] GenerateKeyedSignal(string morseCode, MorsePlaybackSettings settings, CancellationToken cancellationToken)
     {
         int charWpm = settings.CharacterWpm;
         int averageWpm = Math.Min(settings.AverageWpm, charWpm);
@@ -93,6 +99,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
 
         for (int i = 0; i < morseCode.Length; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string token;
             char c = morseCode[i];
 
@@ -113,7 +120,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
                 // Word boundary: emit the inter-word gap, then mark the next character as
                 // the start of a new word (it does not need a preceding inter-char gap).
                 if (!firstToken)
-                    audioData.AddRange(GenerateSilence(sampleRate, interWordMs));
+                    audioData.AddRange(GenerateSilence(sampleRate, interWordMs, cancellationToken));
                 firstToken = true;
                 continue;
             }
@@ -124,28 +131,29 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
 
             // Prepend inter-character gap before every character except the first.
             if (!firstToken)
-                audioData.AddRange(GenerateSilence(sampleRate, interCharMs));
+                audioData.AddRange(GenerateSilence(sampleRate, interCharMs, cancellationToken));
             firstToken = false;
 
             // Emit elements with intra-character gaps between them (but not trailing).
             for (int j = 0; j < morseSymbols.Length; j++)
             {
                 if (j > 0)
-                    audioData.AddRange(GenerateSilence(sampleRate, intraCharMs));
+                    audioData.AddRange(GenerateSilence(sampleRate, intraCharMs, cancellationToken));
 
                 char sym = morseSymbols[j];
                 if (sym == '.')
-                    audioData.AddRange(GenerateBeep(sampleRate, ditMs, frequency, volume, beepRampMs));
+                    audioData.AddRange(GenerateBeep(sampleRate, ditMs, frequency, volume, beepRampMs, cancellationToken));
                 else if (sym == '-')
-                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditMs, frequency, volume, beepRampMs));
+                    audioData.AddRange(GenerateBeep(sampleRate, 3 * ditMs, frequency, volume, beepRampMs, cancellationToken));
             }
         }
 
         // Append a trailing inter-character gap so the receiver chain processes the final
         // character's elements before the buffer ends.
         if (!firstToken)
-            audioData.AddRange(GenerateSilence(sampleRate, interCharMs));
+            audioData.AddRange(GenerateSilence(sampleRate, interCharMs, cancellationToken));
 
+        cancellationToken.ThrowIfCancellationRequested();
         var samples = audioData.ToArray();
 
         if (settings.QsbEnabled)
@@ -154,7 +162,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
             // noise off, and the downstream AGC reacts to the fade the way a real rig would.
             // A fresh fader per buffer keeps the singleton renderer stateless across renders
             // and lets every message start at full strength.
-            new QsbFader(settings.QsbDepthDb, settings.QsbPeriodSeconds, sampleRate, _random).Apply(samples);
+            new QsbFader(settings.QsbDepthDb, settings.QsbPeriodSeconds, sampleRate, _random).Apply(samples, cancellationToken);
         }
 
         return samples;
@@ -169,17 +177,18 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
     /// in the gaps and duck under the signal. No-ops when noise is disabled, returning the
     /// clean tone untouched.
     /// </summary>
-    private double[] ApplyReceiverChain(short[] samples, MorsePlaybackSettings settings)
+    private double[] ApplyReceiverChain(short[] samples, MorsePlaybackSettings settings, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (samples.Length == 0)
         {
             return [];
         }
 
-        var generator = _noiseGeneratorFactory.Create(settings.NoiseType);
+        var generator = _noiseGeneratorFactory.Create(settings.NoiseType, _random);
         if (generator is null)
         {
-            return ToDouble(samples);
+            return ToDouble(samples, cancellationToken);
         }
 
         // 1. Broadband noise from the generator. Its raw amplitude is arbitrary; step 2
@@ -187,6 +196,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         var noise = new double[samples.Length];
         for (int i = 0; i < noise.Length; i++)
         {
+            ThrowIfCancellationRequested(i, cancellationToken);
             noise[i] = generator.Next();
         }
 
@@ -209,6 +219,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         double filteredNoiseSumSquares = 0.0;
         for (int i = 0; i < noise.Length; i++)
         {
+            ThrowIfCancellationRequested(i, cancellationToken);
             double filtered = noiseMeasurementFilter.Process(noise[i]);
             filteredNoiseSumSquares += filtered * filtered;
         }
@@ -216,7 +227,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         double filteredNoiseRms = Math.Sqrt(filteredNoiseSumSquares / noise.Length);
         if (filteredNoiseRms <= double.Epsilon)
         {
-            return ToDouble(samples);
+            return ToDouble(samples, cancellationToken);
         }
 
         double noiseGain = targetNoiseRms / filteredNoiseRms;
@@ -255,6 +266,7 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         var receiverOutput = new double[samples.Length];
         for (int i = 0; i < samples.Length; i++)
         {
+            ThrowIfCancellationRequested(i, cancellationToken);
             double mixed = samples[i] + noise[i] * noiseGain;
             double filtered = passband.Process(mixed);
             double leveled = agc is not null ? agc.Process(filtered) : filtered;
@@ -269,16 +281,25 @@ public sealed class MorseSignalRenderer(INoiseGeneratorFactory noiseGeneratorFac
         return receiverOutput;
     }
 
-    private static double[] ToDouble(short[] samples)
+    private static double[] ToDouble(short[] samples, CancellationToken cancellationToken = default)
     {
         var converted = new double[samples.Length];
         for (int i = 0; i < samples.Length; i++)
         {
+            ThrowIfCancellationRequested(i, cancellationToken);
             converted[i] = samples[i];
         }
 
         return converted;
     }
 
-    private static string CharToMorse(string morseChar) => MorseAlphabet.GetSymbols(morseChar);
+    private static void ThrowIfCancellationRequested(int index, CancellationToken cancellationToken)
+    {
+        if ((index & 0xFFF) == 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+    }
+
+    private static string CharToMorse(string morseChar) => MorseAlphabet.GetSymbols(morseChar.ToLowerInvariant());
 }

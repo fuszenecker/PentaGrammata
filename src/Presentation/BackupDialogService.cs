@@ -114,11 +114,19 @@ public sealed class BackupDialogService : IBackupDialogService
             // A fresh stream: the inspection stream has been consumed and may not be
             // re-positioned by every provider.
             await using var importStream = await file.OpenReadAsync();
-            await _backupService.ImportAsync(importStream);
+            var result = await _backupService.ImportAsync(importStream);
+            await _infoDialogService.ShowInfoAsync(
+                "Automatic backup created",
+                $"Your data from before the import was backed up.\n{result.BackupPath}",
+                detailHeading: "Backup file");
         }
         catch (UserBackupException ex)
         {
-            await _infoDialogService.ShowInfoAsync("Import failed", ex.Message);
+            var message = ex.BackupPath is null
+                ? ex.Message
+                : $"{ex.Message} Your data from before the import was backed up.\n{ex.BackupPath}";
+            await _infoDialogService.ShowInfoAsync("Import failed", message,
+                detailHeading: ex.BackupPath is null ? null : "Backup file");
             return BackupDialogOutcome.Cancelled;
         }
 
@@ -135,6 +143,6 @@ public sealed class BackupDialogService : IBackupDialogService
         }.Where(part => part is not null);
 
         var list = string.Join(", ", parts);
-        return $"This will replace your current {list} with the contents of the selected backup.\nThis cannot be undone.";
+        return $"This will replace your current {list} with the contents of the selected backup.\nAn automatic backup of your current data will be saved first.";
     }
 }

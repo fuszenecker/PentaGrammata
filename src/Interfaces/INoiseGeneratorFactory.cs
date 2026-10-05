@@ -1,3 +1,5 @@
+using System;
+
 using PentaGrammata.Configuration;
 
 namespace PentaGrammata.Interfaces;
@@ -9,4 +11,11 @@ public interface INoiseGeneratorFactory
     /// <see cref="NoiseType.None"/> (meaning: mix in no noise at all).
     /// </summary>
     INoiseGenerator? Create(NoiseType type);
+
+    /// <summary>
+    /// Creates a generator using the supplied random source when the implementation supports
+    /// reproducible rendering. Implementations that do not need seeded generation can retain
+    /// the default behavior.
+    /// </summary>
+    INoiseGenerator? Create(NoiseType type, Random random) => Create(type);
 }

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Players;
@@ -35,6 +36,9 @@ public class LinuxAudioPlayer : IAudioPlayer
     private static extern int pa_simple_drain(IntPtr s, out int error);
 
     [DllImport(PulseLib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int pa_simple_flush(IntPtr s, out int error);
+
+    [DllImport(PulseLib, CallingConvention = CallingConvention.Cdecl)]
     private static extern void pa_simple_free(IntPtr s);
 
     [DllImport(PulseLib, CallingConvention = CallingConvention.Cdecl)]
@@ -44,6 +48,7 @@ public class LinuxAudioPlayer : IAudioPlayer
     {
         return Task.Run(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (audioData == null || audioData.Length == 0)
             {
                 return;
@@ -65,39 +70,51 @@ public class LinuxAudioPlayer : IAudioPlayer
 
             if (stream == IntPtr.Zero)
             {
-                System.Diagnostics.Debug.WriteLine($"PulseAudio/PipeWire open error: {Marshal.PtrToStringAnsi(pa_strerror(err))}");
-                return;
+                throw CreateAudioException("opening the stream", err);
             }
 
             try
             {
-                int chunkSize = sampleRate / 10 * 2; // 100ms chunks in bytes
+                int chunkSize = Math.Max(sampleRate / 10 * 2, 2); // about 100ms in bytes
                 int offset = 0;
 
-                while (offset < bytes.Length && !cancellationToken.IsCancellationRequested)
+                while (offset < bytes.Length)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     int size = Math.Min(chunkSize, bytes.Length - offset);
                     var chunk = new byte[size];
                     Array.Copy(bytes, offset, chunk, 0, size);
 
                     if (pa_simple_write(stream, chunk, (UIntPtr)size, out err) < 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"PulseAudio/PipeWire write error: {Marshal.PtrToStringAnsi(pa_strerror(err))}");
-                        break;
+                        throw CreateAudioException("writing audio", err);
                     }
 
                     offset += size;
                 }
 
-                if (!cancellationToken.IsCancellationRequested)
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    pa_simple_drain(stream, out _);
+                    if (pa_simple_flush(stream, out err) < 0)
+                    {
+                        throw CreateAudioException("flushing cancelled audio", err);
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
-                cancellationToken.ThrowIfCancellationRequested();
+                else if (pa_simple_drain(stream, out err) < 0)
+                {
+                    throw CreateAudioException("draining audio", err);
+                }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                System.Diagnostics.Debug.WriteLine($"PulseAudio/PipeWire audio error: {ex.Message}");
+                if (pa_simple_flush(stream, out err) < 0)
+                {
+                    throw CreateAudioException("flushing cancelled audio", err);
+                }
+
+                throw;
             }
             finally
             {
@@ -105,5 +122,11 @@ public class LinuxAudioPlayer : IAudioPlayer
             }
         }, cancellationToken);
     }
-}
 
+    private static AudioPlaybackException CreateAudioException(string operation, int error)
+    {
+        var messagePointer = pa_strerror(error);
+        var message = messagePointer == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(messagePointer);
+        return new AudioPlaybackException("PulseAudio/PipeWire", operation, error, message);
+    }
+}

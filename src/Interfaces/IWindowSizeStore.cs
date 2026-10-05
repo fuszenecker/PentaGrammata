@@ -2,8 +2,8 @@ namespace PentaGrammata.Interfaces;
 
 /// <summary>
 /// Reads and writes remembered window sizes, keyed by an opaque string, to a dedicated
-/// configuration file. Holds no UI-toolkit types so it can be unit-tested directly; the
-/// window wiring lives in <see cref="IWindowSizeService"/>. Only the size (width/height)
+/// configuration file. Holds no UI-toolkit types so it can be unit-tested directly; window
+/// wiring lives in the presentation layer. Only the size (width/height)
 /// is stored — never the position.
 /// </summary>
 public interface IWindowSizeStore

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.Interfaces;
 
@@ -41,8 +42,11 @@ public interface IUserBackupService
     /// recognized are the three flat names appsettings.json, practice-results.db and
     /// window-sizes.json (anything else in the archive is ignored, which also rules out
     /// path traversal). Throws <see cref="PentaGrammata.Exceptions.UserBackupException"/> with a user-facing
-    /// message on any failure. Must be called on the UI thread: it mutates the live
+    /// message on any failure. Before replacement, creates a uniquely named backup in
+    /// the app data directory's backups subdirectory; if backup creation fails, no entries
+    /// are replaced. Returns the imported contents and the automatic backup's full path.
+    /// Must be called on the UI thread: it mutates the live
     /// configuration, which its owner documents as UI-thread-only.
     /// </summary>
-    Task<BackupContents> ImportAsync(Stream archive, CancellationToken cancellationToken = default);
+    Task<BackupImportResult> ImportAsync(Stream archive, CancellationToken cancellationToken = default);
 }

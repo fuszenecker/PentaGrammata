@@ -4,7 +4,7 @@ using Avalonia.Controls;
 
 using PentaGrammata.Interfaces;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
 /// <summary>
 /// Wires a window up to <see cref="IWindowSizeStore"/>: applies the saved size before the

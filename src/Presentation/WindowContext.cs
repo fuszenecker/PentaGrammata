@@ -2,9 +2,8 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using PentaGrammata.Interfaces;
 
-namespace PentaGrammata.Services;
+namespace PentaGrammata.Presentation;
 
 public sealed class WindowContext : IWindowContext
 {

@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Composition;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Presentation;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 

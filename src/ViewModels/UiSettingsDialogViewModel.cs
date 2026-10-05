@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -33,7 +30,7 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
 
     public event Action<bool>? CloseRequested;
 
-    public UiSettingsDialogViewModel(UiPreferences prefs)
+    public UiSettingsDialogViewModel(UiPreferences prefs, IReadOnlyList<string> availableFonts)
     {
         _suppressedDialogs = [.. prefs.SuppressedDialogs];
         ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
@@ -41,7 +38,7 @@ public partial class UiSettingsDialogViewModel : ViewModelBase
         RevealSentTextAfterPractice = prefs.RevealSentTextAfterPractice;
         RevealSentTextInLowercase = prefs.RevealSentTextInLowercase;
 
-        AvailableFonts = [.. FontManager.Current.SystemFonts.Select(f => f.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
+        AvailableFonts = availableFonts;
 
         SaveCommand = new RelayCommand(() => CloseRequested?.Invoke(true));
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(false));

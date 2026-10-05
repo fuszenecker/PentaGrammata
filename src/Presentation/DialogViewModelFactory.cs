@@ -1,3 +1,8 @@
+using System;
+using System.Linq;
+
+using Avalonia.Media;
+
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
@@ -13,6 +18,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly ICharacterSetTextCodec _characterSetTextCodec;
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
+    private readonly ITrendsCsvExportService _trendsCsvExportService;
     private readonly IConfusionAnalysisService _confusionAnalysisService;
     private readonly IConfusionObservationExtractor _confusionExtractor;
     private readonly ICorrelationAnalysisService _correlationAnalysisService;
@@ -24,6 +30,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         ICharacterSetTextCodec characterSetTextCodec,
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
+        ITrendsCsvExportService trendsCsvExportService,
         IConfusionAnalysisService confusionAnalysisService,
         IConfusionObservationExtractor confusionExtractor,
         ICorrelationAnalysisService correlationAnalysisService,
@@ -34,6 +41,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         _characterSetTextCodec = characterSetTextCodec;
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
+        _trendsCsvExportService = trendsCsvExportService;
         _confusionAnalysisService = confusionAnalysisService;
         _confusionExtractor = confusionExtractor;
         _correlationAnalysisService = correlationAnalysisService;
@@ -68,7 +76,11 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public UiSettingsDialogViewModel CreateUiSettings(UiPreferences current)
     {
-        return new UiSettingsDialogViewModel(current);
+        var availableFonts = FontManager.Current.SystemFonts
+            .Select(font => font.Name)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return new UiSettingsDialogViewModel(current, availableFonts);
     }
 
     public AboutWindowViewModel CreateAbout()
@@ -78,7 +90,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public TrendsDialogViewModel CreateTrends()
     {
-        return new TrendsDialogViewModel(_statisticsService, _statisticsExporter);
+        return new TrendsDialogViewModel(_statisticsService, _statisticsExporter, _trendsCsvExportService);
     }
 
     public ConfusionsDialogViewModel CreateConfusions()

@@ -70,14 +70,21 @@
                                       VerticalAlignment="Stretch"/>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="10,8,10,10">
-            <TextBlock Grid.Column="0"
-                       Text="{Binding SummaryText}"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"/>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SummaryText}"
+                           TextWrapping="Wrap"/>
+                <!-- Collapsed while empty, otherwise its blank line pushes the summary
+                     off the vertical centre of the row. -->
+                <TextBlock Text="{Binding ExportStatusText}"
+                           Foreground="#9aa0a6"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding ExportStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
 
             <Button Grid.Column="1"
                     Content="Export CSV"
                     MinWidth="100"
+                    VerticalAlignment="Center"
                     Command="{Binding ExportCsvCommand}"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
@@ -86,6 +93,7 @@
             <Button Grid.Column="2"
                     Content="Close"
                     MinWidth="100"
+                    VerticalAlignment="Center"
                     IsDefault="True"
                     Command="{Binding CloseCommand}"
                     HorizontalContentAlignment="Center"

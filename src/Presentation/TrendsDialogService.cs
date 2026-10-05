@@ -1,6 +1,8 @@
+using System;
 using System.Threading.Tasks;
 
-using PentaGrammata.Interfaces;
+using Avalonia.Controls;
+
 using PentaGrammata.Views;
 
 namespace PentaGrammata.Presentation;
@@ -34,7 +36,24 @@ public sealed class TrendsDialogService : ITrendsDialogService
             DataContext = viewModel
         };
 
+        viewModel.CloseRequested += dialog.Close;
+        EventHandler<WindowClosingEventArgs> closingHandler = (_, args) =>
+        {
+            if (viewModel.ExportCsvCommand.IsRunning)
+            {
+                args.Cancel = true;
+            }
+        };
+        dialog.Closing += closingHandler;
         _windowSizeService.Track(dialog);
-        await dialog.ShowDialog(owner);
+        try
+        {
+            await dialog.ShowDialog(owner);
+        }
+        finally
+        {
+            dialog.Closing -= closingHandler;
+            viewModel.CloseRequested -= dialog.Close;
+        }
     }
 }

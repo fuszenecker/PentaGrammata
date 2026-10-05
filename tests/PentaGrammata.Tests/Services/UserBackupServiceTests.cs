@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -125,8 +126,10 @@ public sealed class UserBackupServiceTests
         await target.Statistics.SaveAsync(CreateRecord());
         target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         var targetCurrent = target.ConfigService.Current;
+        targetCurrent.Practice.CharacterWpm = 22;
 
-        var contents = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var contents = result.Contents;
 
         Assert.IsTrue(contents.AppSettings);
         Assert.IsTrue(contents.Database);
@@ -144,6 +147,21 @@ public sealed class UserBackupServiceTests
         Assert.IsNotNull(size);
         Assert.AreEqual(980, size.Value.Width);
         Assert.AreEqual(600, size.Value.Height);
+
+        // The automatic backup contains the original data, including unsaved live settings.
+        Assert.IsTrue(Path.IsPathFullyQualified(result.BackupPath));
+        Assert.AreEqual(Path.Combine(_tempDirectory, "target", "backups"), Path.GetDirectoryName(result.BackupPath));
+        var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
+        var backedUpSettings = JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json"));
+        Assert.IsNotNull(backedUpSettings);
+        Assert.AreEqual(22, backedUpSettings.Practice.CharacterWpm);
+
+        var restored = CreateContext(Path.Combine(_tempDirectory, "restored"));
+        await restored.Backup.ImportAsync(new MemoryStream(backupBytes));
+        Assert.AreEqual(22, restored.ConfigService.Current.Practice.CharacterWpm);
+        Assert.HasCount(2, await restored.Statistics.GetStatisticsRecordsAsync());
+        Assert.AreEqual((100.0, 100.0), restored.WindowSizes.TryGetSize("TrendsDialog")!.Value);
+        Assert.IsEmpty(Directory.GetFiles(Path.GetDirectoryName(result.BackupPath)!, "*.tmp"));
     }
 
     [TestMethod]
@@ -159,12 +177,121 @@ public sealed class UserBackupServiceTests
         }, JsonOptions);
         var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
 
-        var contents = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var contents = result.Contents;
 
         Assert.IsTrue(contents.AppSettings);
         Assert.IsFalse(contents.Database);
         Assert.IsFalse(contents.WindowSizes);
         Assert.AreEqual(66, target.ConfigService.Current.Practice.CharacterWpm);
+        Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_RepeatedImports_KeepSeparateBackups()
+    {
+        var target = CreateContext(_tempDirectory);
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        var settings = JsonSerializer.Serialize(new AppConfig
+        {
+            Practice = new Practice { CharacterWpm = 44 },
+        }, JsonOptions);
+        var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
+
+        var first = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var firstBytes = await File.ReadAllBytesAsync(first.BackupPath);
+        var second = await target.Backup.ImportAsync(new MemoryStream(zip));
+
+        Assert.AreNotEqual(first.BackupPath, second.BackupPath);
+        CollectionAssert.AreEqual(firstBytes, await File.ReadAllBytesAsync(first.BackupPath));
+        Assert.AreEqual(22, JsonSerializer.Deserialize<AppConfig>(ReadEntry(firstBytes, "appsettings.json"))!.Practice.CharacterWpm);
+        var secondBytes = await File.ReadAllBytesAsync(second.BackupPath);
+        Assert.AreEqual(44, JsonSerializer.Deserialize<AppConfig>(ReadEntry(secondBytes, "appsettings.json"))!.Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenBackupDirectoryCannotBeCreated_KeepsAllLiveData()
+    {
+        var source = CreateContext(Path.Combine(_tempDirectory, "source"));
+        source.ConfigService.Current.Practice.CharacterWpm = 44;
+        source.WindowSizes.SaveSize("TrendsDialog", 980, 600);
+        await source.Statistics.SaveAsync(CreateRecord());
+        var zip = await ExportToBytesAsync(source.Backup);
+
+        var targetDirectory = Path.Combine(_tempDirectory, "target");
+        var target = CreateContext(targetDirectory);
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        await target.ConfigService.SaveAsync();
+        target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
+        await target.Statistics.SaveAsync(CreateRecord());
+        await target.Statistics.SaveAsync(CreateRecord());
+        var settingsBytes = await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "appsettings.json"));
+        File.WriteAllText(Path.Combine(targetDirectory, "backups"), "blocks directory creation");
+
+        var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+
+        StringAssert.Contains(exception.Message, "No data was replaced");
+        Assert.IsNull(exception.BackupPath);
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
+        CollectionAssert.AreEqual(settingsBytes, await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "appsettings.json")));
+        Assert.HasCount(2, await target.Statistics.GetStatisticsRecordsAsync());
+        Assert.AreEqual((100.0, 100.0), target.WindowSizes.TryGetSize("TrendsDialog")!.Value);
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenBackupSnapshotFails_DoesNotReplaceDataOrLeaveIncompleteArchive()
+    {
+        var paths = Substitute.For<IAppPaths>();
+        paths.AppDataDirectory.Returns(_tempDirectory);
+        var configuration = Substitute.For<IConfigurationService>();
+        configuration.Current.Returns(new AppConfig());
+        var statistics = Substitute.For<IPracticeResultStatisticsStore>();
+        statistics.CreateConsistentCopyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new StatisticsStoreException("Snapshot failed.", new IOException("Disk full."))));
+        var windowSizes = Substitute.For<IWindowSizeStore>();
+        var backup = new UserBackupService(paths, configuration, statistics, windowSizes,
+            Substitute.For<ILogger<UserBackupService>>());
+        var zip = CreateZip(("appsettings.json", "{}"u8.ToArray()), ("window-sizes.json", "{}"u8.ToArray()));
+
+        var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => backup.ImportAsync(new MemoryStream(zip)));
+
+        StringAssert.Contains(exception.Message, "No data was replaced");
+        Assert.IsNull(exception.BackupPath);
+        Assert.IsEmpty(Directory.GetFiles(Path.Combine(_tempDirectory, "backups")));
+        await statistics.DidNotReceive().ReplaceDatabaseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        configuration.DidNotReceive().ReloadFromDisk();
+        configuration.DidNotReceive().ApplyImported(Arg.Any<AppConfig>());
+        windowSizes.DidNotReceive().InvalidateCache();
+        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "window-sizes.json")));
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenReplacementFails_PreservesBackupAndReportsItsPath()
+    {
+        var source = CreateContext(Path.Combine(_tempDirectory, "source"));
+        await source.Statistics.SaveAsync(CreateRecord());
+        var zip = await ExportToBytesAsync(source.Backup);
+
+        var targetDirectory = Path.Combine(_tempDirectory, "target");
+        var target = CreateContext(targetDirectory);
+        await target.Statistics.SaveAsync(CreateRecord());
+        await target.Statistics.SaveAsync(CreateRecord());
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        // Fail settings replacement after the database was replaced.
+        Directory.CreateDirectory(Path.Combine(targetDirectory, "appsettings.json"));
+
+        var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+
+        Assert.IsNotNull(exception.BackupPath);
+        Assert.IsTrue(File.Exists(exception.BackupPath));
+        var backupBytes = await File.ReadAllBytesAsync(exception.BackupPath);
+        var databasePath = Path.Combine(_tempDirectory, "original.db");
+        await File.WriteAllBytesAsync(databasePath, ReadEntry(backupBytes, "practice-results.db"));
+        Assert.AreEqual(2L, await CountRowsAsync(databasePath));
+        Assert.AreEqual(22, JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json"))!.Practice.CharacterWpm);
         Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
     }
 
@@ -249,6 +376,7 @@ public sealed class UserBackupServiceTests
 
         // Validation runs before any replacement, so the live database survives.
         Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
+        Assert.IsFalse(Directory.Exists(Path.Combine(_tempDirectory, "backups")));
     }
 
     [TestMethod]
@@ -282,12 +410,14 @@ public sealed class UserBackupServiceTests
         }, JsonOptions);
         var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
 
-        var contents = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
 
-        Assert.IsTrue(contents.AppSettings);
+        Assert.IsTrue(result.Contents.AppSettings);
         Assert.AreEqual(55, target.ConfigService.Current.Practice.CharacterWpm);
         // No per-user file exists on this platform, so nothing may have been written.
         Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "appsettings.json")));
+        var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
+        Assert.IsNotNull(JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json")));
     }
 
     [TestMethod]
