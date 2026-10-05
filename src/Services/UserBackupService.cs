@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 
 namespace PentaGrammata.Services;
 
@@ -18,9 +19,9 @@ namespace PentaGrammata.Services;
 /// Archives and restores the user's data files (per-user appsettings.json,
 /// practice-results.db, window-sizes.json) as a single ZIP archive. Imports replace only
 /// the entries present in the archive and make the change live in the running app. The
-/// multi-file apply is inherently non-transactional: on a mid-way failure the already
-/// replaced files stay replaced, but retrying the import is always safe because every step
-/// is an idempotent file replacement.
+/// original data is automatically backed up before any replacement. The multi-file apply
+/// is non-transactional: on a mid-way failure the already replaced files stay replaced,
+/// and the automatic backup remains available for recovery.
 /// </summary>
 public sealed class UserBackupService : IUserBackupService
 {
@@ -133,7 +134,7 @@ public sealed class UserBackupService : IUserBackupService
         }
     }
 
-    public async Task<BackupContents> ImportAsync(Stream archive, CancellationToken cancellationToken = default)
+    public async Task<BackupImportResult> ImportAsync(Stream archive, CancellationToken cancellationToken = default)
     {
         // Drain any in-flight configuration save before the settings file can be
         // overwritten; no new save can be requested in between, because every
@@ -141,6 +142,7 @@ public sealed class UserBackupService : IUserBackupService
         await _configurationService.FlushAsync();
 
         var seekable = EnsureSeekable(archive);
+        string? backupPath = null;
         try
         {
             using var zip = new ZipArchive(seekable, ZipArchiveMode.Read, leaveOpen: true);
@@ -183,6 +185,9 @@ public sealed class UserBackupService : IUserBackupService
                     ValidateWindowSizes(windowSizesBytes);
                 }
 
+                backupPath = await CreateAutomaticBackupAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Apply database → window sizes → settings: a failure mid-way leaves the
                 // configuration, the hardest to rebuild, untouched.
                 if (contents.Database)
@@ -220,7 +225,7 @@ public sealed class UserBackupService : IUserBackupService
                     }
                 }
 
-                return contents;
+                return new BackupImportResult(contents, backupPath);
             }
             finally
             {
@@ -230,24 +235,63 @@ public sealed class UserBackupService : IUserBackupService
                 }
             }
         }
+        catch (UserBackupException ex) when (backupPath is not null)
+        {
+            throw new UserBackupException(ex.Message, ex, backupPath);
+        }
         catch (UserBackupException)
         {
             throw;
         }
         catch (StatisticsStoreException ex)
         {
-            throw new UserBackupException("Could not replace the practice statistics database.", ex);
+            throw new UserBackupException("Could not replace the practice statistics database.", ex, backupPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or NotSupportedException)
         {
             _logger.LogError(ex, "Failed to import user data from a backup archive");
-            throw new UserBackupException("Could not import the backup archive.", ex);
+            throw new UserBackupException("Could not import the backup archive.", ex, backupPath);
         }
         finally
         {
             if (!ReferenceEquals(seekable, archive))
             {
                 seekable.Dispose();
+            }
+        }
+    }
+
+    private async Task<string> CreateAutomaticBackupAsync(CancellationToken cancellationToken)
+    {
+        var directory = Path.GetFullPath(Path.Combine(_appPaths.AppDataDirectory, "backups"));
+        var backupPath = Path.Combine(directory, $"pentagrammata-before-import-{DateTime.Now:yyyy-MM-dd-HHmmss}-{Guid.NewGuid():N}.zip");
+        var temporaryPath = backupPath + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(directory);
+            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await ExportAsync(stream, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(temporaryPath, backupPath);
+            return backupPath;
+        }
+        catch (Exception ex) when (ex is UserBackupException or IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Failed to create automatic backup before import at {BackupPath}", backupPath);
+            throw new UserBackupException("Could not create the automatic backup. No data was replaced.", ex);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not remove incomplete automatic backup at {TemporaryPath}", temporaryPath);
             }
         }
     }

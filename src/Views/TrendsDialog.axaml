@@ -70,10 +70,13 @@
                                       VerticalAlignment="Stretch"/>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="10,8,10,10">
-            <TextBlock Grid.Column="0"
-                       Text="{Binding SummaryText}"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"/>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SummaryText}"
+                           TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding ExportStatusText}"
+                           Foreground="#9aa0a6"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
 
             <Button Grid.Column="1"
                     Content="Export CSV"

@@ -2,7 +2,9 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.ExceptionServices;
 
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Players;
@@ -61,6 +63,7 @@ public class WindowsAudioPlayer : IAudioPlayer
     {
         return Task.Run(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (audioData == null || audioData.Length == 0)
             {
                 return;
@@ -86,14 +89,14 @@ public class WindowsAudioPlayer : IAudioPlayer
             IntPtr hWaveOut = IntPtr.Zero;
             IntPtr dataPtr = IntPtr.Zero;
             IntPtr headerPtr = IntPtr.Zero;
+            bool opened = false;
+            bool prepared = false;
+            Exception? playbackException = null;
 
             try
             {
-                if (waveOutOpen(out hWaveOut, WAVE_MAPPER, ref format, callbackHandle, IntPtr.Zero, CALLBACK_EVENT) != MMSYSERR_NOERROR)
-                {
-                    System.Diagnostics.Debug.WriteLine("Error opening waveOut device.");
-                    return;
-                }
+                CheckResult(waveOutOpen(out hWaveOut, WAVE_MAPPER, ref format, callbackHandle, IntPtr.Zero, CALLBACK_EVENT), "opening the device");
+                opened = true;
 
                 dataPtr = Marshal.AllocHGlobal(bytes.Length);
                 Marshal.Copy(bytes, 0, dataPtr, bytes.Length);
@@ -108,44 +111,71 @@ public class WindowsAudioPlayer : IAudioPlayer
                 Marshal.StructureToPtr(header, headerPtr, false);
 
                 int headerSize = Marshal.SizeOf<WaveHdr>();
-                waveOutPrepareHeader(hWaveOut, headerPtr, headerSize);
+                CheckResult(waveOutPrepareHeader(hWaveOut, headerPtr, headerSize), "preparing the audio buffer");
+                prepared = true;
 
                 doneEvent.Reset();
-                waveOutWrite(hWaveOut, headerPtr, headerSize);
+                CheckResult(waveOutWrite(hWaveOut, headerPtr, headerSize), "writing audio");
 
                 while (!doneEvent.WaitOne(10))
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        waveOutReset(hWaveOut);
-                        break;
+                        CheckResult(waveOutReset(hWaveOut), "stopping cancelled audio");
+                        cancellationToken.ThrowIfCancellationRequested();
                     }
                 }
 
-                waveOutUnprepareHeader(hWaveOut, headerPtr, headerSize);
                 cancellationToken.ThrowIfCancellationRequested();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error playing audio: {ex.Message}");
+                playbackException = ex;
             }
             finally
             {
+                if (opened && playbackException is not null)
+                {
+                    RecordCleanupResult(waveOutReset(hWaveOut), "resetting the device", ref playbackException);
+                }
+
+                if (prepared)
+                {
+                    RecordCleanupResult(waveOutUnprepareHeader(hWaveOut, headerPtr, Marshal.SizeOf<WaveHdr>()), "unpreparing the audio buffer", ref playbackException);
+                }
+
+                if (opened)
+                {
+                    RecordCleanupResult(waveOutClose(hWaveOut), "closing the device", ref playbackException);
+                }
+
                 if (headerPtr != IntPtr.Zero)
-                {
                     Marshal.FreeHGlobal(headerPtr);
-                }
-
                 if (dataPtr != IntPtr.Zero)
-                {
                     Marshal.FreeHGlobal(dataPtr);
-                }
-
-                if (hWaveOut != IntPtr.Zero)
-                {
-                    waveOutClose(hWaveOut);
-                }
             }
+
+            if (playbackException is not null)
+                ExceptionDispatchInfo.Capture(playbackException).Throw();
         }, cancellationToken);
     }
+
+    private static void CheckResult(int result, string operation)
+    {
+        if (result != MMSYSERR_NOERROR)
+        {
+            throw CreateAudioException(operation, result);
+        }
+    }
+
+    private static void RecordCleanupResult(int result, string operation, ref Exception? playbackException)
+    {
+        if (result != MMSYSERR_NOERROR && playbackException is null)
+        {
+            playbackException = CreateAudioException(operation, result);
+        }
+    }
+
+    private static AudioPlaybackException CreateAudioException(string operation, int error) =>
+        new("Windows waveOut", operation, error);
 }

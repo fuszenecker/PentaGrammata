@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace PentaGrammata.Interfaces;
+namespace PentaGrammata.Presentation;
 
 /// <summary>
 /// Remembers window sizes across runs, persisted to a dedicated configuration file.

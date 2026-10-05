@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using NSubstitute;
-using PentaGrammata.Interfaces;
 using PentaGrammata.Presentation;
 
 namespace PentaGrammata.Tests.Services;

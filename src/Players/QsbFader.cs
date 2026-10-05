@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace PentaGrammata.Players;
 
@@ -38,10 +39,15 @@ public sealed class QsbFader
         _samplesUntilRetarget = _retargetSamples;
     }
 
-    public void Apply(short[] samples)
+    public void Apply(short[] samples, CancellationToken cancellationToken = default)
     {
         for (int i = 0; i < samples.Length; i++)
         {
+            if ((i & 0xFFF) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (--_samplesUntilRetarget <= 0)
             {
                 // New fade depth: uniform in dB between 0 and the full depth, so the

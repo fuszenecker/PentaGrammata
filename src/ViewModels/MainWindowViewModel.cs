@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
 
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -56,7 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string selectedCharacterSet = "Default";
 
     [ObservableProperty]
-    private FontFamily receivedTextFontFamily = FontFamily.Default;
+    private string receivedTextFontFamily = string.Empty;
 
     [ObservableProperty]
     private double receivedTextFontSize = 20.0;
@@ -91,7 +90,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Practice = practice;
 
         RefreshCharacterSets();
-        ReceivedTextFontFamily = new FontFamily(_configurationService.Current.UiPreferences.ReceivedTextFontFamily);
+        ReceivedTextFontFamily = _configurationService.Current.UiPreferences.ReceivedTextFontFamily;
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
@@ -129,7 +128,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
 
         await _configurationService.ApplyUiPreferencesAsync(newPrefs);
-        ReceivedTextFontFamily = new FontFamily(newPrefs.ReceivedTextFontFamily);
+        ReceivedTextFontFamily = newPrefs.ReceivedTextFontFamily;
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
     }
 
@@ -208,7 +207,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Mirror OpenUiSettingsDialogAsync for the main-window-owned UI preferences.
         var prefs = _configurationService.Current.UiPreferences;
-        ReceivedTextFontFamily = new FontFamily(prefs.ReceivedTextFontFamily);
+        ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
         ReceivedTextFontSize = prefs.ReceivedTextFontSize;
 
         Practice.DisplayStatusMessage("Backup imported.", StatusLevel.Neutral);

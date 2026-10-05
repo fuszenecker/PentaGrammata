@@ -225,7 +225,7 @@ public sealed class MainWindowViewModelTests
         CollectionAssert.AreEqual(new[] { "Custom", "Numbers" }, sut.CharacterSets);
         Assert.AreEqual("Custom", sut.SelectedCharacterSet);
         Assert.AreEqual(9, sut.Practice.PracticeDuration);
-        Assert.AreEqual(new Avalonia.Media.FontFamily("Comic Sans"), sut.ReceivedTextFontFamily);
+        Assert.AreEqual("Comic Sans", sut.ReceivedTextFontFamily);
         Assert.AreEqual(42, sut.ReceivedTextFontSize);
         Assert.AreEqual("Backup imported.", sut.Practice.TimeCounterText);
     }

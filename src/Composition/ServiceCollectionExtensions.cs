@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IWindowContext, WindowContext>();
             services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
             services.AddSingleton<INoiseGeneratorFactory, NoiseGeneratorFactory>();
+            services.AddSingleton<IMorseSignalRendererFactory, MorseSignalRendererFactory>();
             services.AddSingleton<IMorsePlayer, MorsePlayer>();
             services.AddSingleton<IMorseGenerator, MorseGenerator>();
             services.AddSingleton<IAppPaths, AppPaths>();
@@ -51,7 +52,6 @@ public static class ServiceCollectionExtensions
         /// </summary>
         public void AddServices()
         {
-            services.AddSingleton<IWindowSizeService, WindowSizeService>();
             services.AddSingleton<IConfigurationService, ConfigurationService>();
             services.AddSingleton<IPracticeSettingsValidator, PracticeSettingsValidator>();
             services.AddSingleton<ICharacterSetTextCodec, CharacterSetTextCodec>();
@@ -62,6 +62,8 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IConfusionAnalysisService, ConfusionAnalysisService>();
             services.AddSingleton<IConfusionObservationExtractor, ConfusionObservationExtractor>();
             services.AddSingleton<ICorrelationAnalysisService, CorrelationAnalysisService>();
+            services.AddSingleton<IWindowSizeService, WindowSizeService>();
+            services.AddSingleton<ITrendsCsvExportService, TrendsCsvExportService>();
             services.AddSingleton<IPracticeStatisticsExporter, PracticeStatisticsCsvExporter>();
             services.AddSingleton<IPracticeController, PracticeController>();
             services.AddSingleton<IInfoDialogService, InfoDialogService>();

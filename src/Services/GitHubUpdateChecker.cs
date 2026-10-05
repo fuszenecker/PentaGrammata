@@ -67,7 +67,7 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
             return new UpdateCheckResult
             {
                 Succeeded = true,
-                UpdateAvailable = Normalize(latest) > Normalize(current),
+                UpdateAvailable = NormalizeReleaseVersion(latest) > NormalizeReleaseVersion(current),
                 CurrentVersion = current.ToString(),
                 LatestVersion = latest.ToString(),
                 ReleaseUrl = releaseUrl,
@@ -90,12 +90,15 @@ public sealed class GitHubUpdateChecker : IUpdateChecker
         return Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
     }
 
-    // Compare on Major.Minor.Build only, treating unset components as 0. This keeps a
-    // 3-part tag ("1.8.1") and a 4-part assembly version ("1.8.1.0") comparable, and
-    // ignores the build/revision noise that isn't part of a release identity.
-    private static Version Normalize(Version version)
+    // Release identity has four components in this project. Normalize missing build and
+    // revision components to zero so three-part tags remain comparable to assembly versions.
+    private static Version NormalizeReleaseVersion(Version version)
     {
-        return new Version(version.Major, version.Minor, Math.Max(0, version.Build));
+        return new Version(
+            version.Major,
+            version.Minor,
+            Math.Max(0, version.Build),
+            Math.Max(0, version.Revision));
     }
 
     // Release tags are commonly prefixed with 'v' (e.g. "v1.8.1"); tolerate that.
