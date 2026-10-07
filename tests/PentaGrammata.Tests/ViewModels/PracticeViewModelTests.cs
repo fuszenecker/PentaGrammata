@@ -175,7 +175,7 @@ public sealed class PracticeViewModelTests
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>()).Returns(Task.FromResult(false));
 
         var sut = CreateSut(practiceController, resultWindowService);
         sut.ReceivedText = "RX";
@@ -183,7 +183,7 @@ public sealed class PracticeViewModelTests
         await sut.OpenResultWindowAsync();
 
         await practiceController.Received(1).BuildResultAsync("RX");
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
     }
 
     [TestMethod]
@@ -197,7 +197,7 @@ public sealed class PracticeViewModelTests
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
             .Returns(true, false);
 
         var sut = CreateSut(practiceController, resultWindowService);
@@ -208,8 +208,15 @@ public sealed class PracticeViewModelTests
 
         // The save state is the VM's own: the first open reports alreadySaved=false, the
         // reopen (same session, already saved) reports true.
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
-        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, true, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), true, 10, Arg.Any<NoiseSettings>());
+        var sessionIds = resultWindowService.ReceivedCalls()
+            .Where(call => call.GetMethodInfo().Name == nameof(IPracticeResultWindowService.ShowPracticeResultAsync))
+            .Select(call => (Guid)call.GetArguments()[3]!)
+            .ToArray();
+        Assert.AreEqual(sessionIds[0], sessionIds[1]);
+        await practiceController.Received(1).BuildResultAsync("RX");
+        practiceController.Received(1).CreateSettingsSnapshot();
     }
 
     [TestMethod]
@@ -225,7 +232,7 @@ public sealed class PracticeViewModelTests
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
-        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
+        resultWindowService.ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
             .Returns(true, false);
 
         var sut = CreateSut(practiceController, resultWindowService);
@@ -240,7 +247,7 @@ public sealed class PracticeViewModelTests
         sut.ReceivedText = "RX";
         await sut.OpenResultWindowAsync();
 
-        await resultWindowService.Received(2).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(2).ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
     }
 
     private static IPracticeController CreateController()

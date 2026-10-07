@@ -57,6 +57,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         PracticeResult result,
         int characterWpm,
         int averageWpm,
+        Guid sessionId,
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,
@@ -86,6 +87,7 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
 
         _record = new PracticeResultStatisticsRecord
         {
+            SessionId = sessionId,
             RecordedAt = recordedAt,
             CharacterWpm = characterWpm,
             AverageWpm = averageWpm,

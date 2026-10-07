@@ -17,7 +17,7 @@ namespace PentaGrammata.Stores;
 
 public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsStore
 {
-    private const int CurrentSchemaVersion = 4;
+    private const int CurrentSchemaVersion = 5;
     private const int BusyTimeoutMs = 5000;
 
     private readonly ILogger<PracticeResultStatisticsStore> _logger;
@@ -100,7 +100,8 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         agc_max_gain_db,
                         apf_enabled,
                         apf_bandwidth_hz,
-                        apf_peak_gain_db
+                        apf_peak_gain_db,
+                        session_id
                     FROM practice_result_statistics
                     ORDER BY recorded_at ASC;
                     """;
@@ -130,6 +131,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                         ApfEnabled = reader.GetInt32(16) != 0,
                         ApfBandwidthHz = reader.GetDouble(17),
                         ApfPeakGainDb = reader.GetDouble(18),
+                        SessionId = reader.IsDBNull(19) ? null : Guid.Parse(reader.GetString(19)),
                     });
                 }
 
@@ -350,6 +352,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.CommandText =
             """
             INSERT INTO practice_result_statistics (
+                session_id,
                 recorded_at,
                 character_wpm,
                 average_wpm,
@@ -371,6 +374,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 apf_peak_gain_db
             )
             VALUES (
+                $session_id,
                 $recorded_at,
                 $character_wpm,
                 $average_wpm,
@@ -390,9 +394,11 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 $apf_enabled,
                 $apf_bandwidth_hz,
                 $apf_peak_gain_db
-            );
+            )
+            ON CONFLICT(session_id) WHERE session_id IS NOT NULL DO NOTHING;
             """;
 
+        insertCommand.Parameters.AddWithValue("$session_id", record.SessionId is null ? DBNull.Value : record.SessionId.Value.ToString("D"));
         insertCommand.Parameters.AddWithValue("$recorded_at", record.RecordedAt.ToString("O"));
         insertCommand.Parameters.AddWithValue("$character_wpm", record.CharacterWpm);
         insertCommand.Parameters.AddWithValue("$average_wpm", record.AverageWpm);
@@ -413,7 +419,12 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         insertCommand.Parameters.AddWithValue("$apf_bandwidth_hz", record.ApfBandwidthHz);
         insertCommand.Parameters.AddWithValue("$apf_peak_gain_db", record.ApfPeakGainDb);
 
-        await insertCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        var inserted = await insertCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        if (inserted == 0)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
 
         var idCommand = connection.CreateCommand();
         idCommand.Transaction = transaction;
@@ -492,6 +503,7 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                 PRAGMA foreign_keys = ON;
                 CREATE TABLE IF NOT EXISTS practice_result_statistics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NULL,
                     recorded_at TEXT NOT NULL,
                     character_wpm INTEGER NOT NULL,
                     average_wpm INTEGER NOT NULL,
@@ -651,6 +663,26 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     """;
                 v4VersionCommand.Parameters.AddWithValue("$version", CurrentSchemaVersion);
                 await v4VersionCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (currentVersion < 5)
+            {
+                var columns = await GetColumnNamesAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+                if (!columns.Contains("session_id"))
+                {
+                    var addSessionId = connection.CreateCommand();
+                    addSessionId.Transaction = transaction;
+                    addSessionId.CommandText = "ALTER TABLE practice_result_statistics ADD COLUMN session_id TEXT NULL;";
+                    await addSessionId.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                var v5Command = connection.CreateCommand();
+                v5Command.Transaction = transaction;
+                v5Command.CommandText =
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_practice_statistics_session_id ON practice_result_statistics(session_id) WHERE session_id IS NOT NULL; " +
+                    "DELETE FROM schema_info; INSERT INTO schema_info(version) VALUES ($version);";
+                v5Command.Parameters.AddWithValue("$version", CurrentSchemaVersion);
+                await v5Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);

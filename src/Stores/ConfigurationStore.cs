@@ -56,6 +56,7 @@ public sealed class ConfigurationStore : IConfigurationStore
         // Callers (ConfigurationService) hand us an already-isolated snapshot, so we
         // don't clone again here. The lock still serializes concurrent file writes.
         await _saveLock.WaitAsync().ConfigureAwait(false);
+        string? temporaryPath = null;
         try
         {
             Directory.CreateDirectory(directory);
@@ -65,10 +66,23 @@ public sealed class ConfigurationStore : IConfigurationStore
                 WriteIndented = true
             });
 
-            await File.WriteAllTextAsync(_userConfigPath, json).ConfigureAwait(false);
+            temporaryPath = Path.Combine(directory, $".{Path.GetFileName(_userConfigPath)}.{Guid.NewGuid():N}.tmp");
+            await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);
+            File.Move(temporaryPath, _userConfigPath, overwrite: true);
         }
         finally
         {
+            if (temporaryPath is not null && File.Exists(temporaryPath))
+            {
+                try
+                {
+                    File.Delete(temporaryPath);
+                }
+                catch (Exception cleanupException) when (cleanupException is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning(cleanupException, "Could not remove temporary configuration file {TemporaryPath}", temporaryPath);
+                }
+            }
             _saveLock.Release();
         }
     }

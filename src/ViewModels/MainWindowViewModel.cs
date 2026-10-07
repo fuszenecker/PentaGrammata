@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Presentation;
+using PentaGrammata.Exceptions;
 
 namespace PentaGrammata.ViewModels;
 
@@ -134,6 +135,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RefreshCharacterSets();
         Practice.RefreshFromAppliedSettings();
+        await FlushConfigurationAsync("Settings were applied, but could not be saved.");
     }
 
     public async Task OpenUiSettingsDialogAsync()
@@ -144,9 +146,16 @@ public partial class MainWindowViewModel : ViewModelBase
         if (newPrefs is null)
             return;
 
-        await _configurationService.ApplyUiPreferencesAsync(newPrefs);
         ReceivedTextFontFamily = newPrefs.ReceivedTextFontFamily;
         ReceivedTextFontSize = newPrefs.ReceivedTextFontSize;
+        try
+        {
+            await _configurationService.ApplyUiPreferencesAsync(newPrefs);
+        }
+        catch (ConfigurationPersistenceException ex)
+        {
+            await _infoDialogService.ShowInfoAsync("Settings not saved", ex.InnerException?.Message ?? ex.Message);
+        }
     }
 
     public Task OpenAboutAsync()
@@ -231,6 +240,11 @@ public partial class MainWindowViewModel : ViewModelBase
             ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
             ReceivedTextFontSize = prefs.ReceivedTextFontSize;
 
+            if (!await FlushConfigurationAsync("Backup data was imported, but its settings could not be saved."))
+            {
+                return;
+            }
+
             Practice.DisplayStatusMessage("Backup imported.", StatusLevel.Neutral);
         }
         finally
@@ -260,6 +274,12 @@ public partial class MainWindowViewModel : ViewModelBase
             var prefs = _configurationService.Current.UiPreferences;
             ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
             ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+
+            if (!await FlushConfigurationAsync("Data was restored, but its settings could not be saved."))
+            {
+                return;
+            }
+
             Practice.DisplayStatusMessage("Previous data restored.", StatusLevel.Neutral);
         }
         finally
@@ -283,6 +303,21 @@ public partial class MainWindowViewModel : ViewModelBase
         OpenConfusionsCommand.NotifyCanExecuteChanged();
         ImportCommand.NotifyCanExecuteChanged();
         RestoreCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task<bool> FlushConfigurationAsync(string failureMessage)
+    {
+        try
+        {
+            await _configurationService.FlushAsync();
+            return true;
+        }
+        catch (ConfigurationPersistenceException ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            Practice.DisplayStatusMessage($"{failureMessage} {detail}", StatusLevel.Error);
+            return false;
+        }
     }
 
     /// <summary>

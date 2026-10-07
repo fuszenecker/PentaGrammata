@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;
+using PentaGrammata.Exceptions;
 
 namespace PentaGrammata.ViewModels;
 
@@ -215,7 +216,16 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     {
         if (TryConsumeWindowDaysDirty())
         {
-            await _configurationService.SaveAsync().ConfigureAwait(true);
+            try
+            {
+                await _configurationService.SaveAsync().ConfigureAwait(true);
+            }
+            catch (ConfigurationPersistenceException ex)
+            {
+                _windowDaysDirty = true;
+                SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+                return;
+            }
         }
 
         CloseRequested?.Invoke();

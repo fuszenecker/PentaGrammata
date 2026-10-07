@@ -2,12 +2,12 @@
 
 ## Scope and evidence
 
-- Reviewed on **2026-10-07**, at commit **`63dcf921c46837e0191d736925a696248b98dda7`**.
+- Original review: **2026-10-07**, commit **`63dcf921c46837e0191d736925a696248b98dda7`**. Reassessed after **`c5c732b`** and the current uncommitted workspace changes.
 - Reviewed the composition root, configuration ownership, session lifecycle, scoring, backup/import, stores, audio pipeline, view models, dialog adapters, chart controls, and relevant tests.
-- This is a report only. Application code, tests, release version, and Git history were not changed.
+- This document retains the original review details and adds a current status/ranking below. The status reflects code and tests in the workspace, including uncommitted changes.
 - The existing [architecture-findings.md](architecture-findings.md) is historical and remains intact. Its A08–A13 fixes are present. A01–A07 still have relevant gaps; the automatic pre-import backup now mitigates A01, but does not make replacement transactional.
 - **Build:** successful, zero warnings/errors, .NET SDK `10.0.100`.
-- **Tests:** **284 passed, zero failed/skipped**. An initial concurrent build/test attempt caused an artifact lock; sequential compilation succeeded. The sandbox denied the test runner's local socket; the suite passed when rerun with approved access.
+- **Current validation:** **295 tests passed**, zero failed/skipped; application build succeeded with zero warnings/errors; `git diff --check` passed.
 - Additional probes used the built application classes in a temporary console project, real configuration/SQLite stores where relevant, and deferred substitutes for playback and saving. All data stayed in temporary directories. No actual audio device, GUI window, native playback timing, or crash recovery was exercised.
 
 **Evidence labels:** *Reproduced* means an isolated probe demonstrated the behavior. *Code path* means the source establishes the dependency or state sequence, without an interactive reproduction. *Structural* means a maintenance/testability concern; no runtime failure is claimed.
@@ -16,22 +16,22 @@
 
 ## Findings and recommended order
 
-| ID | Priority | Architectural smell | Evidence | Scope |
+| Rank | ID | Priority | Current smell / remaining risk | Current status |
 | --- | --- | --- | --- | --- |
-| R01 | P1 | Import has no fully validated candidate boundary | Reproduced | Medium |
-| R02 | P1 | Replacement deletes originals and has no rollback boundary | Reproduced + existing test | Large; split into two changes |
-| R03 | P1 | Session metadata and adjustment identity depend on live configuration | Reproduced | Medium |
-| R04 | P2 | Stopping is treated as completion before playback has drained | Reproduced | Medium |
-| R05 | P2 | Scoring has incompatible symbol units and a string-based edit protocol | Reproduced | Small, then medium |
-| R06 | P2 | Duration is a text-size heuristic rather than a session deadline | Reproduced rendering + code path | Large; stage carefully |
-| R07 | P2 | Result persistence belongs to a disposable window, without an idempotency key | Reproduced state sequence | Medium; includes DB migration |
-| R08 | P2 | Settings writer saves snapshots, while reader merges collections | Reproduced | Medium |
-| R09 | P2 | Configuration saving conflates completion with success and writes in place | Reproduced failure swallowing + code path | Medium |
-| R10 | P2 | Configuration invariants are enforced by individual entry points | Reproduced + code path | Medium |
-| R11 | P2 | Analytics load failures escape navigation commands | Code path | Small |
-| R12 | P3 | Settings edits synchronously run a full DSP probe on the UI thread | Code path; no latency benchmark | Medium |
+| 1 | R01 | P1 | Imported archives are not fully validated before publication; a header-only SQLite file can pass the current check. | Open |
+| 2 | R10 | P1 | Configuration invariants are still checked inconsistently; NaN values and unsendable character-set symbols can pass validation. | Open |
+| 3 | R08 | P1 | Present collections are still merged on load, so removed character sets can reappear. | Open |
+| 4 | R06 | P2 | Session length remains based on generated text/timer behavior rather than an explicit playback deadline. | Open |
+| 5 | R09 | P2 | Awaited save failures now propagate and show in relevant UI flows; writes use a sibling temporary file. A missing config path still looks like a successful save instead of an explicit memory-only outcome. | Mostly fixed; outcome gap remains |
+| 6 | R03 | P2 | UI configuration controls are disabled during active playback, but settings can still change after playback and before scoring; immutable session metadata is not captured. | User-path mitigation; residual |
+| 7 | R04 | P2 | The UI prevents restart/result checks until playback drains; controller state still conflates user Stop with actual playback completion for direct callers. | User-path mitigation; residual |
+| 8 | R02 | P2 | Ordinary apply failures roll back; there is no journal for recovery from a process crash during multi-file replacement. | Mostly fixed; crash gap remains |
+| 9 | R11 | P2 | Analytics load failures can still escape shell navigation commands without a user-facing recovery path. | Open |
+| 10 | R05 | P3 | Error count and denominator now use one Morse-symbol unit, including all supported prosigns. Edit details still use a string-encoded protocol. | Main correctness issue fixed; structural residual |
+| 11 | R12 | P3 | Headroom analysis runs off the UI thread, but the probe still lacks a hard work budget at very low WPM. | UI-thread issue fixed; bounded-work gap remains |
+| 12 | R07 | — | Session IDs, a persistent frozen result view model, a save-in-progress close guard, and SQLite idempotency now prevent lost/duplicate saves on close/reopen. | Fixed |
 
-Suggested implementation sequence: **R05 denominator fix → R08 → R10 → R01 → R02 → R03 → R04 → R07 → R06 → R09 → R11 → R05 typed edits → R12**. R08/R10 establish the loading and validation contracts R01 needs. R03/R04 establish session identity and lifecycle before persistence/deadline work.
+Recommended next sequence: **R01 → R10 → R08 → R06 → R09 memory-only outcome → R03 residual → R04 residual → R02 crash recovery → R11 → R12 work budget → R05 typed edits**. R07 and the main correctness/UI-thread parts of R05/R12 no longer need implementation work.
 
 ## Instructions for GPT-6-Luna
 

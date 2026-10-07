@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
+using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Services;
 
@@ -62,7 +63,7 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
-    public async Task SaveAsync_WhenStoreThrows_DoesNotPropagate()
+    public async Task SaveAsync_WhenStoreThrows_PropagatesAndLaterSaveCanSucceed()
     {
         var store = Substitute.For<IConfigurationStore>();
         store.Load().Returns(CreateConfig());
@@ -70,7 +71,10 @@ public sealed class ConfigurationServiceTests
 
         var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
 
-        // Should be swallowed (logged), not thrown to the caller.
+        var exception = await Assert.ThrowsExactlyAsync<ConfigurationPersistenceException>(() => sut.SaveAsync());
+        Assert.IsInstanceOfType<System.IO.IOException>(exception.InnerException);
+
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
         await sut.SaveAsync();
     }
 

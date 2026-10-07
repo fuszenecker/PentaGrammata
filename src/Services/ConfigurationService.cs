@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Exceptions;
 
 namespace PentaGrammata.Services;
 
@@ -76,9 +77,9 @@ public sealed class ConfigurationService : IConfigurationService
 
     public void RequestSave()
     {
-        // Fire-and-forget, but still ordered; failures are logged in PersistAsync
-        // rather than being lost on an unobserved task.
-        _ = SaveAsync();
+        // Fire-and-forget callers cannot surface a persistence error. Observe it here;
+        // awaited SaveAsync and FlushAsync retain the failure for their caller.
+        _ = ObserveBackgroundSaveAsync();
     }
 
     public Task FlushAsync()
@@ -239,6 +240,19 @@ public sealed class ConfigurationService : IConfigurationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to persist configuration");
+            throw new ConfigurationPersistenceException("Could not save application settings.", ex);
+        }
+    }
+
+    private async Task ObserveBackgroundSaveAsync()
+    {
+        try
+        {
+            await SaveAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "A background configuration save failed");
         }
     }
 }

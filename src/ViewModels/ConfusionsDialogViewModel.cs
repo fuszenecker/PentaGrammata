@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;
+using PentaGrammata.Exceptions;
 
 namespace PentaGrammata.ViewModels;
 
@@ -213,7 +214,16 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             return;
         }
 
-        await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        try
+        {
+            await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        }
+        catch (ConfigurationPersistenceException ex)
+        {
+            _halfLifeDirty = true;
+            SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+            return;
+        }
         // The upsert awaits a full SaveAsync, which also flushes any pending half-life
         // change, so nothing is left dirty.
         _halfLifeDirty = false;
@@ -236,7 +246,16 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     {
         if (TryConsumeHalfLifeDirty())
         {
-            await _configurationService.SaveAsync();
+            try
+            {
+                await _configurationService.SaveAsync();
+            }
+            catch (ConfigurationPersistenceException ex)
+            {
+                _halfLifeDirty = true;
+                SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+                return;
+            }
         }
 
         CloseRequested?.Invoke();
