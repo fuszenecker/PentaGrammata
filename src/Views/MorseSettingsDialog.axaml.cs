@@ -20,6 +20,7 @@ public partial class MorseSettingsDialog : Window
         if (_viewModel is not null)
         {
             _viewModel.CloseRequested -= OnCloseRequested;
+            _viewModel.OnDialogClosed();
         }
 
         _viewModel = DataContext as MorseSettingsDialogViewModel;

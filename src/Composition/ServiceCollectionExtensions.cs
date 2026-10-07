@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
         public void AddInfrastructure()
         {
             services.AddSingleton<IWindowContext, WindowContext>();
+            services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
             services.AddSingleton<IAudioPlayer>(_ => AudioPlayerFactory.Create());
             services.AddSingleton<INoiseGeneratorFactory, NoiseGeneratorFactory>();
             services.AddSingleton<IMorseSignalRendererFactory, MorseSignalRendererFactory>();

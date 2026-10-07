@@ -45,6 +45,8 @@ public interface IPracticeController
 
     PracticeResult BuildResult(string receivedText);
 
+    Task<PracticeResult> BuildResultAsync(string receivedText);
+
     AppConfig CreateSettingsSnapshot();
 
     bool TryApplySettings(AppConfig settings, out string error);

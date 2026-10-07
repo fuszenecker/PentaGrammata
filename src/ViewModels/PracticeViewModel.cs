@@ -165,7 +165,7 @@ public partial class PracticeViewModel : ViewModelBase
 
     public async Task OpenResultWindowAsync()
     {
-        var result = _practiceController.BuildResult(ReceivedText);
+        var result = await _practiceController.BuildResultAsync(ReceivedText);
         var settings = _practiceController.CreateSettingsSnapshot();
         // The WPM passed to the result window is the one actually used during the session
         // (the dynamic WPM when auto-adjust is on), not the configured starting point, so

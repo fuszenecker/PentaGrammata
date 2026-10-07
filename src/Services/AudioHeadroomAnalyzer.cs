@@ -48,11 +48,12 @@ public sealed class AudioHeadroomAnalyzer(IMorseSignalRendererFactory rendererFa
     /// </summary>
     private const int ProbeSeed = 5150;
 
-    public AudioHeadroomReport Analyze(MorsePlaybackSettings settings)
+    public AudioHeadroomReport Analyze(MorsePlaybackSettings settings, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var renderer = rendererFactory.Create(new Random(ProbeSeed));
 
-        var rendered = renderer.Render(BuildProbeText(settings), settings, CancellationToken.None);
+        var rendered = renderer.Render(BuildProbeText(settings), settings, cancellationToken);
         if (rendered.Length == 0)
         {
             return new AudioHeadroomReport(double.NegativeInfinity, 0.0, 0.0);
@@ -60,9 +61,15 @@ public sealed class AudioHeadroomAnalyzer(IMorseSignalRendererFactory rendererFa
 
         double peak = 0.0;
         int clipped = 0;
+        var sampleIndex = 0;
 
         foreach (double sample in rendered)
         {
+            if ((sampleIndex++ & 0xFFF) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             double magnitude = Math.Abs(sample);
             if (magnitude > peak)
             {

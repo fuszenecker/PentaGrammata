@@ -19,6 +19,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
     private readonly ITrendsCsvExportService _csvExportService;
+    private readonly IUiDispatcher _uiDispatcher;
     private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
     private string _summaryText = "Loading trend data...";
     private bool _showCharacterSeries = true;
@@ -95,11 +96,13 @@ public sealed class TrendsDialogViewModel : ViewModelBase
     public TrendsDialogViewModel(
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
-        ITrendsCsvExportService csvExportService)
+        ITrendsCsvExportService csvExportService,
+        IUiDispatcher uiDispatcher)
     {
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
         _csvExportService = csvExportService;
+        _uiDispatcher = uiDispatcher;
         ExportCsvCommand = new AsyncRelayCommand(ExportCsvAsync, CanExportCsv);
         CloseCommand = new RelayCommand(() => CloseRequested?.Invoke(), () => !ExportCsvCommand.IsRunning);
         ExportCsvCommand.PropertyChanged += (_, args) =>
@@ -118,9 +121,14 @@ public sealed class TrendsDialogViewModel : ViewModelBase
         ExportStatusText = string.Empty;
         try
         {
-            using var writer = new StringWriter();
-            _statisticsExporter.Write(_records, writer);
-            bool exported = await _csvExportService.ExportAsync(writer.ToString(), CancellationToken.None).ConfigureAwait(true);
+            var records = _records;
+            var csv = await Task.Run(() =>
+            {
+                using var writer = new StringWriter();
+                _statisticsExporter.Write(records, writer);
+                return writer.ToString();
+            });
+            bool exported = await _csvExportService.ExportAsync(csv, CancellationToken.None).ConfigureAwait(true);
             ExportStatusText = exported ? "CSV exported." : "CSV export cancelled.";
         }
         catch (Exception ex)
@@ -131,15 +139,29 @@ public sealed class TrendsDialogViewModel : ViewModelBase
 
     public async Task InitializeAsync()
     {
+        var records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(true);
+        var points = await Task.Run(() => PreparePoints(records));
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+        _records = records;
         Points.Clear();
-        _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(false);
+        foreach (var point in points) Points.Add(point);
+        ExportCsvCommand.NotifyCanExecuteChanged();
+        SummaryText = Points.Count == 0
+            ? "No saved results yet."
+            : $"{Points.Count} saved session(s), from {Points[0].RecordedAt:yyyy-MM-dd} to {Points[^1].RecordedAt:yyyy-MM-dd}. Mouse wheel: pan, Ctrl+wheel: zoom, drag: pan.";
+        });
+    }
+
+    private static IReadOnlyList<PracticeTrendPoint> PreparePoints(IReadOnlyList<PracticeResultStatisticsRecord> records)
+    {
 
         // Daily speed range: for each local calendar day, the highest and the lowest
         // AverageWpm among sessions whose error rate stayed below their error threshold. Both
         // ends come from the same passing set, so the chart can shade the day's range instead
         // of filling down to zero. Days with no passing session map to NaN on both ends so the
         // shading breaks across them.
-        var dailyRangeByDay = _records
+        var dailyRangeByDay = records
             .GroupBy(r => r.RecordedAt.ToLocalTime().Date)
             .ToDictionary(
                 g => g.Key,
@@ -151,7 +173,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
                         : (Min: passing.Min(r => (double)r.AverageWpm), Max: passing.Max(r => (double)r.AverageWpm));
                 });
 
-        foreach (var point in _records
+        return records
             .Select(r => new PracticeTrendPoint
             {
                 RecordedAt = r.RecordedAt,
@@ -168,19 +190,7 @@ public sealed class TrendsDialogViewModel : ViewModelBase
                 DailyMaxWpm = dailyRangeByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var range) ? range.Max : double.NaN,
                 DailyMinWpm = dailyRangeByDay.TryGetValue(r.RecordedAt.ToLocalTime().Date, out var sameRange) ? sameRange.Min : double.NaN,
             })
-            .OrderBy(x => x.RecordedAt))
-        {
-            Points.Add(point);
-        }
-
-        ExportCsvCommand.NotifyCanExecuteChanged();
-
-        if (Points.Count == 0)
-        {
-            SummaryText = "No saved results yet.";
-            return;
-        }
-
-        SummaryText = $"{Points.Count} saved session(s), from {Points[0].RecordedAt:yyyy-MM-dd} to {Points[^1].RecordedAt:yyyy-MM-dd}. Mouse wheel: pan, Ctrl+wheel: zoom, drag: pan.";
+            .OrderBy(x => x.RecordedAt)
+            .ToArray();
     }
 }

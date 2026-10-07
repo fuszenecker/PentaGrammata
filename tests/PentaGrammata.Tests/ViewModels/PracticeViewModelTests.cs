@@ -171,7 +171,7 @@ public sealed class PracticeViewModelTests
         var resultWindowService = Substitute.For<IPracticeResultWindowService>();
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
+        practiceController.BuildResultAsync("RX").Returns(Task.FromResult(result));
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
@@ -182,7 +182,7 @@ public sealed class PracticeViewModelTests
 
         await sut.OpenResultWindowAsync();
 
-        practiceController.Received(1).BuildResult("RX");
+        await practiceController.Received(1).BuildResultAsync("RX");
         await resultWindowService.Received(1).ShowPracticeResultAsync(result, 20, 15, false, 10, Arg.Any<NoiseSettings>());
     }
 
@@ -193,7 +193,7 @@ public sealed class PracticeViewModelTests
         var resultWindowService = Substitute.For<IPracticeResultWindowService>();
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
+        practiceController.BuildResultAsync("RX").Returns(Task.FromResult(result));
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);
@@ -221,7 +221,7 @@ public sealed class PracticeViewModelTests
         practiceController.LastGeneratedText.Returns(string.Empty);
 
         var result = new PracticeResult { CharacterCount = 10, ErrorCount = 1, ErrorRatePercent = 10, IsSuccessful = true };
-        practiceController.BuildResult("RX").Returns(result);
+        practiceController.BuildResultAsync("RX").Returns(Task.FromResult(result));
         practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
         practiceController.LastUsedCharacterWpm.Returns(20);
         practiceController.LastUsedAverageWpm.Returns(15);

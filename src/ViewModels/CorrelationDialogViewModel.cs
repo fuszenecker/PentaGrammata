@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.Input;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
 
 namespace PentaGrammata.ViewModels;
 
@@ -21,6 +23,8 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IConfigurationService _configurationService;
     private readonly ICorrelationAnalysisService _analysisService;
+    private readonly IUiDispatcher _uiDispatcher;
+    private CancellationTokenSource? _rebuildCancellation;
     private string _summaryText = "Loading correlation data...";
     private double _windowDays = DefaultWindowDays;
     private bool _windowDaysDirty;
@@ -51,7 +55,7 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
             {
                 _configurationService.SetCorrelationWindowDays(clamped);
                 _windowDaysDirty = true;
-                Rebuild();
+                _ = RebuildAsync();
             }
         }
     }
@@ -80,11 +84,13 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     public CorrelationDialogViewModel(
         IPracticeResultStatisticsService statisticsService,
         IConfigurationService configurationService,
-        ICorrelationAnalysisService analysisService)
+        ICorrelationAnalysisService analysisService,
+        IUiDispatcher uiDispatcher)
     {
         _statisticsService = statisticsService;
         _configurationService = configurationService;
         _analysisService = analysisService;
+        _uiDispatcher = uiDispatcher;
         var configuredWindow = Math.Clamp(
             _configurationService.Current.Analytics.CorrelationWindowDays,
             MinWindowDaysValue,
@@ -105,14 +111,29 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     public async Task InitializeAsync()
     {
         _records = await _statisticsService.GetStatisticsRecordsAsync().ConfigureAwait(true);
-        Rebuild();
+        await RebuildAsync();
     }
 
-    private void Rebuild()
+    private async Task RebuildAsync()
     {
-        var correlation = _analysisService.Analyze(_records, _windowDays, DateTimeOffset.UtcNow);
-        Correlation = correlation;
-        SummaryText = BuildSummary(correlation, _windowDays);
+        _rebuildCancellation?.Cancel();
+        _rebuildCancellation?.Dispose();
+        var cts = _rebuildCancellation = new CancellationTokenSource();
+        var records = _records;
+        var windowDays = _windowDays;
+        var now = DateTimeOffset.UtcNow;
+        try
+        {
+            var correlation = await Task.Run(() => _analysisService.Analyze(records, windowDays, now), cts.Token);
+            var summary = BuildSummary(correlation, windowDays);
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                if (cts.IsCancellationRequested) return;
+                Correlation = correlation;
+                SummaryText = summary;
+            });
+        }
+        catch (OperationCanceledException) { }
     }
 
     /// <summary>

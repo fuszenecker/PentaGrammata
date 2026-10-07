@@ -1,3 +1,4 @@
+using System.Threading;
 using PentaGrammata.Models;
 
 namespace PentaGrammata.Interfaces;
@@ -8,5 +9,6 @@ namespace PentaGrammata.Interfaces;
 /// </summary>
 public interface IAudioHeadroomAnalyzer
 {
-    AudioHeadroomReport Analyze(MorsePlaybackSettings settings);
+    /// <summary>Analyzes settings, checking cancellation periodically during DSP rendering.</summary>
+    AudioHeadroomReport Analyze(MorsePlaybackSettings settings, CancellationToken cancellationToken = default);
 }

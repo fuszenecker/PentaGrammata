@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,6 +11,7 @@ using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
 
 namespace PentaGrammata.ViewModels;
 
@@ -45,6 +48,12 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
     private readonly ICharacterSetTextCodec _characterSetTextCodec;
+    private readonly IUiDispatcher? _uiDispatcher;
+    private readonly SynchronizationContext? _synchronizationContext;
+    private CancellationTokenSource? _headroomAnalysisCancellation;
+    private int _headroomRequestId;
+    private bool _dialogClosed;
+    private static readonly TimeSpan HeadroomDebounce = TimeSpan.FromMilliseconds(150);
 
     [ObservableProperty]
     private int characterWpm;
@@ -168,11 +177,18 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
 
     public event Action<bool>? CloseRequested;
 
-    public MorseSettingsDialogViewModel(AppConfig config, IPracticeSettingsValidator settingsValidator, IAudioHeadroomAnalyzer headroomAnalyzer, ICharacterSetTextCodec characterSetTextCodec)
+    public MorseSettingsDialogViewModel(
+        AppConfig config,
+        IPracticeSettingsValidator settingsValidator,
+        IAudioHeadroomAnalyzer headroomAnalyzer,
+        ICharacterSetTextCodec characterSetTextCodec,
+        IUiDispatcher? uiDispatcher = null)
     {
         _settingsValidator = settingsValidator;
         _headroomAnalyzer = headroomAnalyzer;
         _characterSetTextCodec = characterSetTextCodec;
+        _uiDispatcher = uiDispatcher;
+        _synchronizationContext = SynchronizationContext.Current;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
         _defaultCharacterSet = config.Practice.DefaultCharacterSet;
 
@@ -210,27 +226,144 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         SaveCommand = new RelayCommand(OnSave);
         CancelCommand = new RelayCommand(OnCancel);
 
-        // One handler instead of eighteen OnXChanged hooks; the recompute is a short render,
-        // so it can run inline as the user turns a knob.
+        // Coalesce coupled property changes and supersede any older probe.
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is { } name && AudioChainPropertyNames.Contains(name))
-                UpdateDistortionWarning();
+                ScheduleDistortionWarningUpdate();
         };
 
-        UpdateDistortionWarning();
+        ScheduleDistortionWarningUpdate();
     }
 
     /// <summary>
-    /// Renders a probe message through the real signal chain and reports how far past full
-    /// scale it goes. Everything above full scale is hard-clipped in the player before the
-    /// buffer reaches the operating system, so the audible result is distortion.
+    /// Cancels pending headroom work when the settings dialog closes.
     /// </summary>
-    private void UpdateDistortionWarning()
+    public void OnDialogClosed()
     {
-        var report = _headroomAnalyzer.Analyze(MorsePlaybackSettings.From(BuildAudio(), CharacterWpm, AverageWpm));
+        if (_dialogClosed)
+        {
+            return;
+        }
 
-        DistortionWarning = report.WillClip
+        _dialogClosed = true;
+        _headroomRequestId++;
+        var cancellation = _headroomAnalysisCancellation;
+        _headroomAnalysisCancellation = null;
+        try
+        {
+            cancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // A dispatcher shutdown may have ended the completion callback first.
+        }
+    }
+
+    private void ScheduleDistortionWarningUpdate()
+    {
+        if (_dialogClosed)
+        {
+            return;
+        }
+
+        var settings = MorsePlaybackSettings.From(BuildAudio(), CharacterWpm, AverageWpm);
+        var cancellation = new CancellationTokenSource();
+        var previous = _headroomAnalysisCancellation;
+        var requestId = ++_headroomRequestId;
+        _headroomAnalysisCancellation = cancellation;
+        previous?.Cancel();
+
+        DistortionWarning = "Checking audio headroom…";
+        _ = AnalyzeHeadroomAsync(settings, cancellation, requestId);
+    }
+
+    private async Task AnalyzeHeadroomAsync(
+        MorsePlaybackSettings settings,
+        CancellationTokenSource cancellation,
+        int requestId)
+    {
+        var cancellationToken = cancellation.Token;
+        AudioHeadroomReport? report = null;
+        var failed = false;
+
+        try
+        {
+            await Task.Delay(HeadroomDebounce, cancellationToken).ConfigureAwait(false);
+            report = await Task.Run(
+                () => _headroomAnalyzer.Analyze(settings, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Superseded by a newer edit or canceled when the dialog closed.
+        }
+        catch (Exception)
+        {
+            failed = true;
+        }
+
+        try
+        {
+            await InvokeOnUiAsync(() =>
+            {
+                if (!_dialogClosed && requestId == _headroomRequestId && !cancellationToken.IsCancellationRequested)
+                {
+                    DistortionWarning = failed
+                        ? "Headroom check failed."
+                        : FormatDistortionWarning(report!.Value);
+                }
+
+                if (ReferenceEquals(_headroomAnalysisCancellation, cancellation))
+                {
+                    _headroomAnalysisCancellation = null;
+                }
+
+                cancellation.Dispose();
+            }).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The UI dispatcher can stop accepting work during application shutdown. The
+            // background task is still observed, and its cancellation resources are released.
+            cancellation.Dispose();
+        }
+    }
+
+    private Task InvokeOnUiAsync(Action action)
+    {
+        if (_uiDispatcher is not null)
+        {
+            return _uiDispatcher.InvokeAsync(action);
+        }
+
+        if (_synchronizationContext is null || ReferenceEquals(SynchronizationContext.Current, _synchronizationContext))
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _synchronizationContext.Post(_ =>
+        {
+            try
+            {
+                action();
+                completion.SetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
+            }
+        }, null);
+        return completion.Task;
+    }
+
+    private static string FormatDistortionWarning(AudioHeadroomReport report)
+    {
+        // Everything above full scale is hard-clipped by the player before reaching the
+        // sound device, so the warning includes its peak and clipped-sample share.
+        return report.WillClip
             ? $"⚠ Distortion: peaks {report.PeakDbFs:+0.#;-0.#} dB over FS, {FormatPercent(report.ClippedSampleRatio)} of samples clipped."
             : string.Empty;
     }
