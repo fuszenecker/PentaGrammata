@@ -210,6 +210,43 @@ public sealed class UserBackupServiceTests
     }
 
     [TestMethod]
+    public async Task RestoreLatestAsync_RestoresPreImportStateAndKeepsBeforeRestoreArchive()
+    {
+        var target = CreateContext(Path.Combine(_tempDirectory, "target"));
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        await target.ConfigService.SaveAsync();
+        await target.Statistics.SaveAsync(CreateRecord());
+        await target.Statistics.SaveAsync(CreateRecord());
+        target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
+
+        var source = CreateContext(Path.Combine(_tempDirectory, "source"));
+        source.ConfigService.Current.Practice.CharacterWpm = 44;
+        await source.ConfigService.SaveAsync();
+        await source.Statistics.SaveAsync(CreateRecord());
+        source.WindowSizes.SaveSize("TrendsDialog", 980, 600);
+        await target.Backup.ImportAsync(new MemoryStream(await ExportToBytesAsync(source.Backup)));
+
+        var restored = await target.Backup.RestoreLatestAsync();
+
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
+        Assert.HasCount(2, await target.Statistics.GetStatisticsRecordsAsync());
+        Assert.AreEqual((100.0, 100.0), target.WindowSizes.TryGetSize("TrendsDialog")!.Value);
+        Assert.IsTrue(File.Exists(restored.BackupPath));
+        StringAssert.Contains(Path.GetFileName(restored.BackupPath), "before-restore");
+    }
+
+    [TestMethod]
+    public async Task RestoreLatestAsync_WhenNoRestorePointExists_ThrowsHelpfulError()
+    {
+        var target = CreateContext(_tempDirectory);
+
+        var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.RestoreLatestAsync());
+
+        StringAssert.Contains(exception.Message, "No pre-import restore point");
+    }
+
+    [TestMethod]
     public async Task ImportAsync_WhenBackupDirectoryCannotBeCreated_KeepsAllLiveData()
     {
         var source = CreateContext(Path.Combine(_tempDirectory, "source"));
@@ -268,16 +305,18 @@ public sealed class UserBackupServiceTests
     }
 
     [TestMethod]
-    public async Task ImportAsync_WhenReplacementFails_PreservesBackupAndReportsItsPath()
+    public async Task ImportAsync_WhenReplacementFails_RollsBackAndReportsRecoveryPath()
     {
         var source = CreateContext(Path.Combine(_tempDirectory, "source"));
         await source.Statistics.SaveAsync(CreateRecord());
+        source.WindowSizes.SaveSize("TrendsDialog", 980, 600);
         var zip = await ExportToBytesAsync(source.Backup);
 
         var targetDirectory = Path.Combine(_tempDirectory, "target");
         var target = CreateContext(targetDirectory);
         await target.Statistics.SaveAsync(CreateRecord());
         await target.Statistics.SaveAsync(CreateRecord());
+        target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
         // Fail settings replacement after the database was replaced.
         Directory.CreateDirectory(Path.Combine(targetDirectory, "appsettings.json"));
@@ -291,8 +330,9 @@ public sealed class UserBackupServiceTests
         var databasePath = Path.Combine(_tempDirectory, "original.db");
         await File.WriteAllBytesAsync(databasePath, ReadEntry(backupBytes, "practice-results.db"));
         Assert.AreEqual(2L, await CountRowsAsync(databasePath));
-        Assert.AreEqual(22, JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json"))!.Practice.CharacterWpm);
-        Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
+        Assert.HasCount(2, await target.Statistics.GetStatisticsRecordsAsync());
+        Assert.AreEqual((100.0, 100.0), target.WindowSizes.TryGetSize("TrendsDialog")!.Value);
     }
 
     [TestMethod]

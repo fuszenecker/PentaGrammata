@@ -9,9 +9,7 @@ namespace PentaGrammata.Exceptions;
 /// </summary>
 public sealed class UserBackupException : Exception
 {
-    /// <summary>
-    /// Full path of the completed automatic backup, when an import fails after creating it.
-    /// </summary>
+    /// <summary>Path to the recovery archive created before an import or restore, if available.</summary>
     public string? BackupPath { get; }
 
     public UserBackupException(string message)

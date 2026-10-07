@@ -44,9 +44,12 @@ public interface IUserBackupService
     /// path traversal). Throws <see cref="PentaGrammata.Exceptions.UserBackupException"/> with a user-facing
     /// message on any failure. Before replacement, creates a uniquely named backup in
     /// the app data directory's backups subdirectory; if backup creation fails, no entries
-    /// are replaced. Returns the imported contents and the automatic backup's full path.
-    /// Must be called on the UI thread: it mutates the live
+    /// are replaced. The service keeps a temporary rollback snapshot while applying the
+    /// import and restores disk and live state if any apply step fails. Must be called on the UI thread: it mutates the live
     /// configuration, which its owner documents as UI-thread-only.
     /// </summary>
     Task<BackupImportResult> ImportAsync(Stream archive, CancellationToken cancellationToken = default);
+
+    /// <summary>Restores the most recent pre-import archive, while retaining a pre-restore archive.</summary>
+    Task<BackupImportResult> RestoreLatestAsync(CancellationToken cancellationToken = default);
 }

@@ -47,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand CheckUpdatesCommand { get; }
     public IAsyncRelayCommand ExportCommand { get; }
     public IAsyncRelayCommand ImportCommand { get; }
+    public IAsyncRelayCommand RestoreCommand { get; }
 
     [ObservableProperty]
     private string[] characterSets = [];
@@ -59,6 +60,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private double receivedTextFontSize = 20.0;
+
+    [ObservableProperty]
+    private bool isBackupOperationRunning;
+
+    public bool CanInteractWithMainWindow => !IsBackupOperationRunning;
 
     public MainWindowViewModel(
         IPracticeController practiceController,
@@ -93,19 +99,29 @@ public partial class MainWindowViewModel : ViewModelBase
         ReceivedTextFontFamily = _configurationService.Current.UiPreferences.ReceivedTextFontFamily;
         ReceivedTextFontSize = _configurationService.Current.UiPreferences.ReceivedTextFontSize;
 
-        OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync);
-        OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync);
+        OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsDialogAsync, CanChangePracticeConfiguration);
+        OpenUiSettingsCommand = new AsyncRelayCommand(OpenUiSettingsDialogAsync, CanChangePracticeConfiguration);
         OpenAboutCommand = new AsyncRelayCommand(OpenAboutAsync);
         OpenTrendsCommand = new AsyncRelayCommand(OpenTrendsAsync);
-        OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync);
+        OpenConfusionsCommand = new AsyncRelayCommand(OpenConfusionsAsync, CanChangePracticeConfiguration);
         OpenCorrelationCommand = new AsyncRelayCommand(OpenCorrelationAsync);
         CheckUpdatesCommand = new AsyncRelayCommand(CheckUpdatesAsync);
         ExportCommand = new AsyncRelayCommand(ExportAsync);
-        ImportCommand = new AsyncRelayCommand(ImportAsync);
+        ImportCommand = new AsyncRelayCommand(ImportAsync, CanChangePracticeConfiguration);
+        RestoreCommand = new AsyncRelayCommand(RestoreAsync, CanChangePracticeConfiguration);
+
+        Practice.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(PracticeViewModel.IsPracticeOperationActive))
+            {
+                NotifyConfigurationCommandStates();
+            }
+        };
     }
 
     public async Task OpenSettingsDialogAsync()
     {
+        if (!CanChangePracticeConfiguration()) return;
         var newSettings = await _settingsDialogService.ShowSettingsDialogAsync(_practiceController.CreateSettingsSnapshot());
         if (newSettings is null)
             return;
@@ -122,6 +138,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task OpenUiSettingsDialogAsync()
     {
+        if (!CanChangePracticeConfiguration()) return;
         var newPrefs = await _uiSettingsDialogService.ShowUiSettingsDialogAsync(
             _configurationService.Current.UiPreferences);
         if (newPrefs is null)
@@ -172,6 +189,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task OpenConfusionsAsync()
     {
+        if (!CanChangePracticeConfiguration()) return;
         await _confusionsDialogService.ShowConfusionsAsync();
         RefreshCharacterSets();
     }
@@ -188,29 +206,83 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task ImportAsync()
     {
-        if (await _backupDialogService.ShowImportAsync() != BackupDialogOutcome.Completed)
+        if (!CanChangePracticeConfiguration()) return;
+        try
         {
-            return;
-        }
+            if (await _backupDialogService.ShowImportAsync(() => IsBackupOperationRunning = true) != BackupDialogOutcome.Completed)
+            {
+                return;
+            }
 
-        // The backup service already reloaded the live configuration in place; push the
-        // (possibly new) settings through the same validated apply path as the settings
-        // dialog, which also resets the dynamic WPM from the imported values.
-        if (!_practiceController.TryApplySettings(_configurationService.Current, out var error))
+            // The backup service already reloaded the live configuration in place; push the
+            // (possibly new) settings through the same validated apply path as the settings
+            // dialog, which also resets the dynamic WPM from the imported values.
+            if (!_practiceController.TryApplySettings(_configurationService.Current, out var error))
+            {
+                Practice.DisplayStatusMessage(error, StatusLevel.Error);
+                return;
+            }
+
+            RefreshCharacterSets();
+            Practice.RefreshFromAppliedSettings();
+
+            // Mirror OpenUiSettingsDialogAsync for the main-window-owned UI preferences.
+            var prefs = _configurationService.Current.UiPreferences;
+            ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
+            ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+
+            Practice.DisplayStatusMessage("Backup imported.", StatusLevel.Neutral);
+        }
+        finally
         {
-            Practice.DisplayStatusMessage(error, StatusLevel.Error);
-            return;
+            IsBackupOperationRunning = false;
         }
+    }
 
-        RefreshCharacterSets();
-        Practice.RefreshFromAppliedSettings();
+    public async Task RestoreAsync()
+    {
+        if (!CanChangePracticeConfiguration()) return;
+        try
+        {
+            if (await _backupDialogService.ShowRestoreAsync(() => IsBackupOperationRunning = true) != BackupDialogOutcome.Completed)
+            {
+                return;
+            }
 
-        // Mirror OpenUiSettingsDialogAsync for the main-window-owned UI preferences.
-        var prefs = _configurationService.Current.UiPreferences;
-        ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
-        ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+            if (!_practiceController.TryApplySettings(_configurationService.Current, out var error))
+            {
+                Practice.DisplayStatusMessage(error, StatusLevel.Error);
+                return;
+            }
 
-        Practice.DisplayStatusMessage("Backup imported.", StatusLevel.Neutral);
+            RefreshCharacterSets();
+            Practice.RefreshFromAppliedSettings();
+            var prefs = _configurationService.Current.UiPreferences;
+            ReceivedTextFontFamily = prefs.ReceivedTextFontFamily;
+            ReceivedTextFontSize = prefs.ReceivedTextFontSize;
+            Practice.DisplayStatusMessage("Previous data restored.", StatusLevel.Neutral);
+        }
+        finally
+        {
+            IsBackupOperationRunning = false;
+        }
+    }
+
+    partial void OnIsBackupOperationRunningChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanInteractWithMainWindow));
+        NotifyConfigurationCommandStates();
+    }
+
+    private bool CanChangePracticeConfiguration() => !Practice.IsPracticeOperationActive && !IsBackupOperationRunning;
+
+    private void NotifyConfigurationCommandStates()
+    {
+        OpenSettingsCommand.NotifyCanExecuteChanged();
+        OpenUiSettingsCommand.NotifyCanExecuteChanged();
+        OpenConfusionsCommand.NotifyCanExecuteChanged();
+        ImportCommand.NotifyCanExecuteChanged();
+        RestoreCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>

@@ -17,6 +17,8 @@ public readonly record struct LevenshteinEdit(LevenshteinEditKind Kind, string E
 
 public static class LevenshteinAlignment
 {
+    public static int CountSymbols(string text) => TokenizeSymbols(text).Count;
+
     public static int GetDistance(string expected, string actual)
     {
         var expectedSymbols = TokenizeSymbols(expected);
@@ -143,9 +145,13 @@ public static class LevenshteinAlignment
                 var endIndex = text.IndexOf('>', i);
                 if (endIndex > i)
                 {
-                    symbols.Add(text.Substring(i, endIndex - i + 1));
-                    i = endIndex;
-                    continue;
+                    var candidate = text.Substring(i, endIndex - i + 1);
+                    if (MorseAlphabet.Supports(candidate))
+                    {
+                        symbols.Add(candidate);
+                        i = endIndex;
+                        continue;
+                    }
                 }
             }
 

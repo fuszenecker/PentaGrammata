@@ -16,7 +16,7 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
         var rowCount = Math.Max(sentGroups.Count, receivedGroups.Count);
         var rows = new List<PracticeResultRow>(rowCount);
 
-        var characterCount = sentGroups.Sum(x => x.Length);
+        var characterCount = sentGroups.Sum(LevenshteinAlignment.CountSymbols);
         var errorCount = 0;
 
         for (var i = 0; i < rowCount; i++)

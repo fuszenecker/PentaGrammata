@@ -17,22 +17,23 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <DockPanel>
+    <DockPanel IsEnabled="{Binding CanInteractWithMainWindow}">
 
         <Menu DockPanel.Dock="Top"
             Background="#0c0c0c" BorderBrush="#202020" BorderThickness="0,0,0,1">
 
             <MenuItem Header="_File">
                 <MenuItem Header="_Export" Command="{Binding ExportCommand}"/>
-                <MenuItem Header="_Import" Command="{Binding ImportCommand}"/>
+                <MenuItem Header="_Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
+                <MenuItem Header="_Restore" Command="{Binding RestoreCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
             </MenuItem>
             <MenuItem Header="_Settings">
-                <MenuItem Header="_Morse settings" Command="{Binding OpenSettingsCommand}"/>
-                <MenuItem Header="_UI settings" Command="{Binding OpenUiSettingsCommand}"/>
+                <MenuItem Header="_Morse settings" Command="{Binding OpenSettingsCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
+                <MenuItem Header="_UI settings" Command="{Binding OpenUiSettingsCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
             </MenuItem>
             <MenuItem Header="_Analysis">
                 <MenuItem Header="_Trends" Command="{Binding OpenTrendsCommand}"/>
-                <MenuItem Header="_Confusions" Command="{Binding OpenConfusionsCommand}"/>
+                <MenuItem Header="_Confusions" Command="{Binding OpenConfusionsCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
                 <MenuItem Header="C_orrelation" Command="{Binding OpenCorrelationCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
@@ -84,7 +85,7 @@
             
             <ComboBox Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="3" Margin="0,10,10,10"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                IsEnabled="{Binding !Practice.IsPracticeRunning}"
+                IsEnabled="{Binding !Practice.IsPracticeOperationActive}"
                 ItemsSource="{Binding CharacterSets}"
                 SelectedItem="{Binding SelectedCharacterSet}"
                 ToolTip.Tip="Characters drawn from this set when generating random 5-character groups. Ignored when custom text is set in Settings."/>
@@ -100,7 +101,7 @@
                 <NumericUpDown Width="120" Margin="0,0,5,0" VerticalAlignment="Center"
                     Value="{Binding Practice.PracticeDuration}" Minimum="1" Maximum="999" FormatString="0"
                     AllowSpin="True"
-                    IsEnabled="{Binding !Practice.IsPracticeRunning}"
+                    IsEnabled="{Binding !Practice.IsPracticeOperationActive}"
                     ToolTip.Tip="Length of a timed practice session in minutes. The session ends automatically when time runs out."/>
 
                 <Label Content="mins" VerticalAlignment="Center"/>
@@ -136,7 +137,8 @@
                 Width="30" Height="30" Padding="0" CornerRadius="15"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 ToolTip.Tip="Open the Morse settings dialog (speed, tone, noise &amp; QSB, character sets)."
-                Command="{Binding OpenSettingsCommand}">
+                Command="{Binding OpenSettingsCommand}"
+                IsEnabled="{Binding !Practice.IsPracticeOperationActive}">
             <!-- Fixed-size vector dots: identical geometry in every state (unlike font glyphs),
                  and no PathIcon/Shape stretch semantics that render oversized. -->
             <StackPanel Orientation="Horizontal" Spacing="2">

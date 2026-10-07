@@ -39,6 +39,11 @@ public partial class PracticeViewModel : ViewModelBase
     [ObservableProperty]
     private bool isPracticeRunning;
 
+    // Remains true until StartAsync has fully drained after Stop, so settings cannot
+    // change while the player is still winding down the current session.
+    [ObservableProperty]
+    private bool isPracticeOperationActive;
+
     [ObservableProperty]
     private string receivedText = string.Empty;
 
@@ -82,13 +87,14 @@ public partial class PracticeViewModel : ViewModelBase
 
     public async Task StartPracticeAsync()
     {
-        if (IsPracticeRunning)
+        if (IsPracticeOperationActive)
         {
             return;
         }
 
         hasPracticeStarted = true;
         IsPracticeRunning = true;
+        IsPracticeOperationActive = true;
         _resultSavedForCurrentSession = false;
         UpdateCommandStates();
         ReceivedText = string.Empty;
@@ -139,6 +145,7 @@ public partial class PracticeViewModel : ViewModelBase
             }
 
             IsPracticeRunning = false;
+            IsPracticeOperationActive = false;
             UpdateCommandStates();
         }
     }
@@ -249,7 +256,7 @@ public partial class PracticeViewModel : ViewModelBase
 
     private bool CanStartPractice()
     {
-        return !IsPracticeRunning;
+        return !IsPracticeOperationActive;
     }
 
     private bool CanStopPractice()
@@ -259,7 +266,7 @@ public partial class PracticeViewModel : ViewModelBase
 
     private bool CanCheckResult()
     {
-        return !IsPracticeRunning && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
+        return !IsPracticeOperationActive && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
     }
 
     private void UpdateCommandStates()

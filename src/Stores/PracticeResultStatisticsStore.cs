@@ -237,19 +237,33 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
 
     public async Task ReplaceDatabaseAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
+        var stagedPath = Path.Combine(Path.GetDirectoryName(_databasePath)!, $"practice-results-{Guid.NewGuid():N}.db.tmp");
         try
         {
+            // Copy before touching the live database. The staged file is on the same
+            // filesystem, so the final move can replace the main file atomically.
+            File.Copy(sourcePath, stagedPath);
             await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Fold every committed WAL page into the main file before removing its
+                // sidecars. If the final rename fails, the original database remains a
+                // complete, readable database instead of a main file missing WAL data.
+                await using (var connection = new SqliteConnection($"Data Source={_databasePath}"))
+                {
+                    await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                    await ApplyPragmasAsync(connection, cancellationToken).ConfigureAwait(false);
+                    var checkpoint = connection.CreateCommand();
+                    checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                    await checkpoint.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
                 // Pooled connections keep the file open even after Dispose, so release
                 // every handle before deleting — otherwise the deletion fails outright.
                 // No new connection can open against the half-replaced file while the
                 // gate is held.
                 SqliteConnection.ClearAllPools();
-                _schemaInitialized = false;
-
-                foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
+                foreach (var path in new[] { _databasePath + "-wal", _databasePath + "-shm" })
                 {
                     if (File.Exists(path))
                     {
@@ -257,7 +271,8 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
                     }
                 }
 
-                File.Copy(sourcePath, _databasePath);
+                File.Move(stagedPath, _databasePath, overwrite: true);
+                _schemaInitialized = false;
             }
             finally
             {
@@ -268,6 +283,36 @@ public sealed class PracticeResultStatisticsStore : IPracticeResultStatisticsSto
         {
             _logger.LogError(ex, "Failed to replace the statistics database at {DatabasePath} from {SourcePath}", _databasePath, sourcePath);
             throw new StatisticsStoreException("Could not replace the practice statistics database.", ex);
+        }
+        finally
+        {
+            if (File.Exists(stagedPath)) File.Delete(stagedPath);
+        }
+    }
+
+    public async Task DeleteDatabaseAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                SqliteConnection.ClearAllPools();
+                foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
+                {
+                    if (File.Exists(path)) File.Delete(path);
+                }
+                _schemaInitialized = false;
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
+        }
+        catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or FormatException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to remove the statistics database at {DatabasePath}", _databasePath);
+            throw new StatisticsStoreException("Could not restore the practice statistics database state.", ex);
         }
     }
 

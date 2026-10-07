@@ -36,4 +36,7 @@ public interface IPracticeResultStatisticsStore
     /// file. Used by backup import.
     /// </summary>
     Task ReplaceDatabaseAsync(string sourcePath, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes the database and sidecars, used to restore a profile that had no database before import.</summary>
+    Task DeleteDatabaseAsync(CancellationToken cancellationToken = default);
 }
