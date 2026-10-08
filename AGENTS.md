@@ -85,6 +85,7 @@ Each folder's namespace matches its path (`PentaGrammata.Players`, `PentaGrammat
 ```bash
 dotnet build src/PentaGrammata.csproj
 dotnet test tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj
+dotnet test tests/PentaGrammata.Headless.Tests/PentaGrammata.Headless.Tests.csproj
 ```
 
 ## Conventions

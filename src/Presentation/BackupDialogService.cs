@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -66,6 +67,11 @@ public sealed class BackupDialogService : IBackupDialogService
             await _infoDialogService.ShowInfoAsync("Export failed", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Export failed", ex.Message);
+            return BackupDialogOutcome.Cancelled;
+        }
 
         return BackupDialogOutcome.Completed;
     }
@@ -103,6 +109,11 @@ public sealed class BackupDialogService : IBackupDialogService
             await _infoDialogService.ShowInfoAsync("Import", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Import", ex.Message);
+            return BackupDialogOutcome.Cancelled;
+        }
 
         if (!await _confirmDialogService.ShowConfirmAsync("Import backup", BuildConfirmMessage(contents), "Replace"))
         {
@@ -128,6 +139,11 @@ public sealed class BackupDialogService : IBackupDialogService
                 : $"{ex.Message}\nRecovery archive: {ex.BackupPath}";
             await _infoDialogService.ShowInfoAsync("Import failed", message,
                 detailHeading: ex.BackupPath is null ? null : "Recovery archive");
+            return BackupDialogOutcome.Cancelled;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Import failed", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
 

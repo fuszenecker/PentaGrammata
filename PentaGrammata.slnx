@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="src/PentaGrammata.csproj" />
   <Project Path="tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj" />
+  <Project Path="tests/PentaGrammata.Headless.Tests/PentaGrammata.Headless.Tests.csproj" />
 </Solution>
