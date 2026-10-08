@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -196,13 +197,57 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         Audio.Complete();
-        foreach (var dialog in Windows(Main).Reverse().ToArray()) dialog.Close();
+        var windows = Windows(Main).ToArray();
+        var pendingCommands = windows
+            .Append(Main)
+            .Select(w => w.DataContext)
+            .OfType<object>()
+            .Concat(windows.Append(Main).Select(w => w.DataContext).OfType<MainWindowViewModel>().Select(vm => vm.Practice))
+            .SelectMany(AsyncCommands)
+            .Distinct()
+            .ToArray();
+        foreach (var dialog in windows.Reverse()) dialog.Close();
         Main.Close();
+        await Until(() => pendingCommands.All(command => !command.IsRunning), "finish pending window commands during cleanup");
         await Configuration.FlushAsync();
-        Services.Dispose();
+        await Services.DisposeAsync();
         SqliteConnection.ClearAllPools();
-        Directory.Delete(DirectoryPath, recursive: true);
+        await DeleteProfileAsync();
         Storage = null;
+    }
+
+    private static IEnumerable<IAsyncRelayCommand> AsyncCommands(object viewModel) =>
+        viewModel.GetType()
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(property => typeof(IAsyncRelayCommand).IsAssignableFrom(property.PropertyType))
+            .Select(property => property.GetValue(viewModel))
+            .OfType<IAsyncRelayCommand>();
+
+    private async Task DeleteProfileAsync()
+    {
+        const int attempts = 20;
+        for (var attempt = 0; ; attempt++)
+        {
+            if (!Directory.Exists(DirectoryPath)) return;
+            try
+            {
+                Directory.Delete(DirectoryPath, recursive: true);
+                return;
+            }
+            catch (IOException) when (OperatingSystem.IsWindows() && attempt < attempts - 1)
+            {
+                // Windows reports sharing violations while a just-closed SQLite handle is
+                // being released. All test commands have completed and pools were cleared;
+                // retry briefly to cover that close window, then fail with the original path.
+                SqliteConnection.ClearAllPools();
+                await Task.Delay(100);
+            }
+            catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows() && attempt < attempts - 1)
+            {
+                SqliteConnection.ClearAllPools();
+                await Task.Delay(100);
+            }
+        }
     }
 
     private sealed class ProfilePaths(string directory) : IAppPaths
