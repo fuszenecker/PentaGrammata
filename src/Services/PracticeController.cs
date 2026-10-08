@@ -200,6 +200,26 @@ public class PracticeController : IPracticeController
         return result;
     }
 
+    public async Task<PracticeResult> BuildResultAsync(string receivedText)
+    {
+        LastReceivedText = receivedText ?? string.Empty;
+        var sentText = LastGeneratedText;
+        var practice = _configurationService.Current.Practice;
+        var threshold = practice.ErrorThreshold;
+        var autoAdjust = practice.AutoAdjustWpm;
+        var windowSize = practice.AutoAdjustWindowSize;
+        var received = LastReceivedText;
+        var result = await Task.Run(() => _resultEvaluator.Evaluate(sentText, received, threshold));
+
+        if (autoAdjust && !_sessionResultRecorded)
+        {
+            _sessionResultRecorded = true;
+            _dynamicWpmAdjuster.Adjust(result.ErrorRatePercent, threshold, windowSize);
+        }
+
+        return result;
+    }
+
     public AppConfig CreateSettingsSnapshot()
     {
         return _configurationService.Current.Clone();

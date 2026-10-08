@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -19,9 +20,8 @@ namespace PentaGrammata.Services;
 /// Archives and restores the user's data files (per-user appsettings.json,
 /// practice-results.db, window-sizes.json) as a single ZIP archive. Imports replace only
 /// the entries present in the archive and make the change live in the running app. The
-/// original data is automatically backed up before any replacement. The multi-file apply
-/// is non-transactional: on a mid-way failure the already replaced files stay replaced,
-/// and the automatic backup remains available for recovery.
+/// original data is automatically backed up before replacement. An in-process rollback
+/// snapshot also restores the complete prior profile when any apply step fails.
 /// </summary>
 public sealed class UserBackupService : IUserBackupService
 {
@@ -136,13 +136,53 @@ public sealed class UserBackupService : IUserBackupService
 
     public async Task<BackupImportResult> ImportAsync(Stream archive, CancellationToken cancellationToken = default)
     {
-        // Drain any in-flight configuration save before the settings file can be
-        // overwritten; no new save can be requested in between, because every
-        // configuration mutation is initiated on the UI thread, which import holds.
+        return await ImportCoreAsync(archive, cancellationToken, createAutomaticBackup: true);
+    }
+
+    public async Task<BackupImportResult> RestoreLatestAsync(CancellationToken cancellationToken = default)
+    {
+        string? safetyBackupPath = null;
+        try
+        {
+            var backupDirectory = Path.Combine(_appPaths.AppDataDirectory, "backups");
+            var restorePoint = Directory.Exists(backupDirectory)
+                ? Directory.GetFiles(backupDirectory, "pentagrammata-before-import-*.zip")
+                    .OrderByDescending(File.GetLastWriteTimeUtc)
+                    .FirstOrDefault()
+                : null;
+            if (restorePoint is null)
+            {
+                throw new UserBackupException("No pre-import restore point is available.");
+            }
+
+            safetyBackupPath = await CreateAutomaticBackupAsync(cancellationToken, "before-restore");
+            await using var stream = new FileStream(restorePoint, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var result = await ImportCoreAsync(stream, cancellationToken, createAutomaticBackup: false);
+            return new BackupImportResult(result.Contents, safetyBackupPath);
+        }
+        catch (UserBackupException ex)
+        {
+            throw new UserBackupException(ex.Message, ex, safetyBackupPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger.LogError(ex, "Failed to restore the latest pre-import archive");
+            throw new UserBackupException("Could not restore the latest pre-import archive.", ex, safetyBackupPath);
+        }
+    }
+
+    private async Task<BackupImportResult> ImportCoreAsync(
+        Stream archive,
+        CancellationToken cancellationToken,
+        bool createAutomaticBackup)
+    {
+        string? recoveryArchivePath = null;
+        // Drain any in-flight save first. The main-window controls stay disabled during
+        // the commit/rollback interval so user-driven settings mutations cannot enqueue
+        // another write while imported files are being published.
         await _configurationService.FlushAsync();
 
         var seekable = EnsureSeekable(archive);
-        string? backupPath = null;
         try
         {
             using var zip = new ZipArchive(seekable, ZipArchiveMode.Read, leaveOpen: true);
@@ -185,47 +225,86 @@ public sealed class UserBackupService : IUserBackupService
                     ValidateWindowSizes(windowSizesBytes);
                 }
 
-                backupPath = await CreateAutomaticBackupAsync(cancellationToken);
+                var databaseExistedBeforeImport = contents.Database && File.Exists(_statisticsStore.DatabasePath);
+                recoveryArchivePath = createAutomaticBackup
+                    ? await CreateAutomaticBackupAsync(cancellationToken, "before-import")
+                    : null;
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Apply database → window sizes → settings: a failure mid-way leaves the
-                // configuration, the hardest to rebuild, untouched.
-                if (contents.Database)
+                var previousConfiguration = _configurationService.Current.Clone();
+                var configurationPath = _appPaths.PreferredUserConfigPath;
+                var windowSizesPath = Path.Combine(_appPaths.AppDataDirectory, WindowSizesEntryName);
+                var previousConfigurationFile = CaptureFile(configurationPath);
+                var previousWindowSizesFile = CaptureFile(windowSizesPath);
+                string? rollbackDatabasePath = null;
+                var databaseExisted = databaseExistedBeforeImport;
+                if (databaseExisted)
                 {
-                    await _statisticsStore.ReplaceDatabaseAsync(tempDatabasePath!, cancellationToken);
+                    rollbackDatabasePath = Path.Combine(Path.GetTempPath(), $"pentagrammata-rollback-{Guid.NewGuid():N}.db");
+                    await _statisticsStore.CreateConsistentCopyAsync(rollbackDatabasePath, cancellationToken);
                 }
 
-                if (windowSizesBytes is not null)
+                try
                 {
-                    var directory = _appPaths.AppDataDirectory;
-                    Directory.CreateDirectory(directory);
-                    File.WriteAllBytes(Path.Combine(directory, WindowSizesEntryName), windowSizesBytes);
-                    _windowSizeStore.InvalidateCache();
-                }
-
-                if (settingsBytes is not null)
-                {
-                    var configPath = _appPaths.PreferredUserConfigPath;
-                    if (configPath is not null)
+                    // Every replacement happens only after a complete rollback snapshot
+                    // exists. The settings and window-size writes use sibling temp files
+                    // and atomic moves, so a failed individual write preserves its target.
+                    if (contents.Database)
                     {
-                        var directory = Path.GetDirectoryName(configPath);
-                        if (!string.IsNullOrWhiteSpace(directory))
+                        await _statisticsStore.ReplaceDatabaseAsync(tempDatabasePath!, cancellationToken);
+                    }
+
+                    if (windowSizesBytes is not null)
+                    {
+                        await ReplaceFileAtomicallyAsync(windowSizesPath, windowSizesBytes, cancellationToken);
+                        _windowSizeStore.InvalidateCache();
+                    }
+
+                    if (settingsBytes is not null)
+                    {
+                        if (configurationPath is not null)
                         {
-                            Directory.CreateDirectory(directory);
+                            await ReplaceFileAtomicallyAsync(configurationPath, settingsBytes, cancellationToken);
+                            _configurationService.ReloadFromDisk();
                         }
-
-                        File.WriteAllBytes(configPath, settingsBytes);
-                        _configurationService.ReloadFromDisk();
+                        else
+                        {
+                            // No per-user config file on this platform: apply in memory for
+                            // this session, matching how persistence behaves here.
+                            _configurationService.ApplyImported(importedSettings!);
+                        }
                     }
-                    else
+
+                    return new BackupImportResult(contents, recoveryArchivePath ?? string.Empty);
+                }
+                catch (Exception applyException)
+                {
+                    var rollbackErrors = await RollbackAsync(
+                        contents,
+                        rollbackDatabasePath,
+                        databaseExisted,
+                        configurationPath,
+                        previousConfigurationFile,
+                        windowSizesPath,
+                        previousWindowSizesFile,
+                        previousConfiguration);
+                    if (rollbackErrors.Count > 0)
                     {
-                        // No per-user config file on this platform: apply in memory for
-                        // this session, matching how persistence behaves here.
-                        _configurationService.ApplyImported(importedSettings!);
+                        rollbackErrors.Insert(0, applyException);
+                        throw new UserBackupException(
+                            "Import failed and rollback was incomplete. See the application log for recovery details.",
+                            new AggregateException(rollbackErrors));
+                    }
+
+                    throw new UserBackupException("Import failed. The previous data was restored.", applyException);
+                }
+                finally
+                {
+                    if (rollbackDatabasePath is not null && File.Exists(rollbackDatabasePath))
+                    {
+                        File.Delete(rollbackDatabasePath);
                     }
                 }
-
-                return new BackupImportResult(contents, backupPath);
             }
             finally
             {
@@ -235,9 +314,9 @@ public sealed class UserBackupService : IUserBackupService
                 }
             }
         }
-        catch (UserBackupException ex) when (backupPath is not null)
+        catch (UserBackupException ex) when (recoveryArchivePath is not null && ex.BackupPath is null)
         {
-            throw new UserBackupException(ex.Message, ex, backupPath);
+            throw new UserBackupException(ex.Message, ex, recoveryArchivePath);
         }
         catch (UserBackupException)
         {
@@ -245,12 +324,12 @@ public sealed class UserBackupService : IUserBackupService
         }
         catch (StatisticsStoreException ex)
         {
-            throw new UserBackupException("Could not replace the practice statistics database.", ex, backupPath);
+            throw new UserBackupException("Could not replace the practice statistics database.", ex, recoveryArchivePath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or NotSupportedException)
         {
             _logger.LogError(ex, "Failed to import user data from a backup archive");
-            throw new UserBackupException("Could not import the backup archive.", ex, backupPath);
+            throw new UserBackupException("Could not import the backup archive.", ex, recoveryArchivePath);
         }
         finally
         {
@@ -261,10 +340,10 @@ public sealed class UserBackupService : IUserBackupService
         }
     }
 
-    private async Task<string> CreateAutomaticBackupAsync(CancellationToken cancellationToken)
+    private async Task<string> CreateAutomaticBackupAsync(CancellationToken cancellationToken, string kind)
     {
         var directory = Path.GetFullPath(Path.Combine(_appPaths.AppDataDirectory, "backups"));
-        var backupPath = Path.Combine(directory, $"pentagrammata-before-import-{DateTime.Now:yyyy-MM-dd-HHmmss}-{Guid.NewGuid():N}.zip");
+        var backupPath = Path.Combine(directory, $"pentagrammata-{kind}-{DateTime.Now:yyyy-MM-dd-HHmmss}-{Guid.NewGuid():N}.zip");
         var temporaryPath = backupPath + ".tmp";
         try
         {
@@ -280,8 +359,8 @@ public sealed class UserBackupService : IUserBackupService
         }
         catch (Exception ex) when (ex is UserBackupException or IOException or UnauthorizedAccessException)
         {
-            _logger.LogError(ex, "Failed to create automatic backup before import at {BackupPath}", backupPath);
-            throw new UserBackupException("Could not create the automatic backup. No data was replaced.", ex);
+            _logger.LogError(ex, "Failed to create automatic recovery archive at {BackupPath}", backupPath);
+            throw new UserBackupException("Could not create the recovery archive. No data was replaced.", ex);
         }
         finally
         {
@@ -295,6 +374,106 @@ public sealed class UserBackupService : IUserBackupService
             }
         }
     }
+
+    private async Task<List<Exception>> RollbackAsync(
+        BackupContents contents,
+        string? rollbackDatabasePath,
+        bool databaseExisted,
+        string? configurationPath,
+        FileSnapshot configurationFile,
+        string windowSizesPath,
+        FileSnapshot windowSizesFile,
+        AppConfig previousConfiguration)
+    {
+        var errors = new System.Collections.Generic.List<Exception>();
+        if (contents.Database)
+        {
+            try
+            {
+                if (databaseExisted && rollbackDatabasePath is not null)
+                {
+                    await _statisticsStore.ReplaceDatabaseAsync(rollbackDatabasePath, CancellationToken.None);
+                }
+                else
+                {
+                    await _statisticsStore.DeleteDatabaseAsync(CancellationToken.None);
+                }
+            }
+            catch (Exception ex) { errors.Add(ex); }
+        }
+
+        if (contents.WindowSizes)
+        {
+            try
+            {
+                await RestoreFileAsync(windowSizesPath, windowSizesFile);
+                _windowSizeStore.InvalidateCache();
+            }
+            catch (Exception ex) { errors.Add(ex); }
+        }
+
+        if (contents.AppSettings)
+        {
+            if (configurationPath is not null)
+            {
+                try
+                {
+                    await RestoreFileAsync(configurationPath, configurationFile);
+                }
+                catch (Exception ex) { errors.Add(ex); }
+            }
+
+            try
+            {
+                _configurationService.ApplyImported(previousConfiguration);
+            }
+            catch (Exception ex) { errors.Add(ex); }
+        }
+
+        if (errors.Count > 0)
+        {
+            _logger.LogError(new AggregateException(errors), "Import rollback did not fully restore the previous profile");
+        }
+
+        return errors;
+    }
+
+    private static FileSnapshot CaptureFile(string? path)
+    {
+        return path is not null && File.Exists(path)
+            ? new FileSnapshot(true, File.ReadAllBytes(path))
+            : new FileSnapshot(false, null);
+    }
+
+    private static async Task ReplaceFileAtomicallyAsync(string path, byte[] bytes, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        var temporaryPath = path + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await File.WriteAllBytesAsync(temporaryPath, bytes, cancellationToken);
+            File.Move(temporaryPath, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+    }
+
+    private static async Task RestoreFileAsync(string path, FileSnapshot snapshot)
+    {
+        if (snapshot.Existed)
+        {
+            await ReplaceFileAtomicallyAsync(path, snapshot.Bytes!, CancellationToken.None);
+        }
+        else if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private sealed record FileSnapshot(bool Existed, byte[]? Bytes);
 
     private static BackupContents ReadContents(ZipArchive archive)
     {

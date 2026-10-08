@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
@@ -376,63 +379,70 @@ public sealed class MorseSettingsDialogViewModelTests
     }
 
     [TestMethod]
-    public void Constructor_WithHeadroomToSpare_ShowsNoDistortionWarning()
+    public async Task Constructor_WithHeadroomToSpare_ShowsNoDistortionWarning()
     {
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), Analyzer(), new CharacterSetTextCodec());
 
+        await WaitForWarningAsync(sut, warning => warning.Length == 0);
         Assert.AreEqual(string.Empty, sut.DistortionWarning);
     }
 
     [TestMethod]
-    public void Constructor_WhenChainClips_ShowsDistortionWarningWithPeakAndShare()
+    public async Task Constructor_WhenChainClips_ShowsDistortionWarningWithPeakAndShare()
     {
         var analyzer = Analyzer(new AudioHeadroomReport(5.3, 0.024, 6.0));
 
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer, new CharacterSetTextCodec());
 
+        await WaitForWarningAsync(sut, warning => warning.Contains("+5.3 dB", StringComparison.Ordinal));
         StringAssert.Contains(sut.DistortionWarning, "+5.3 dB");
         StringAssert.Contains(sut.DistortionWarning, "2.4 %");
     }
 
     [TestMethod]
-    public void ChangingAnAudioSetting_ReanalyzesHeadroomWithTheNewValue()
+    public async Task ChangingAnAudioSetting_ReanalyzesHeadroomWithTheNewValue()
     {
         var analyzer = Substitute.For<IAudioHeadroomAnalyzer>();
-        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(new AudioHeadroomReport(-6.0, 0.0, 6.0));
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>()).Returns(new AudioHeadroomReport(-6.0, 0.0, 6.0));
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer, new CharacterSetTextCodec());
+        await WaitForWarningAsync(sut, warning => warning.Length == 0);
 
         analyzer.ClearReceivedCalls();
-        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(new AudioHeadroomReport(2.0, 0.5, 6.0));
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>()).Returns(new AudioHeadroomReport(2.0, 0.5, 6.0));
         sut.VolumeDb = 0;
 
-        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.VolumeDb == 0));
+        await WaitForWarningAsync(sut, warning => warning.Contains("+2 dB", StringComparison.Ordinal));
+        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.VolumeDb == 0), Arg.Any<CancellationToken>());
         StringAssert.Contains(sut.DistortionWarning, "+2 dB");
     }
 
     [TestMethod]
-    public void ChangingANonAudioSetting_DoesNotReanalyzeHeadroom()
+    public async Task ChangingANonAudioSetting_DoesNotReanalyzeHeadroom()
     {
         var analyzer = Analyzer();
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer, new CharacterSetTextCodec());
+        await WaitForWarningAsync(sut, warning => warning.Length == 0);
 
         analyzer.ClearReceivedCalls();
         sut.CustomText = "cq cq";
 
-        analyzer.DidNotReceive().Analyze(Arg.Any<MorsePlaybackSettings>());
+        analyzer.DidNotReceive().Analyze(Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>());
     }
 
     [TestMethod]
-    public void HeadroomAnalysis_SeesTheNoiseLevelNegatedFromTheDisplayedSnr()
+    public async Task HeadroomAnalysis_SeesTheNoiseLevelNegatedFromTheDisplayedSnr()
     {
         // The dialog shows an SNR (higher = cleaner); the chain wants the noise level
         // relative to the signal, which is its negation.
         var analyzer = Analyzer();
         var sut = new MorseSettingsDialogViewModel(CreateConfig(20, 15, "Default"), Substitute.For<IPracticeSettingsValidator>(), analyzer, new CharacterSetTextCodec());
+        await WaitForWarningAsync(sut, warning => warning.Length == 0);
 
         analyzer.ClearReceivedCalls();
         sut.NoiseSnrDb = 12;
 
-        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.NoiseLevelDb == -12));
+        await WaitForWarningAsync(sut, warning => warning.Length == 0);
+        analyzer.Received().Analyze(Arg.Is<MorsePlaybackSettings>(s => s.NoiseLevelDb == -12), Arg.Any<CancellationToken>());
     }
 
     /// <summary>A headroom analyzer that always reports 6 dB of headroom, so no warning shows.</summary>
@@ -441,8 +451,22 @@ public sealed class MorseSettingsDialogViewModelTests
     private static IAudioHeadroomAnalyzer Analyzer(AudioHeadroomReport report)
     {
         var analyzer = Substitute.For<IAudioHeadroomAnalyzer>();
-        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>()).Returns(report);
+        analyzer.Analyze(Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>()).Returns(report);
         return analyzer;
+    }
+
+    private static async Task WaitForWarningAsync(MorseSettingsDialogViewModel viewModel, Func<string, bool> predicate)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(3);
+        while (!predicate(viewModel.DistortionWarning))
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                Assert.Fail("Headroom warning did not reach the expected state.");
+            }
+
+            await Task.Delay(10);
+        }
     }
 
     private static AppConfig CreateConfig(int charWpm, int avgWpm, string defaultSet)

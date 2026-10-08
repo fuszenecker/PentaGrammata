@@ -16,6 +16,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
     private readonly ICharacterSetTextCodec _characterSetTextCodec;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IPracticeStatisticsExporter _statisticsExporter;
     private readonly ITrendsCsvExportService _trendsCsvExportService;
@@ -28,6 +29,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         IPracticeSettingsValidator settingsValidator,
         IAudioHeadroomAnalyzer headroomAnalyzer,
         ICharacterSetTextCodec characterSetTextCodec,
+        IUiDispatcher uiDispatcher,
         IPracticeResultStatisticsService statisticsService,
         IPracticeStatisticsExporter statisticsExporter,
         ITrendsCsvExportService trendsCsvExportService,
@@ -39,6 +41,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
         _settingsValidator = settingsValidator;
         _headroomAnalyzer = headroomAnalyzer;
         _characterSetTextCodec = characterSetTextCodec;
+        _uiDispatcher = uiDispatcher;
         _statisticsService = statisticsService;
         _statisticsExporter = statisticsExporter;
         _trendsCsvExportService = trendsCsvExportService;
@@ -50,13 +53,14 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public MorseSettingsDialogViewModel CreateMorseSettings(AppConfig currentSettings)
     {
-        return new MorseSettingsDialogViewModel(currentSettings, _settingsValidator, _headroomAnalyzer, _characterSetTextCodec);
+        return new MorseSettingsDialogViewModel(currentSettings, _settingsValidator, _headroomAnalyzer, _characterSetTextCodec, _uiDispatcher);
     }
 
     public PracticeResultWindowViewModel CreatePracticeResult(
         PracticeResult result,
         int characterWpm,
         int averageWpm,
+        Guid sessionId,
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,
@@ -66,6 +70,7 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
             result,
             characterWpm,
             averageWpm,
+            sessionId,
             alreadySaved,
             errorThresholdPercent,
             noise,
@@ -90,17 +95,17 @@ public sealed class DialogViewModelFactory : IDialogViewModelFactory
 
     public TrendsDialogViewModel CreateTrends()
     {
-        return new TrendsDialogViewModel(_statisticsService, _statisticsExporter, _trendsCsvExportService);
+        return new TrendsDialogViewModel(_statisticsService, _statisticsExporter, _trendsCsvExportService, _uiDispatcher);
     }
 
     public ConfusionsDialogViewModel CreateConfusions()
     {
-        return new ConfusionsDialogViewModel(_statisticsService, _configurationService, _confusionAnalysisService);
+        return new ConfusionsDialogViewModel(_statisticsService, _configurationService, _confusionAnalysisService, _uiDispatcher);
     }
 
     public CorrelationDialogViewModel CreateCorrelation()
     {
-        return new CorrelationDialogViewModel(_statisticsService, _configurationService, _correlationAnalysisService);
+        return new CorrelationDialogViewModel(_statisticsService, _configurationService, _correlationAnalysisService, _uiDispatcher);
     }
 
     public ConfirmDialogViewModel CreateConfirm(string title, string message, string confirmButtonText)

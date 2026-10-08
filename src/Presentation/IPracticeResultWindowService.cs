@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using System;
 using PentaGrammata.Configuration;
 using PentaGrammata.Models;
 
@@ -10,6 +11,7 @@ public interface IPracticeResultWindowService
         PracticeResult result,
         int characterWpm,
         int averageWpm,
+        Guid sessionId,
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise);

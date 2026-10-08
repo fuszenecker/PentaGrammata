@@ -7,6 +7,8 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Interfaces;
+using PentaGrammata.Configuration;
+using PentaGrammata.Models;
 using PentaGrammata.Presentation;
 
 namespace PentaGrammata.ViewModels;
@@ -29,6 +31,9 @@ public partial class PracticeViewModel : ViewModelBase
     // Whether the current session's result has already been saved, so reopening the result
     // window for the same session disables the save button. Reset when a new session starts.
     private bool _resultSavedForCurrentSession;
+    private Guid _currentSessionId;
+    private PracticeResult? _completedResult;
+    private AppConfiguration? _completedSettings;
 
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
 
@@ -38,6 +43,11 @@ public partial class PracticeViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isPracticeRunning;
+
+    // Remains true until StartAsync has fully drained after Stop, so settings cannot
+    // change while the player is still winding down the current session.
+    [ObservableProperty]
+    private bool isPracticeOperationActive;
 
     [ObservableProperty]
     private string receivedText = string.Empty;
@@ -82,14 +92,18 @@ public partial class PracticeViewModel : ViewModelBase
 
     public async Task StartPracticeAsync()
     {
-        if (IsPracticeRunning)
+        if (IsPracticeOperationActive)
         {
             return;
         }
 
         hasPracticeStarted = true;
         IsPracticeRunning = true;
+        IsPracticeOperationActive = true;
         _resultSavedForCurrentSession = false;
+        _currentSessionId = Guid.NewGuid();
+        _completedResult = null;
+        _completedSettings = null;
         UpdateCommandStates();
         ReceivedText = string.Empty;
         TimeCounterText = "Starting practice...";
@@ -139,6 +153,7 @@ public partial class PracticeViewModel : ViewModelBase
             }
 
             IsPracticeRunning = false;
+            IsPracticeOperationActive = false;
             UpdateCommandStates();
         }
     }
@@ -165,8 +180,10 @@ public partial class PracticeViewModel : ViewModelBase
 
     public async Task OpenResultWindowAsync()
     {
-        var result = _practiceController.BuildResult(ReceivedText);
-        var settings = _practiceController.CreateSettingsSnapshot();
+        _completedResult ??= await _practiceController.BuildResultAsync(ReceivedText);
+        _completedSettings ??= _practiceController.CreateSettingsSnapshot();
+        var result = _completedResult;
+        var settings = _completedSettings;
         // The WPM passed to the result window is the one actually used during the session
         // (the dynamic WPM when auto-adjust is on), not the configured starting point, so
         // the displayed values and any saved statistics record reflect reality.
@@ -174,6 +191,7 @@ public partial class PracticeViewModel : ViewModelBase
             result,
             _practiceController.LastUsedCharacterWpm,
             _practiceController.LastUsedAverageWpm,
+            _currentSessionId,
             _resultSavedForCurrentSession,
             settings.Practice.ErrorThreshold,
             settings.Audio.Noise);
@@ -249,7 +267,7 @@ public partial class PracticeViewModel : ViewModelBase
 
     private bool CanStartPractice()
     {
-        return !IsPracticeRunning;
+        return !IsPracticeOperationActive;
     }
 
     private bool CanStopPractice()
@@ -259,7 +277,7 @@ public partial class PracticeViewModel : ViewModelBase
 
     private bool CanCheckResult()
     {
-        return !IsPracticeRunning && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
+        return !IsPracticeOperationActive && hasPracticeStarted && !string.IsNullOrEmpty(ReceivedText);
     }
 
     private void UpdateCommandStates()

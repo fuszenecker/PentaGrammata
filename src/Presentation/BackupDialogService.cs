@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -66,11 +67,16 @@ public sealed class BackupDialogService : IBackupDialogService
             await _infoDialogService.ShowInfoAsync("Export failed", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Export failed", ex.Message);
+            return BackupDialogOutcome.Cancelled;
+        }
 
         return BackupDialogOutcome.Completed;
     }
 
-    public async Task<BackupDialogOutcome> ShowImportAsync()
+    public async Task<BackupDialogOutcome> ShowImportAsync(Action? onImportStarted = null)
     {
         var owner = _windowContext.MainWindow;
         if (owner is null)
@@ -103,6 +109,11 @@ public sealed class BackupDialogService : IBackupDialogService
             await _infoDialogService.ShowInfoAsync("Import", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Import", ex.Message);
+            return BackupDialogOutcome.Cancelled;
+        }
 
         if (!await _confirmDialogService.ShowConfirmAsync("Import backup", BuildConfirmMessage(contents), "Replace"))
         {
@@ -111,26 +122,66 @@ public sealed class BackupDialogService : IBackupDialogService
 
         try
         {
+            onImportStarted?.Invoke();
             // A fresh stream: the inspection stream has been consumed and may not be
             // re-positioned by every provider.
             await using var importStream = await file.OpenReadAsync();
             var result = await _backupService.ImportAsync(importStream);
             await _infoDialogService.ShowInfoAsync(
-                "Automatic backup created",
-                $"Your data from before the import was backed up.\n{result.BackupPath}",
-                detailHeading: "Backup file");
+                "Import complete",
+                $"Imported {BuildContentsDescription(result.Contents)}. The pre-import restore point is saved at:\n{result.BackupPath}",
+                detailHeading: "Restore point");
         }
         catch (UserBackupException ex)
         {
             var message = ex.BackupPath is null
                 ? ex.Message
-                : $"{ex.Message} Your data from before the import was backed up.\n{ex.BackupPath}";
+                : $"{ex.Message}\nRecovery archive: {ex.BackupPath}";
             await _infoDialogService.ShowInfoAsync("Import failed", message,
-                detailHeading: ex.BackupPath is null ? null : "Backup file");
+                detailHeading: ex.BackupPath is null ? null : "Recovery archive");
+            return BackupDialogOutcome.Cancelled;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _infoDialogService.ShowInfoAsync("Import failed", ex.Message);
             return BackupDialogOutcome.Cancelled;
         }
 
         return BackupDialogOutcome.Completed;
+    }
+
+    public async Task<BackupDialogOutcome> ShowRestoreAsync(Action? onRestoreStarted = null)
+    {
+        var owner = _windowContext.MainWindow;
+        if (owner is null) return BackupDialogOutcome.Cancelled;
+
+        if (!await _confirmDialogService.ShowConfirmAsync(
+                "Restore previous data",
+                "Restore the most recent snapshot created before an import? Current data will be saved as a recovery archive first.",
+                "Restore"))
+        {
+            return BackupDialogOutcome.Cancelled;
+        }
+
+        try
+        {
+            onRestoreStarted?.Invoke();
+            var result = await _backupService.RestoreLatestAsync();
+            await _infoDialogService.ShowInfoAsync(
+                "Restore complete",
+                $"Restored {BuildContentsDescription(result.Contents)}. The data that was active before restore is saved at:\n{result.BackupPath}",
+                detailHeading: "Recovery archive");
+            return BackupDialogOutcome.Completed;
+        }
+        catch (UserBackupException ex)
+        {
+            var message = ex.BackupPath is null
+                ? ex.Message
+                : $"{ex.Message}\nRecovery archive: {ex.BackupPath}";
+            await _infoDialogService.ShowInfoAsync("Restore failed", message,
+                detailHeading: ex.BackupPath is null ? null : "Recovery archive");
+            return BackupDialogOutcome.Cancelled;
+        }
     }
 
     private static string BuildConfirmMessage(BackupContents contents)
@@ -143,6 +194,17 @@ public sealed class BackupDialogService : IBackupDialogService
         }.Where(part => part is not null);
 
         var list = string.Join(", ", parts);
-        return $"This will replace your current {list} with the contents of the selected backup.\nAn automatic backup of your current data will be saved first.";
+        return $"This will replace your current {list} with the contents of the selected backup. If applying the import fails, the app will restore your previous data.";
+    }
+
+    private static string BuildContentsDescription(BackupContents contents)
+    {
+        var parts = new[]
+        {
+            contents.AppSettings ? "settings" : null,
+            contents.Database ? "practice results" : null,
+            contents.WindowSizes ? "window sizes" : null,
+        }.Where(part => part is not null);
+        return string.Join(", ", parts);
     }
 }

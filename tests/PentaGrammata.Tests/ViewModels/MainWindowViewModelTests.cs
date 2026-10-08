@@ -79,6 +79,33 @@ public sealed class MainWindowViewModelTests
     }
 
     [TestMethod]
+    public async Task PracticeInProgress_DisablesConfigurationChangesUntilPlaybackDrains()
+    {
+        var practiceController = CreateController();
+        var playback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        practiceController.StartAsync().Returns(playback.Task);
+        var sut = CreateSut(practiceController);
+
+        var startTask = sut.Practice.StartPracticeAsync();
+
+        Assert.IsFalse(sut.OpenSettingsCommand.CanExecute(null));
+        Assert.IsFalse(sut.OpenUiSettingsCommand.CanExecute(null));
+        Assert.IsFalse(sut.ImportCommand.CanExecute(null));
+        Assert.IsFalse(sut.RestoreCommand.CanExecute(null));
+        Assert.IsFalse(sut.OpenConfusionsCommand.CanExecute(null));
+
+        // Stop marks the UI as stopped immediately, but the controller is still draining.
+        sut.Practice.StopPractice();
+        Assert.IsFalse(sut.OpenSettingsCommand.CanExecute(null));
+
+        playback.SetResult();
+        await startTask;
+
+        Assert.IsTrue(sut.OpenSettingsCommand.CanExecute(null));
+        Assert.IsTrue(sut.ImportCommand.CanExecute(null));
+    }
+
+    [TestMethod]
     public async Task OpenAboutAsync_DelegatesToService()
     {
         var practiceController = CreateController();
@@ -176,7 +203,7 @@ public sealed class MainWindowViewModelTests
     {
         var practiceController = CreateController();
         var backupDialogService = Substitute.For<IBackupDialogService>();
-        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Cancelled);
+        backupDialogService.ShowImportAsync(Arg.Any<Action?>()).Returns(BackupDialogOutcome.Cancelled);
 
         var sut = CreateSut(practiceController, backupDialogService: backupDialogService);
 
@@ -190,7 +217,7 @@ public sealed class MainWindowViewModelTests
     {
         var practiceController = CreateController();
         var backupDialogService = Substitute.For<IBackupDialogService>();
-        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Completed);
+        backupDialogService.ShowImportAsync(Arg.Any<Action?>()).Returns(BackupDialogOutcome.Completed);
 
         var initialSets = new List<KeyValuePair<string, string>> { new("Default", "ABCDE") };
         var importedSets = new List<KeyValuePair<string, string>>
@@ -235,7 +262,7 @@ public sealed class MainWindowViewModelTests
     {
         var practiceController = CreateController();
         var backupDialogService = Substitute.For<IBackupDialogService>();
-        backupDialogService.ShowImportAsync().Returns(BackupDialogOutcome.Completed);
+        backupDialogService.ShowImportAsync(Arg.Any<Action?>()).Returns(BackupDialogOutcome.Completed);
         practiceController.TryApplySettings(Arg.Any<AppConfig>(), out Arg.Any<string>())
             .Returns(callInfo =>
             {

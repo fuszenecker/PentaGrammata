@@ -284,7 +284,7 @@ public sealed class CorrelationScatterChart : Control
 
         return new SolidColorBrush(
             Color.FromArgb(
-                220,
+                255,
                 Blend(SurfaceColor.R, color.R, strength),
                 Blend(SurfaceColor.G, color.G, strength),
                 Blend(SurfaceColor.B, color.B, strength)));

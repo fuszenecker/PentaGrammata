@@ -1,4 +1,5 @@
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
+using System;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -20,6 +21,7 @@ public interface IDialogViewModelFactory
         PracticeResult result,
         int characterWpm,
         int averageWpm,
+        Guid sessionId,
         bool alreadySaved,
         double errorThresholdPercent,
         NoiseSettings noise,

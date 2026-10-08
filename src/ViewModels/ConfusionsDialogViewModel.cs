@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.Input;
 
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Presentation;
+using PentaGrammata.Exceptions;
 
 namespace PentaGrammata.ViewModels;
 
@@ -24,6 +27,9 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     private readonly IPracticeResultStatisticsService _statisticsService;
     private readonly IConfigurationService _configurationService;
     private readonly IConfusionAnalysisService _analysisService;
+    private readonly IUiDispatcher _uiDispatcher;
+    private CancellationTokenSource? _rebuildCancellation;
+    private bool _hasPracticeConfusions;
     private string _summaryText = "Loading confusion matrix...";
     private double _halfLifeDays = DefaultHalfLifeDays;
     private bool _halfLifeDirty;
@@ -59,7 +65,7 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             {
                 _configurationService.SetConfusionsHalfLife(clamped);
                 _halfLifeDirty = true;
-                Rebuild();
+                ScheduleRebuild();
             }
         }
     }
@@ -73,11 +79,13 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public ConfusionsDialogViewModel(
         IPracticeResultStatisticsService statisticsService,
         IConfigurationService configurationService,
-        IConfusionAnalysisService analysisService)
+        IConfusionAnalysisService analysisService,
+        IUiDispatcher uiDispatcher)
     {
         _statisticsService = statisticsService;
         _configurationService = configurationService;
         _analysisService = analysisService;
+        _uiDispatcher = uiDispatcher;
         var configuredHalfLife = Math.Clamp(
             _configurationService.Current.Analytics.ConfusionsHalfLifeDays,
             MinHalfLifeDays,
@@ -98,16 +106,32 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     public async Task InitializeAsync()
     {
         _observations = await _statisticsService.GetConfusionObservationsAsync();
-        Rebuild();
+        await RebuildAsync();
     }
 
-    private void Rebuild()
+    private void ScheduleRebuild() => _ = RebuildAsync();
+
+    private async Task RebuildAsync()
     {
+        _rebuildCancellation?.Cancel();
+        _rebuildCancellation?.Dispose();
+        var cts = _rebuildCancellation = new CancellationTokenSource();
+        var halfLife = _halfLifeDays;
+        var observations = _observations;
+        var now = DateTimeOffset.UtcNow;
+        try
+        {
+        var prepared = await Task.Run(() => (
+            _analysisService.BuildMatrix(observations, halfLife, now),
+            _analysisService.WeightedSymbolCounts(observations, halfLife, now).Count > 0), cts.Token);
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+        if (cts.IsCancellationRequested) return;
+        _hasPracticeConfusions = prepared.Item2;
         ColumnHeaders.Clear();
         Rows.Clear();
 
-        var now = DateTimeOffset.UtcNow;
-        var result = _analysisService.BuildMatrix(_observations, _halfLifeDays, now);
+        var result = prepared.Item1;
 
         switch (result.Status)
         {
@@ -166,25 +190,40 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
             "{0:0.0} weighted observations across {1} symbols (half-life: {2:0} days).",
             matrix.TotalScore,
             matrix.Symbols.Count,
-            _halfLifeDays);
+            halfLife);
         PracticeConfusionsCommand.NotifyCanExecuteChanged();
+        });
+        }
+        catch (OperationCanceledException) { }
     }
 
     private bool CanCreatePracticeConfusions()
     {
-        return _analysisService.WeightedSymbolCounts(_observations, _halfLifeDays, DateTimeOffset.UtcNow).Count > 0;
+        return _hasPracticeConfusions;
     }
 
     private async Task CreatePracticeConfusionsAsync()
     {
-        var characterSet = _analysisService.BuildPracticeConfusionsCharacterSet(
-            _observations, _halfLifeDays, DateTimeOffset.UtcNow, PracticeSetTargetSymbolCount);
+        var observations = _observations;
+        var halfLifeDays = _halfLifeDays;
+        var now = DateTimeOffset.UtcNow;
+        var characterSet = await Task.Run(() => _analysisService.BuildPracticeConfusionsCharacterSet(
+            observations, halfLifeDays, now, PracticeSetTargetSymbolCount));
         if (string.IsNullOrWhiteSpace(characterSet))
         {
             return;
         }
 
-        await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        try
+        {
+            await _configurationService.UpsertCharacterSetAndSelectAsync(PracticeConfusionsSetName, characterSet);
+        }
+        catch (ConfigurationPersistenceException ex)
+        {
+            _halfLifeDirty = true;
+            SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+            return;
+        }
         // The upsert awaits a full SaveAsync, which also flushes any pending half-life
         // change, so nothing is left dirty.
         _halfLifeDirty = false;
@@ -207,7 +246,16 @@ public sealed class ConfusionsDialogViewModel : ViewModelBase
     {
         if (TryConsumeHalfLifeDirty())
         {
-            await _configurationService.SaveAsync();
+            try
+            {
+                await _configurationService.SaveAsync();
+            }
+            catch (ConfigurationPersistenceException ex)
+            {
+                _halfLifeDirty = true;
+                SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+                return;
+            }
         }
 
         CloseRequested?.Invoke();

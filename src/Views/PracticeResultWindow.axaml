@@ -61,7 +61,7 @@
         <Grid Grid.Row="1" Margin="0,10,0,0" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <Border Grid.Column="0" Padding="10" Background="#101010" CornerRadius="0">
                 <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
-                    <TextBlock Grid.Column="0" Text="Character count:" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="0" Text="Symbol count:" FontWeight="Bold"/>
                     <TextBlock Grid.Column="1" Text="{Binding CharacterCountText}"/>
                     <TextBlock Grid.Column="2" Text="Errors:" FontWeight="Bold"/>
                     <TextBlock Grid.Column="3" Text="{Binding ErrorsText}" Foreground="{Binding ResultStatus, Converter={StaticResource StatusLevelToBrush}}"/>

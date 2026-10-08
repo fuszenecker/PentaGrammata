@@ -20,4 +20,11 @@ jobs:
       - name: Build
         run: dotnet build PentaGrammata.slnx --configuration Release --no-restore
       - name: Test
-        run: dotnet test PentaGrammata.slnx --configuration Release --no-build --verbosity normal
+        run: dotnet test PentaGrammata.slnx --configuration Release --no-build --verbosity normal --logger trx --results-directory TestResults
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore

@@ -6,6 +6,8 @@ namespace PentaGrammata.Models;
 
 public sealed class PracticeResultStatisticsRecord
 {
+    /// <summary>Stable identity for a practice session; null on legacy/imported records.</summary>
+    public Guid? SessionId { get; init; }
     public DateTimeOffset RecordedAt { get; init; }
     public int CharacterWpm { get; init; }
     public int AverageWpm { get; init; }

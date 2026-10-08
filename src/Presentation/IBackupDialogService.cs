@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 
 namespace PentaGrammata.Presentation;
@@ -26,5 +27,8 @@ public interface IBackupDialogService
     /// asking whether to replace the current data, then the files are replaced and the
     /// change is made live. Failures are reported in an info dialog.
     /// </summary>
-    Task<BackupDialogOutcome> ShowImportAsync();
+    Task<BackupDialogOutcome> ShowImportAsync(Action? onImportStarted = null);
+
+    /// <summary>Restores the latest pre-import snapshot after explicit confirmation.</summary>
+    Task<BackupDialogOutcome> ShowRestoreAsync(Action? onRestoreStarted = null);
 }

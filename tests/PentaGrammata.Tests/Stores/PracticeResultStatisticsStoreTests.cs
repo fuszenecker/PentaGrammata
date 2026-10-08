@@ -71,6 +71,42 @@ public sealed class PracticeResultStatisticsStoreTests
     }
 
     [TestMethod]
+    public async Task SaveAsync_WithSameSessionId_IsIdempotentIncludingConfusions()
+    {
+        var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
+        var sessionId = Guid.NewGuid();
+        var first = CreateRecord();
+        first = new PracticeResultStatisticsRecord
+        {
+            SessionId = sessionId,
+            RecordedAt = first.RecordedAt,
+            CharacterWpm = first.CharacterWpm,
+            AverageWpm = first.AverageWpm,
+            CharacterCount = first.CharacterCount,
+            ErrorCount = first.ErrorCount,
+            ErrorRatePercent = first.ErrorRatePercent,
+            ErrorThresholdPercent = 5,
+            NoiseType = first.NoiseType,
+            NoiseLevelDb = first.NoiseLevelDb,
+            NoiseBandwidthHz = first.NoiseBandwidthHz,
+            AgcEnabled = first.AgcEnabled,
+            AgcDelaySeconds = first.AgcDelaySeconds,
+            AgcMaxGainDb = first.AgcMaxGainDb,
+            ApfEnabled = first.ApfEnabled,
+            ApfBandwidthHz = first.ApfBandwidthHz,
+            ApfPeakGainDb = first.ApfPeakGainDb,
+            Confusions = [new ConfusionObservation { RecordedAt = first.RecordedAt, ExpectedSymbol = "A", ActualSymbol = "B", Distance = 1, Count = 1 }],
+        };
+
+        await sut.SaveAsync(first);
+        await sut.SaveAsync(first);
+
+        Assert.AreEqual(1, await CountRowsAsync(sut.DatabasePath));
+        Assert.AreEqual(1L, await ScalarAsync(sut.DatabasePath, "SELECT COUNT(*) FROM practice_confusions;"));
+        Assert.AreEqual(sessionId, (await sut.GetStatisticsRecordsAsync())[0].SessionId);
+    }
+
+    [TestMethod]
     public async Task GetStatisticsRecordsAsync_RoundTripsAllFieldsAndConfusions()
     {
         var sut = new PracticeResultStatisticsStore(FakePaths(_tempDirectory), Logger());
@@ -187,7 +223,7 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.IsFalse(records[0].QsbEnabled);
         Assert.AreEqual(10.0, records[0].QsbDepthDb);
         Assert.AreEqual(5.0, records[0].QsbPeriodSeconds);
-        Assert.AreEqual(4L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+        Assert.AreEqual(5L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
     }
 
     [TestMethod]
@@ -239,7 +275,7 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.IsFalse(records[0].QsbEnabled);
         Assert.AreEqual(10.0, records[0].QsbDepthDb);
         Assert.AreEqual(5.0, records[0].QsbPeriodSeconds);
-        Assert.AreEqual(4L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
+        Assert.AreEqual(5L, await ScalarAsync(databasePath, "SELECT version FROM schema_info;"));
     }
 
     [TestMethod]
@@ -381,7 +417,7 @@ public sealed class PracticeResultStatisticsStoreTests
         Assert.HasCount(1, records);
         Assert.AreEqual(0.0, records[0].ErrorThresholdPercent);
         Assert.AreEqual(18.0, records[0].AgcMaxGainDb);
-        Assert.AreEqual(4L, await ScalarAsync(sut.DatabasePath, "SELECT version FROM schema_info;"));
+        Assert.AreEqual(5L, await ScalarAsync(sut.DatabasePath, "SELECT version FROM schema_info;"));
     }
 
     private static IAppPaths FakePaths(string directory)

@@ -88,9 +88,38 @@ public sealed class PracticeResultEvaluatorTests
     [TestMethod]
     public void Evaluate_SpecialTokenDeletion_ReportsSingleDeletedToken()
     {
-        var result = _evaluator.Evaluate("<bk>", string.Empty, errorThresholdPercent: 100);
+        var result = _evaluator.Evaluate("<ar>", string.Empty, errorThresholdPercent: 100);
 
         Assert.AreEqual(1, result.ErrorCount);
-        Assert.AreEqual("[-<bk>]", result.Rows[0].Difference);
+        Assert.AreEqual(1, result.CharacterCount);
+        Assert.AreEqual(100d, result.ErrorRatePercent, 0.0001);
+        Assert.AreEqual("[-<ar>]", result.Rows[0].Difference);
+    }
+
+    [TestMethod]
+    public void Evaluate_CountsProsignAsOneSymbolInMixedText()
+    {
+        var result = _evaluator.Evaluate("A<ar>B", "A<ar>B", errorThresholdPercent: 0);
+
+        Assert.AreEqual(3, result.CharacterCount);
+        Assert.AreEqual(0, result.ErrorCount);
+        Assert.AreEqual(0d, result.ErrorRatePercent, 0.0001);
+    }
+
+    [TestMethod]
+    [DataRow("<ar>")]
+    [DataRow("<as>")]
+    [DataRow("<bk>")]
+    [DataRow("<bt>")]
+    [DataRow("<kn>")]
+    [DataRow("<sk>")]
+    public void Evaluate_CountsEverySupportedProsignAsOneSymbol(string prosign)
+    {
+        var result = _evaluator.Evaluate(prosign, string.Empty, errorThresholdPercent: 100);
+
+        Assert.AreEqual(1, result.CharacterCount);
+        Assert.AreEqual(1, result.ErrorCount);
+        Assert.AreEqual(100d, result.ErrorRatePercent, 0.0001);
+        Assert.AreEqual($"[-{prosign}]", result.Rows[0].Difference);
     }
 }
