@@ -360,6 +360,8 @@ public sealed class PracticeResultStatisticsStoreTests
         // SaveAsync depends on pooled-connection cleanup timing (SQLite deletes it on
         // the last clean close), so they are created directly instead — a zero-length
         // WAL is valid, SQLite treats it as empty.
+        // Clear pooled handles first so SQLite does not still own the sidecars.
+        SqliteConnection.ClearAllPools();
         await File.WriteAllTextAsync(sut.DatabasePath + "-wal", string.Empty);
         await File.WriteAllTextAsync(sut.DatabasePath + "-shm", string.Empty);
 
@@ -410,6 +412,9 @@ public sealed class PracticeResultStatisticsStoreTests
                 """;
             await command.ExecuteNonQueryAsync();
         }
+
+        // SqliteConnection pooling can keep the file open after the using block ends.
+        SqliteConnection.ClearAllPools();
 
         await sut.ReplaceDatabaseAsync(sourcePath);
 

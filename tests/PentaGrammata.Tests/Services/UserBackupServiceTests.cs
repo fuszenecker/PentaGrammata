@@ -373,6 +373,8 @@ public sealed class UserBackupServiceTests
             await command.ExecuteNonQueryAsync();
         }
 
+        // SqliteConnection pooling may retain the legacy file handle after disposal.
+        SqliteConnection.ClearAllPools();
         var zip = CreateZip(("practice-results.db", await File.ReadAllBytesAsync(legacyPath)));
 
         await target.Backup.ImportAsync(new MemoryStream(zip));
