@@ -41,7 +41,8 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 ### Character Sets
 
 - Named sets defined in `appsettings.json` under `CharacterSets`; the active set is chosen in Settings.
-- Built-in sets: `Default` (A–Z, 0–9, `/+?=`), `Letters`, `Digits`, `Punctuation`, `Full` (includes prosigns), and a full **Koch/LCWO progression** (40 levels).
+- Built-in sets: `Default` (A–Z, 0–9, `/+?=`), `Letters`, `Digits`, `Punctuation`, `Full` (includes prosigns), and the **Koch/LCWO progression** (levels 1–40, numbered as in LCWO).
+- Koch level 13 is **intentionally absent** (`Koch-LCWO-12-I` is followed directly by `Koch-LCWO-14-J`), so there are 39 Koch sets, not 40. Do not "fix" the gap or renumber the levels.
 - Prosigns are encoded as `<ar>`, `<as>`, `<bk>`, `<bt>`, `<kn>`, `<sk>`.
 
 ### Settings & Persistence

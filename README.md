@@ -25,7 +25,7 @@ PentaGrammata plays random five-character groups as Morse code audio and lets yo
 
 - Windows: `%AppData%\PentaGrammata` and `%LocalAppData%\PentaGrammata` are both searched; `%LocalAppData%\PentaGrammata` is used for writing.
 - Linux: `$XDG_CONFIG_HOME/PentaGrammata` or `$HOME/.config/PentaGrammata`.
-- macOS: audio playback is not yet fully implemented (placeholder only).
+- macOS: audio is played through the native AudioToolbox (AudioQueue) API; no extra software is needed.
 
 ## Requirements
 
