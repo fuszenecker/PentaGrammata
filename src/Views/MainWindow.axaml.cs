@@ -21,4 +21,40 @@ public partial class MainWindow : Window
         ReceivedTextBox.Focus();
         ReceivedTextBox.CaretIndex = 0;
     }
+
+    private void OnExitClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void OnUndoClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Undo();
+    }
+
+    private void OnRedoClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Redo();
+    }
+
+    private void OnCutClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Cut();
+    }
+
+    private void OnCopyClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Copy();
+    }
+
+    private void OnPasteClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Paste();
+    }
+
+    private void OnSelectAllClick(object? sender, RoutedEventArgs e)
+    {
+        ReceivedTextBox.Focus();
+        ReceivedTextBox.SelectAll();
+    }
 }

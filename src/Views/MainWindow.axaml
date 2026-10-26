@@ -26,6 +26,18 @@
                 <MenuItem Header="_Export" Command="{Binding ExportCommand}"/>
                 <MenuItem Header="_Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
                 <MenuItem Header="_Restore" Command="{Binding RestoreCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="OnExitClick"/>
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" Click="OnUndoClick" IsEnabled="{Binding #ReceivedTextBox.CanUndo}"/>
+                <MenuItem Header="_Redo" Click="OnRedoClick" IsEnabled="{Binding #ReceivedTextBox.CanRedo}"/>
+                <Separator/>
+                <MenuItem Header="Cu_t" Click="OnCutClick" IsEnabled="{Binding #ReceivedTextBox.CanCut}" InputGesture="{x:Static TextBox.CutGesture}"/>
+                <MenuItem Header="_Copy" Click="OnCopyClick" IsEnabled="{Binding #ReceivedTextBox.CanCopy}" InputGesture="{x:Static TextBox.CopyGesture}"/>
+                <MenuItem Header="_Paste" Click="OnPasteClick" IsEnabled="{Binding #ReceivedTextBox.CanPaste}" InputGesture="{x:Static TextBox.PasteGesture}"/>
+                <Separator/>
+                <MenuItem Header="Select _all" Click="OnSelectAllClick"/>
             </MenuItem>
             <MenuItem Header="_Settings">
                 <MenuItem Header="_Morse settings" Command="{Binding OpenSettingsCommand}" IsEnabled="{Binding !Practice.IsPracticeOperationActive}"/>
