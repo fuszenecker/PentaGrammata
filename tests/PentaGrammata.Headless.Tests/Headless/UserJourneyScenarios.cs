@@ -11,6 +11,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Views.Controls;
+using PentaGrammata.Stores;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -137,7 +138,7 @@ public sealed partial class UserJourneyScenarios
         await app.Practice(null);
         Assert.AreEqual(expected, app.Main.FindControl<TextBox>("ReceivedTextBox")!.Text ?? "");
         Assert.AreEqual(30d, app.Main.FindControl<TextBox>("ReceivedTextBox")!.FontSize);
-        var persisted = JsonSerializer.Deserialize<AppConfiguration>(await File.ReadAllTextAsync(Path.Combine(app.DirectoryPath, "appsettings.json")))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(await File.ReadAllBytesAsync(Path.Combine(app.DirectoryPath, "settings.prmt")))!;
         Assert.AreEqual(reveal, persisted.UiPreferences.RevealSentTextAfterPractice);
     }, c => c.Practice.CustomText = "CQ <ar>");
 
@@ -384,9 +385,9 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export backup");
         using (var archive = ZipFile.OpenRead(zip))
         {
-            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "appsettings.json"));
+            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "settings.prmt"));
             Assert.IsTrue(archive.Entries.Any(e => e.FullName == "practice-results.db"));
-            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "window-sizes.json"));
+            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "windows.prmt"));
         }
         var settings = await Settings(app);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");

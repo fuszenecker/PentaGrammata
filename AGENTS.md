@@ -40,19 +40,22 @@ settings dialog rejects custom text containing anything `MorseAlphabet` cannot s
 
 ### Character Sets
 
-- Named sets defined in `appsettings.json` under `CharacterSets`; the active set is chosen in Settings.
+- Named sets defined in the bundled `settings.prmt` under `CharacterSets`; the active set is chosen in Settings.
 - Built-in sets: `Default` (A–Z, 0–9, `/+?=`), `Letters`, `Digits`, `Punctuation`, `Full` (includes prosigns), and the **Koch/LCWO progression** (levels 1–40, numbered as in LCWO).
 - Koch level 13 is **intentionally absent** (`Koch-LCWO-12-I` is followed directly by `Koch-LCWO-14-J`), so there are 39 Koch sets, not 40. Do not "fix" the gap or renumber the levels.
 - Prosigns are encoded as `<ar>`, `<as>`, `<bk>`, `<bt>`, `<kn>`, `<sk>`.
 
 ### Settings & Persistence
 
-- All settings (WPM, duration, character set, audio parameters) are editable in a Settings dialog and saved to a per-user `appsettings.json`.
+- All settings (WPM, duration, character set, audio parameters) are editable in a Settings dialog and saved to a per-user `settings.prmt`.
+- Settings files are **Promptuarium containers** in the `PRMT:CFG1-LE` format (`docs/CONFIG_FORMAT.md`; little-endian, BLOB = `0xF0`), read and written by the general `Configuration/PromptuariumSerializer`, which maps .NET objects to the container and back by reflection with no JSON in between (`byte[]` ↔ BLOB, numbers ↔ FLOAT64, enums by name, objects and string-keyed dictionaries ↔ OBJECT, collections ↔ ARRAY). Layering: the bundled `settings.prmt` (all defaults) is deserialized, then each per-user `settings.prmt` is applied onto it with `Populate` (objects and dictionaries merge member by member, arrays replace, NULL keeps the value underneath). `appsettings.json` stays in the application directory with only the `Logging` section. There is no per-user `appsettings.json` and no migration from the old JSON files.
+- Window sizes are stored in a per-user `windows.prmt` (same format) by `WindowSizeStore`.
+- The bundled `src/settings.prmt` is a committed binary file; edit it with Promptuarium's `pedit`/PStudio (or regenerate it with the codec), not by hand.
 - Config location: `%AppData%\PentaGrammata` and `%LocalAppData%\PentaGrammata` on Windows (local is preferred for writing); `$XDG_CONFIG_HOME/PentaGrammata` (fallback `~/.config/PentaGrammata`) on Linux.
 
 ### Backup Export & Import
 
-- The File menu (before Settings) has Export, Import and Restore. Export saves a ZIP containing the per-user `appsettings.json`, `practice-results.db` and `window-sizes.json`, with a dated suggested name (`pentagrammata-backup-YYYY-MM-DD.zip`). The database entry is a `VACUUM INTO` snapshot (consistent, no WAL sidecars); the settings entry is serialized from the live configuration, so it works on fresh profiles and platforms without a per-user config file (macOS), where the settings entry is omitted on export and applied in memory only on import.
+- The File menu (before Settings) has Export, Import and Restore. Export saves a ZIP containing the per-user `settings.prmt`, `practice-results.db` and `windows.prmt`, with a dated suggested name (`pentagrammata-backup-YYYY-MM-DD.zip`). The database entry is a `VACUUM INTO` snapshot (consistent, no WAL sidecars); the settings entry is serialized from the live configuration, so it works on fresh profiles and platforms without a per-user config file (macOS), where the settings entry is omitted on export and applied in memory only on import.
 - Import picks such a ZIP, validates it (only the three flat entry names are honored — no path traversal), and shows a confirmation dialog before replacing anything. Everything is validated and extracted to temp files first; then the files present in the archive are replaced and the change is made **live**: pooled SQLite connections are cleared, the schema-initialized flag is reset (an older-schema database migrates on next use), the window-size cache is invalidated and the live configuration is reloaded in place into the shared `Current` instance. After the import, the same validated apply path as the settings dialog pushes the reloaded config into the practice controller.
 - `UserBackupService` (`Services/`, behind `IUserBackupService` in `Interfaces/`) owns the archive logic; `BackupDialogService` and `ConfirmDialogService` (`Presentation/`) own the pickers and the confirmation dialog.
 - After archive validation and before replacing any data, import automatically exports the current data to a uniquely named ZIP in the per-user data directory's `backups` subdirectory. Import stops if this backup cannot be created. The info dialog shows the backup's full path after import, including when replacement fails so the original data can be recovered. Import also captures temporary database/file/live-configuration rollback state and restores it if an apply step fails. Restore applies the most recent `before-import` archive and preserves the currently active data in a separate `before-restore` archive.
@@ -71,7 +74,7 @@ src/
   Interfaces/      # Abstractions injected via Microsoft.Extensions.DependencyInjection
   Exceptions/      # Exceptions thrown across layer boundaries (store, backup service)
   Models/          # Plain data records
-  Configuration/   # Strongly-typed settings bound from appsettings.json
+  Configuration/   # Strongly-typed settings bound from settings.prmt
   Composition/     # DI registration (ServiceCollectionExtensions)
 tests/
   PentaGrammata.Tests/   # MSTest + NSubstitute; folders mirror src/

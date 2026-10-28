@@ -1,23 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 
 using Microsoft.Extensions.Logging;
 
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 
 namespace PentaGrammata.Stores;
 
 /// <summary>
-/// Persists window sizes to a dedicated JSON file (<c>window-sizes.json</c>) in the
+/// Persists window sizes to a dedicated Promptuarium container (<c>windows.prmt</c>,
+/// <c>PRMT:CFG1-LE</c> like the settings) in the
 /// per-user data directory, on every platform. Every operation is best-effort: a storage
 /// failure is logged and treated as "no saved size" rather than thrown, so it can never
 /// block opening or closing a window.
 /// </summary>
 public sealed class WindowSizeStore : IWindowSizeStore
 {
-    private const string FileName = "window-sizes.json";
+    private const string FileName = ConfigurationPaths.WindowSizesFileName;
 
     private readonly IAppPaths _appPaths;
     private readonly ILogger<WindowSizeStore> _logger;
@@ -73,8 +74,7 @@ public sealed class WindowSizeStore : IWindowSizeStore
 
                 var directory = _appPaths.AppDataDirectory;
                 Directory.CreateDirectory(directory);
-                var json = JsonSerializer.Serialize(sizes, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(Path.Combine(directory, FileName), json);
+                File.WriteAllBytes(Path.Combine(directory, FileName), PromptuariumSerializer.Serialize(sizes));
             }
         }
         catch (Exception ex)
@@ -102,7 +102,7 @@ public sealed class WindowSizeStore : IWindowSizeStore
         var path = Path.Combine(_appPaths.AppDataDirectory, FileName);
         if (File.Exists(path))
         {
-            var parsed = JsonSerializer.Deserialize<Dictionary<string, StoredSize>>(File.ReadAllText(path));
+            var parsed = PromptuariumSerializer.Deserialize<Dictionary<string, StoredSize>>(File.ReadAllBytes(path));
             _sizes = parsed is null
                 ? new Dictionary<string, StoredSize>(StringComparer.Ordinal)
                 : new Dictionary<string, StoredSize>(parsed, StringComparer.Ordinal);

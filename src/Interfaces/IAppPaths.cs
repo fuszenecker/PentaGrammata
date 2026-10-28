@@ -10,7 +10,7 @@ namespace PentaGrammata.Interfaces;
 public interface IAppPaths
 {
     /// <summary>
-    /// Per-user config files to layer on top of the bundled <c>appsettings.json</c>,
+    /// Per-user <c>settings.prmt</c> files to layer on top of the bundled defaults,
     /// in ascending precedence (later entries win). May be empty on unsupported platforms.
     /// </summary>
     IReadOnlyList<string> UserConfigPaths { get; }

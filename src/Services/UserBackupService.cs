@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
+using PentaGrammata.Configuration;
 using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
@@ -17,24 +17,20 @@ using PentaGrammata.Models;
 namespace PentaGrammata.Services;
 
 /// <summary>
-/// Archives and restores the user's data files (per-user appsettings.json,
-/// practice-results.db, window-sizes.json) as a single ZIP archive. Imports replace only
+/// Archives and restores the user's data files (per-user settings.prmt,
+/// practice-results.db, windows.prmt) as a single ZIP archive. Imports replace only
 /// the entries present in the archive and make the change live in the running app. The
 /// original data is automatically backed up before replacement. An in-process rollback
 /// snapshot also restores the complete prior profile when any apply step fails.
 /// </summary>
 public sealed class UserBackupService : IUserBackupService
 {
-    private const string AppSettingsEntryName = "appsettings.json";
+    private const string AppSettingsEntryName = ConfigurationPaths.SettingsFileName;
     private const string DatabaseEntryName = "practice-results.db";
-    private const string WindowSizesEntryName = "window-sizes.json";
+    private const string WindowSizesEntryName = ConfigurationPaths.WindowSizesFileName;
 
     // The first 16 bytes of every SQLite database file (ASCII "SQLite format 3" + NUL).
     private static readonly byte[] SqliteHeader = "SQLite format 3\0"u8.ToArray();
-
-    // The same options ConfigurationStore persists with, so the exported settings entry is
-    // byte-equivalent to the per-user appsettings.json on disk.
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private readonly IAppPaths _appPaths;
     private readonly IConfigurationService _configurationService;
@@ -65,7 +61,9 @@ public sealed class UserBackupService : IUserBackupService
             // The live state is exported rather than the on-disk file because that file
             // may not exist yet (fresh profile) or may have no per-user location at all,
             // while the live state is always the complete, authoritative one.
-            var settingsJson = JsonSerializer.Serialize(_configurationService.Current, JsonOptions);
+            // Serialized as ConfigurationStore persists it, so the exported settings entry is
+            // byte-equivalent to the per-user settings.prmt on disk.
+            var settingsBytes = PromptuariumSerializer.Serialize(_configurationService.Current);
 
             byte[]? windowSizesBytes = null;
             // The file name matches WindowSizeStore's own backing file.
@@ -82,7 +80,7 @@ public sealed class UserBackupService : IUserBackupService
                 await _statisticsStore.CreateConsistentCopyAsync(tempDatabasePath, cancellationToken);
 
                 using var archive = new ZipArchive(destination, ZipArchiveMode.Create);
-                WriteEntry(archive, AppSettingsEntryName, System.Text.Encoding.UTF8.GetBytes(settingsJson));
+                WriteEntry(archive, AppSettingsEntryName, settingsBytes);
                 WriteEntry(archive, DatabaseEntryName, await File.ReadAllBytesAsync(tempDatabasePath, cancellationToken));
                 if (windowSizesBytes is not null)
                 {
@@ -326,7 +324,7 @@ public sealed class UserBackupService : IUserBackupService
         {
             throw new UserBackupException("Could not replace the practice statistics database.", ex, recoveryArchivePath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
             _logger.LogError(ex, "Failed to import user data from a backup archive");
             throw new UserBackupException("Could not import the backup archive.", ex, recoveryArchivePath);
@@ -530,10 +528,13 @@ public sealed class UserBackupService : IUserBackupService
 
     private static void ValidateWindowSizes(byte[] bytes)
     {
-        using var document = JsonDocument.Parse(bytes);
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        try
         {
-            throw new UserBackupException("The backup contains an invalid window-sizes file.");
+            PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new UserBackupException("The backup contains an invalid window-sizes file.", ex);
         }
     }
 
@@ -541,9 +542,9 @@ public sealed class UserBackupService : IUserBackupService
     {
         try
         {
-            return JsonSerializer.Deserialize<AppConfig>(bytes, JsonOptions) ?? new AppConfig();
+            return PromptuariumSerializer.Deserialize<AppConfig>(bytes);
         }
-        catch (JsonException ex)
+        catch (InvalidDataException ex)
         {
             throw new UserBackupException("The backup contains an invalid settings file.", ex);
         }

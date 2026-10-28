@@ -19,6 +19,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.Presentation;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
+using PentaGrammata.Stores;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -50,7 +51,7 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         };
         configure?.Invoke(config);
         var paths = new ProfilePaths(DirectoryPath);
-        File.WriteAllText(paths.PreferredUserConfigPath, JsonSerializer.Serialize(config));
+        File.WriteAllBytes(paths.PreferredUserConfigPath, PromptuariumSerializer.Serialize(config));
         Storage = Substitute.For<IStorageProvider>();
         Storage.CanOpen.Returns(true);
         Storage.CanSave.Returns(true);
@@ -253,7 +254,7 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
     private sealed class ProfilePaths(string directory) : IAppPaths
     {
         public string AppDataDirectory => directory;
-        public string PreferredUserConfigPath => Path.Combine(directory, "appsettings.json");
+        public string PreferredUserConfigPath => Path.Combine(directory, "settings.prmt");
         public IReadOnlyList<string> UserConfigPaths => [PreferredUserConfigPath];
     }
 }

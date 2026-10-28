@@ -1,6 +1,7 @@
-# Promptuarium Configuration Format (`PRMT:CFG1`)
+# Promptuarium Configuration Format (`PRMT:CFG1-LE`)
 
-This document specifies how a JSON-like configuration (e.g. `appsettings.json`) is stored in a Promptuarium container.
+This document specifies how a JSON-like configuration (e.g. the content of an `appsettings.json`) is stored in a Promptuarium container (`PRMT:CFG1-LE`).
+PentaGrammata uses it for `settings.prmt` (the bundled defaults and the per-user settings) and `windows.prmt` (the window sizes).
 It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container defines the tree, this document defines the meaning of the data and metadata of its nodes.
 
 **Contents**
@@ -19,19 +20,20 @@ It builds on the [Binary Format Specification](BINARY_FORMAT.md): the container 
 
 * `[d: xxx]` means data with the value `xxx`, `[m: yyy]` means metadata with the value `yyy`.
 * **MUST**, **MUST NOT**, **SHOULD** and **MAY** are used as in RFC 2119.
-* All multi-byte numbers are little-endian.
+* All multi-byte numbers are **little-endian**; the `-LE` suffix of the signature says so, so that a big-endian variant could get a signature of its own.
 
 ## 2. Signature
 
 The root node follows the [file identification convention](BINARY_FORMAT.md#10-file-identification-optional-convention):
 
 * the root has **no data**,
-* its metadata is the signature `PRMT:CFG1` (9 bytes),
+* its metadata is the signature `PRMT:CFG1-LE` (12 bytes: the tag `CFG1-LE` is the kind `CFG`, the version `1` and the byte order `LE`),
 * its children are the members of the configuration.
 
 The root is an **implicit OBJECT**: it has no TYPE child, its children are NAME nodes.
 
-A file in this format starts with the bytes `69 50 52 4D 54 3A 43 46 47 31`.
+A file in this format starts with the bytes `6C 50 52 4D 54 3A 43 46 47 31 2D 4C 45` (`0x60 + 12`, then the signature).
+A reader MUST reject any other signature, including `PRMT:CFG1`.
 
 ## 3. Metadata tags
 
@@ -60,16 +62,18 @@ The data of a TYPE node is exactly one byte, the type code.
 | `ARRAY`       | `0x21` | none       | ITEM nodes (the elements, in order) |
 | `FLOAT64`     | `0x63` | 8 bytes, IEEE 754 binary64 | — |
 | `UTF8_STRING` | `0x80` | UTF-8 bytes, may be empty | — |
+| `BLOB`        | `0xF0` | raw bytes, may be empty | — |
 
 Rules:
 
 * A `BOOLEAN` value MUST be `0x00` or `0x01`.
 * A `FLOAT64` value MUST NOT be NaN or ±Infinity (JSON can not represent them).
 * A `UTF8_STRING` value MUST be valid UTF-8.
+* A `BLOB` value is any byte sequence, taken as is (a `byte[]` in .NET); it is never re-encoded as text (e.g. base64).
 
 ### 4.2 Reserved types
 
-These codes are reserved for later versions and are **not** supported by `CFG1`:
+These codes are reserved for later versions and are **not** supported by `CFG1-LE`:
 
 | Type       | Code   | Type       | Code   | Type       | Code   |
 |------------|--------|------------|--------|------------|--------|
@@ -118,6 +122,8 @@ FLOAT64     = 0x63
 FLOAT128    = 0x64   (reserved)
 
 UTF8_STRING = 0x80
+
+BLOB        = 0xF0
 ```
 
 ## 5. Tree structure
@@ -128,7 +134,7 @@ A holder has exactly one TYPE child, as its **first** child, followed by:
 
 | Type | Further children |
 |------|------------------|
-| `UTF8_STRING`, `FLOAT64`, `BOOLEAN` | exactly one VALUE node |
+| `UTF8_STRING`, `BLOB`, `FLOAT64`, `BOOLEAN` | exactly one VALUE node |
 | `NULL` | none |
 | `OBJECT` | zero or more NAME nodes |
 | `ARRAY` | zero or more ITEM nodes |
@@ -157,7 +163,7 @@ TYPE and VALUE nodes have no children.
 ```
 
 ```text
-[m: PRMT:CFG1]
+[m: PRMT:CFG1-LE]
 ├── [m: NAME] [d: key1]
 │   ├── [m: TYPE] [d: UTF8_STRING]
 │   └── [m: VALUE] [d: value1]
@@ -186,17 +192,32 @@ TYPE and VALUE nodes have no children.
 
 ## 7. Test vector
 
-The canonical encoding of the example above (157 bytes):
+The canonical encoding of the example above (160 bytes):
 
 ```text
-69 50 52 4d 54 3a 43 46 47 31 44 6b 65 79 31 21
-00 41 80 21 01 c6 76 61 6c 75 65 31 21 03 84 6b
-65 79 32 21 00 41 63 21 01 c8 00 00 00 00 00 00
-f8 3f 21 03 84 6b 65 79 33 21 00 41 01 21 01 c1
-01 21 03 84 6b 65 79 34 21 00 41 21 21 01 e1 02
-41 80 21 01 c7 76 61 6c 75 65 34 31 21 03 a1 02
-41 80 21 01 c7 76 61 6c 75 65 34 32 21 03 80 84
-6b 65 79 35 21 00 41 20 21 01 c5 6b 65 79 35 31
-21 00 41 80 21 01 c7 76 61 6c 75 65 35 31 21 03
-80 84 6b 65 79 36 21 00 41 00 21 01 00
+6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 44 6b 65
+79 31 21 00 41 80 21 01 c6 76 61 6c 75 65 31 21
+03 84 6b 65 79 32 21 00 41 63 21 01 c8 00 00 00
+00 00 00 f8 3f 21 03 84 6b 65 79 33 21 00 41 01
+21 01 c1 01 21 03 84 6b 65 79 34 21 00 41 21 21
+01 e1 02 41 80 21 01 c7 76 61 6c 75 65 34 31 21
+03 a1 02 41 80 21 01 c7 76 61 6c 75 65 34 32 21
+03 80 84 6b 65 79 35 21 00 41 20 21 01 c5 6b 65
+79 35 31 21 00 41 80 21 01 c7 76 61 6c 75 65 35
+31 21 03 80 84 6b 65 79 36 21 00 41 00 21 01 00
 ```
+
+A `BLOB` member `key7` with the bytes `DE AD BE EF`, appended to the example, is encoded as:
+
+```text
+[m: NAME] [d: key7]
+├── [m: TYPE] [d: BLOB]
+└── [m: VALUE] [d: DE AD BE EF]
+```
+
+```text
+84 6b 65 79 37 21 00 41 f0 21 01 c4 de ad be ef 21 03
+```
+
+These 18 bytes are inserted before the final `00` of the test vector, which gives a 178-byte file.
+

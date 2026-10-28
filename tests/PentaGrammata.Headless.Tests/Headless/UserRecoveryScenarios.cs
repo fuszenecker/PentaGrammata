@@ -69,7 +69,7 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
-        var sizes = Path.Combine(app.DirectoryPath, "window-sizes.json");
+        var sizes = Path.Combine(app.DirectoryPath, "windows.prmt");
         var previousSizes = File.ReadAllBytes(sizes);
         File.Delete(sizes);
         Directory.CreateDirectory(sizes); // The disk refuses one replacement after staging.
@@ -135,8 +135,8 @@ public sealed partial class UserJourneyScenarios
     public Task UserSeesSettingsPersistenceFailureAndCanSaveAgain() => Run(async app =>
     {
         var settings = await Settings(app);
-        var path = Path.Combine(app.DirectoryPath, "appsettings.json");
-        var original = File.ReadAllText(path);
+        var path = Path.Combine(app.DirectoryPath, "settings.prmt");
+        var original = File.ReadAllBytes(path);
         File.Delete(path);
         Directory.CreateDirectory(path);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
@@ -144,7 +144,7 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "handle settings persistence failure");
         StringAssert.Contains(app.ViewModel.Practice.TimeCounterText, "could not be saved");
         Directory.Delete(path);
-        File.WriteAllText(path, original);
+        File.WriteAllBytes(path, original);
         settings = await Settings(app);
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
@@ -273,9 +273,9 @@ public sealed partial class UserJourneyScenarios
     });
 
     [TestMethod]
-    [DataRow("appsettings.json")]
+    [DataRow("settings.prmt")]
     [DataRow("practice-results.db")]
-    [DataRow("window-sizes.json")]
+    [DataRow("windows.prmt")]
     public Task UserImportsAnArchiveContainingOnlyOneProfileComponent(string component) => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
@@ -303,17 +303,17 @@ public sealed partial class UserJourneyScenarios
         Assert.AreEqual("Import complete", info.Title);
         ScenarioDesktop.Click(info, "OK");
         await ScenarioDesktop.Until(() => !app.ViewModel.ImportCommand.IsRunning, "import profile component");
-        Assert.AreEqual(component == "appsettings.json" ? "TEST" : "NEW", app.Configuration.Current.Practice.CustomText);
+        Assert.AreEqual(component == "settings.prmt" ? "TEST" : "NEW", app.Configuration.Current.Practice.CustomText);
         Assert.HasCount(component == "practice-results.db" ? 1 : 2,
             await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync());
     });
 
     [TestMethod]
-    [DataRow("../appsettings.json", "{}")]
+    [DataRow("../settings.prmt", "{}")]
     [DataRow("unrelated.txt", "data")]
-    [DataRow("appsettings.json", "not JSON")]
+    [DataRow("settings.prmt", "not a container")]
     [DataRow("practice-results.db", "not SQLite")]
-    [DataRow("window-sizes.json", "not JSON")]
+    [DataRow("windows.prmt", "not a container")]
     public Task UserRejectsAnUnsafeOrCorruptBackupAndKeepsTheirData(string entry, string contents) => Run(async app =>
     {
         var zip = Path.Combine(app.DirectoryPath, "invalid.zip");

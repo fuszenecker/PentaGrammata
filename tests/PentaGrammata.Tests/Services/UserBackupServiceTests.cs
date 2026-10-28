@@ -25,7 +25,7 @@ namespace PentaGrammata.Tests.Services;
 [TestClass]
 public sealed class UserBackupServiceTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static byte[] EmptyContainer() => PromptuariumSerializer.Serialize(new Dictionary<string, string>());
 
     private string _tempDirectory = string.Empty;
 
@@ -62,7 +62,7 @@ public sealed class UserBackupServiceTests
 
         using var archive = new ZipArchive(new MemoryStream(buffer.ToArray()), ZipArchiveMode.Read);
         var names = archive.Entries.Select(entry => entry.FullName).OrderBy(name => name, StringComparer.Ordinal).ToArray();
-        CollectionAssert.AreEqual(new[] { "appsettings.json", "practice-results.db", "window-sizes.json" }, names);
+        CollectionAssert.AreEqual(new[] { "practice-results.db", "settings.prmt", "windows.prmt" }, names);
     }
 
     [TestMethod]
@@ -90,7 +90,7 @@ public sealed class UserBackupServiceTests
         await context.ConfigService.SaveAsync();
 
         var zip = await ExportToBytesAsync(context.Backup);
-        var settings = JsonSerializer.Deserialize<AppConfig>(ReadEntry(zip, "appsettings.json"));
+        var settings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(zip, "settings.prmt"));
 
         Assert.IsNotNull(settings);
         Assert.AreEqual(33, settings.Practice.CharacterWpm);
@@ -104,8 +104,8 @@ public sealed class UserBackupServiceTests
         var zip = await ExportToBytesAsync(context.Backup);
 
         using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
-        Assert.IsNull(archive.GetEntry("window-sizes.json"));
-        Assert.IsNotNull(archive.GetEntry("appsettings.json"));
+        Assert.IsNull(archive.GetEntry("windows.prmt"));
+        Assert.IsNotNull(archive.GetEntry("settings.prmt"));
     }
 
     [TestMethod]
@@ -152,7 +152,7 @@ public sealed class UserBackupServiceTests
         Assert.IsTrue(Path.IsPathFullyQualified(result.BackupPath));
         Assert.AreEqual(Path.Combine(_tempDirectory, "target", "backups"), Path.GetDirectoryName(result.BackupPath));
         var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
-        var backedUpSettings = JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json"));
+        var backedUpSettings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt"));
         Assert.IsNotNull(backedUpSettings);
         Assert.AreEqual(22, backedUpSettings.Practice.CharacterWpm);
 
@@ -170,12 +170,12 @@ public sealed class UserBackupServiceTests
         var target = CreateContext(_tempDirectory);
         await target.Statistics.SaveAsync(CreateRecord());
 
-        var settings = JsonSerializer.Serialize(new AppConfig
+        var settings = PromptuariumSerializer.Serialize(new AppConfig
         {
             Practice = new Practice { CharacterWpm = 66 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
-        }, JsonOptions);
-        var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
+        });
+        var zip = CreateZip(("settings.prmt", settings));
 
         var result = await target.Backup.ImportAsync(new MemoryStream(zip));
         var contents = result.Contents;
@@ -192,11 +192,11 @@ public sealed class UserBackupServiceTests
     {
         var target = CreateContext(_tempDirectory);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
-        var settings = JsonSerializer.Serialize(new AppConfig
+        var settings = PromptuariumSerializer.Serialize(new AppConfig
         {
             Practice = new Practice { CharacterWpm = 44 },
-        }, JsonOptions);
-        var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
+        });
+        var zip = CreateZip(("settings.prmt", settings));
 
         var first = await target.Backup.ImportAsync(new MemoryStream(zip));
         var firstBytes = await File.ReadAllBytesAsync(first.BackupPath);
@@ -204,9 +204,9 @@ public sealed class UserBackupServiceTests
 
         Assert.AreNotEqual(first.BackupPath, second.BackupPath);
         CollectionAssert.AreEqual(firstBytes, await File.ReadAllBytesAsync(first.BackupPath));
-        Assert.AreEqual(22, JsonSerializer.Deserialize<AppConfig>(ReadEntry(firstBytes, "appsettings.json"))!.Practice.CharacterWpm);
+        Assert.AreEqual(22, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(firstBytes, "settings.prmt"))!.Practice.CharacterWpm);
         var secondBytes = await File.ReadAllBytesAsync(second.BackupPath);
-        Assert.AreEqual(44, JsonSerializer.Deserialize<AppConfig>(ReadEntry(secondBytes, "appsettings.json"))!.Practice.CharacterWpm);
+        Assert.AreEqual(44, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(secondBytes, "settings.prmt"))!.Practice.CharacterWpm);
     }
 
     [TestMethod]
@@ -262,7 +262,7 @@ public sealed class UserBackupServiceTests
         target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         await target.Statistics.SaveAsync(CreateRecord());
         await target.Statistics.SaveAsync(CreateRecord());
-        var settingsBytes = await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "appsettings.json"));
+        var settingsBytes = await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "settings.prmt"));
         File.WriteAllText(Path.Combine(targetDirectory, "backups"), "blocks directory creation");
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
@@ -271,7 +271,7 @@ public sealed class UserBackupServiceTests
         StringAssert.Contains(exception.Message, "No data was replaced");
         Assert.IsNull(exception.BackupPath);
         Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
-        CollectionAssert.AreEqual(settingsBytes, await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "appsettings.json")));
+        CollectionAssert.AreEqual(settingsBytes, await File.ReadAllBytesAsync(Path.Combine(targetDirectory, "settings.prmt")));
         Assert.HasCount(2, await target.Statistics.GetStatisticsRecordsAsync());
         Assert.AreEqual((100.0, 100.0), target.WindowSizes.TryGetSize("TrendsDialog")!.Value);
     }
@@ -289,7 +289,7 @@ public sealed class UserBackupServiceTests
         var windowSizes = Substitute.For<IWindowSizeStore>();
         var backup = new UserBackupService(paths, configuration, statistics, windowSizes,
             Substitute.For<ILogger<UserBackupService>>());
-        var zip = CreateZip(("appsettings.json", "{}"u8.ToArray()), ("window-sizes.json", "{}"u8.ToArray()));
+        var zip = CreateZip(("settings.prmt", EmptyContainer()), ("windows.prmt", EmptyContainer()));
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
             () => backup.ImportAsync(new MemoryStream(zip)));
@@ -301,7 +301,7 @@ public sealed class UserBackupServiceTests
         configuration.DidNotReceive().ReloadFromDisk();
         configuration.DidNotReceive().ApplyImported(Arg.Any<AppConfig>());
         windowSizes.DidNotReceive().InvalidateCache();
-        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "window-sizes.json")));
+        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "windows.prmt")));
     }
 
     [TestMethod]
@@ -319,7 +319,7 @@ public sealed class UserBackupServiceTests
         target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
         // Fail settings replacement after the database was replaced.
-        Directory.CreateDirectory(Path.Combine(targetDirectory, "appsettings.json"));
+        Directory.CreateDirectory(Path.Combine(targetDirectory, "settings.prmt"));
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
             () => target.Backup.ImportAsync(new MemoryStream(zip)));
@@ -425,17 +425,17 @@ public sealed class UserBackupServiceTests
     public async Task ImportAsync_WhenWindowSizesEntryIsNotAnObject_ThrowsUserBackupException()
     {
         var target = CreateContext(_tempDirectory);
-        var zip = CreateZip(("window-sizes.json", "[1,2,3]"u8.ToArray()));
+        var zip = CreateZip(("windows.prmt", "[1,2,3]"u8.ToArray()));
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
             () => target.Backup.ImportAsync(new MemoryStream(zip)));
     }
 
     [TestMethod]
-    public async Task ImportAsync_WhenSettingsEntryIsNotJson_ThrowsUserBackupException()
+    public async Task ImportAsync_WhenSettingsEntryIsNotAContainer_ThrowsUserBackupException()
     {
         var target = CreateContext(_tempDirectory);
-        var zip = CreateZip(("appsettings.json", "{ this is not json"u8.ToArray()));
+        var zip = CreateZip(("settings.prmt", "{ this is not a container"u8.ToArray()));
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
             () => target.Backup.ImportAsync(new MemoryStream(zip)));
@@ -445,21 +445,21 @@ public sealed class UserBackupServiceTests
     public async Task ImportAsync_WhenPreferredConfigPathIsNull_AppliesConfigInMemoryOnly()
     {
         var target = CreateContext(_tempDirectory, withUserConfigPath: false);
-        var settings = JsonSerializer.Serialize(new AppConfig
+        var settings = PromptuariumSerializer.Serialize(new AppConfig
         {
             Practice = new Practice { CharacterWpm = 55 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
-        }, JsonOptions);
-        var zip = CreateZip(("appsettings.json", Encoding.UTF8.GetBytes(settings)));
+        });
+        var zip = CreateZip(("settings.prmt", settings));
 
         var result = await target.Backup.ImportAsync(new MemoryStream(zip));
 
         Assert.IsTrue(result.Contents.AppSettings);
         Assert.AreEqual(55, target.ConfigService.Current.Practice.CharacterWpm);
         // No per-user file exists on this platform, so nothing may have been written.
-        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "appsettings.json")));
+        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "settings.prmt")));
         var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
-        Assert.IsNotNull(JsonSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "appsettings.json")));
+        Assert.IsNotNull(PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt")));
     }
 
     [TestMethod]
@@ -563,14 +563,14 @@ public sealed class UserBackupServiceTests
 
     /// <summary>
     /// Builds the real service stack over a temporary directory. The configuration store
-    /// is substituted with a JSON-file-backed load/save (the real one layers the bundled
-    /// appsettings.json from the application directory, which does not exist for tests),
+    /// is substituted with a settings.prmt-backed load/save (the real one layers the bundled
+    /// defaults from the application directory, which do not exist for tests),
     /// which still exercises the actual file bytes on the reload-from-disk path.
     /// </summary>
     private static BackupContext CreateContext(string directory, bool withUserConfigPath = true)
     {
         Directory.CreateDirectory(directory);
-        var configPath = Path.Combine(directory, "appsettings.json");
+        var configPath = Path.Combine(directory, "settings.prmt");
 
         var paths = Substitute.For<IAppPaths>();
         paths.AppDataDirectory.Returns(directory);
@@ -580,7 +580,7 @@ public sealed class UserBackupServiceTests
         var configStore = Substitute.For<IConfigurationStore>();
         configStore.Load().Returns(_ => LoadConfig(configPath));
         configStore
-            .SaveAsync(Arg.Do<AppConfig>(config => File.WriteAllText(configPath, JsonSerializer.Serialize(config, JsonOptions))))
+            .SaveAsync(Arg.Do<AppConfig>(config => File.WriteAllBytes(configPath, PromptuariumSerializer.Serialize(config))))
             .Returns(Task.CompletedTask);
 
         var configService = new ConfigurationService(configStore, Substitute.For<ILogger<ConfigurationService>>());
@@ -599,7 +599,7 @@ public sealed class UserBackupServiceTests
     private static AppConfig LoadConfig(string path)
     {
         return File.Exists(path)
-            ? JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(path)) ?? new AppConfig()
+            ? PromptuariumSerializer.Deserialize<AppConfig>(File.ReadAllBytes(path))
             : new AppConfig();
     }
 

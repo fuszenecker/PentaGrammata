@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
+using PentaGrammata.Stores;
+using PentaGrammata.Configuration;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -88,8 +90,8 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_UI settings");
         var ui = await app.Dialog<UiSettingsDialog>();
         ScenarioDesktop.Controls<NumericUpDown>(ui).Single().Value = 32;
-        var path = Path.Combine(app.DirectoryPath, "appsettings.json");
-        var original = File.ReadAllText(path);
+        var path = Path.Combine(app.DirectoryPath, "settings.prmt");
+        var original = File.ReadAllBytes(path);
         File.Delete(path);
         Directory.CreateDirectory(path);
         try
@@ -105,13 +107,13 @@ public sealed partial class UserJourneyScenarios
         finally
         {
             Directory.Delete(path);
-            File.WriteAllText(path, original);
+            File.WriteAllBytes(path, original);
         }
         app.Menu("_UI settings");
         ui = await app.Dialog<UiSettingsDialog>();
         ScenarioDesktop.Click(ui, "Save");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenUiSettingsCommand.IsRunning, "retry saving display settings");
-        StringAssert.Contains(File.ReadAllText(path), "32");
+        Assert.AreEqual(32d, PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path)).UiPreferences.ReceivedTextFontSize);
     });
 
     [TestMethod]
