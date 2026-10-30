@@ -9,6 +9,7 @@ using PentaGrammata.Models;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Views.Controls;
+using PentaGrammata.Stores;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -43,8 +44,8 @@ public sealed partial class UserJourneyScenarios
     [TestMethod]
     public Task UserSendsEverySupportedSymbolAsCustomText() => Run(async app =>
     {
-        using var defaults = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "appsettings.json")));
-        var allSymbols = defaults.RootElement.GetProperty("CharacterSets").GetProperty("Full").GetString()!;
+        var defaults = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "settings.prmt")));
+        var allSymbols = defaults.CharacterSets["Full"];
         var settings = await Settings(app);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), allSymbols);
         await ApplySettings(app, settings);
@@ -67,9 +68,9 @@ public sealed partial class UserJourneyScenarios
 
     public static IEnumerable<object[]> BuiltInCharacterSets()
     {
-        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "appsettings.json")));
-        foreach (var set in document.RootElement.GetProperty("CharacterSets").EnumerateObject())
-            yield return [set.Name];
+        var defaults = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "settings.prmt")));
+        foreach (var name in defaults.CharacterSets.Keys)
+            yield return [name];
     }
 
     [TestMethod]

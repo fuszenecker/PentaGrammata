@@ -5,6 +5,7 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
+using PentaGrammata.Stores;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -64,8 +65,8 @@ public sealed partial class UserJourneyScenarios
         app.Menu(confusions ? "_Confusions" : "C_orrelation");
         Window dialog = confusions ? await app.Dialog<ConfusionsDialog>() : await app.Dialog<CorrelationDialog>();
         ScenarioDesktop.Controls<NumericUpDown>(dialog).Single().Value = 31;
-        var path = Path.Combine(app.DirectoryPath, "appsettings.json");
-        var original = File.ReadAllText(path);
+        var path = Path.Combine(app.DirectoryPath, "settings.prmt");
+        var original = File.ReadAllBytes(path);
         File.Delete(path);
         Directory.CreateDirectory(path);
         try
@@ -83,11 +84,11 @@ public sealed partial class UserJourneyScenarios
         finally
         {
             Directory.Delete(path);
-            File.WriteAllText(path, original);
+            File.WriteAllBytes(path, original);
         }
         ScenarioDesktop.Click(dialog, "Close");
         await ScenarioDesktop.Until(() => !dialog.IsVisible, "retry closing analysis");
-        var persisted = JsonSerializer.Deserialize<AppConfiguration>(File.ReadAllText(path))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path))!;
         Assert.AreEqual(31d, confusions ? persisted.Analytics.ConfusionsHalfLifeDays : persisted.Analytics.CorrelationWindowDays);
     });
 
@@ -98,8 +99,8 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_Confusions");
         var dialog = await app.Dialog<ConfusionsDialog>();
         var vm = (ConfusionsDialogViewModel)dialog.DataContext!;
-        var path = Path.Combine(app.DirectoryPath, "appsettings.json");
-        var original = File.ReadAllText(path);
+        var path = Path.Combine(app.DirectoryPath, "settings.prmt");
+        var original = File.ReadAllBytes(path);
         File.Delete(path);
         Directory.CreateDirectory(path);
         try
@@ -112,12 +113,12 @@ public sealed partial class UserJourneyScenarios
         finally
         {
             Directory.Delete(path);
-            File.WriteAllText(path, original);
+            File.WriteAllBytes(path, original);
         }
         ScenarioDesktop.Click(dialog, "Practice confusions");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenConfusionsCommand.IsRunning, "retry creating confusion palette");
         Assert.AreEqual("Practice confusions", ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem);
-        var persisted = JsonSerializer.Deserialize<AppConfiguration>(File.ReadAllText(path))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path))!;
         Assert.AreEqual("Practice confusions", persisted.Practice.DefaultCharacterSet);
         Assert.IsNotEmpty(persisted.CharacterSets["Practice confusions"]);
     });

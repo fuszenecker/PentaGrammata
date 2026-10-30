@@ -1,10 +1,9 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
@@ -26,17 +25,18 @@ public sealed class ConfigurationStore : IConfigurationStore
 
     public AppConfig Load()
     {
-        var builder = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+        // The bundled defaults, then each per-user file applied on top of them.
+        var config = PromptuariumSerializer.Deserialize<AppConfig>(
+            File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)));
 
         foreach (var userConfigPath in _appPaths.UserConfigPaths)
         {
-            builder.AddJsonFile(userConfigPath, optional: true, reloadOnChange: false);
+            if (File.Exists(userConfigPath))
+            {
+                PromptuariumSerializer.Populate(File.ReadAllBytes(userConfigPath), config);
+            }
         }
 
-        var configRoot = builder.Build();
-        var config = configRoot.Get<AppConfig>() ?? new AppConfig();
         return config.Clone();
     }
 
@@ -61,13 +61,10 @@ public sealed class ConfigurationStore : IConfigurationStore
         {
             Directory.CreateDirectory(directory);
 
-            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            var bytes = PromptuariumSerializer.Serialize(configuration);
 
             temporaryPath = Path.Combine(directory, $".{Path.GetFileName(_userConfigPath)}.{Guid.NewGuid():N}.tmp");
-            await File.WriteAllTextAsync(temporaryPath, json).ConfigureAwait(false);
+            await File.WriteAllBytesAsync(temporaryPath, bytes).ConfigureAwait(false);
             File.Move(temporaryPath, _userConfigPath, overwrite: true);
         }
         finally

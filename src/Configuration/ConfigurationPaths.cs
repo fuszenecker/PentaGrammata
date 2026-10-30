@@ -6,6 +6,12 @@ namespace PentaGrammata.Configuration;
 
 public static class ConfigurationPaths
 {
+    /// <summary>The per-user (and bundled default) settings file, a Promptuarium container.</summary>
+    public const string SettingsFileName = "settings.prmt";
+
+    /// <summary>The per-user window sizes file, a Promptuarium container in the data directory.</summary>
+    public const string WindowSizesFileName = "windows.prmt";
+
     public static string[] GetPerUserConfigPaths()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -15,8 +21,8 @@ public static class ConfigurationPaths
 
             return
             [
-                Path.Combine(roaming, "PentaGrammata", "appsettings.json"),
-                Path.Combine(local, "PentaGrammata", "appsettings.json")
+                Path.Combine(roaming, "PentaGrammata", SettingsFileName),
+                Path.Combine(local, "PentaGrammata", SettingsFileName)
             ];
         }
 
@@ -30,7 +36,7 @@ public static class ConfigurationPaths
 
             return
             [
-                Path.Combine(configRoot, "PentaGrammata", "appsettings.json")
+                Path.Combine(configRoot, "PentaGrammata", SettingsFileName)
             ];
         }
 

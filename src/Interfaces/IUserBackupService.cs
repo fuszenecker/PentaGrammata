@@ -14,8 +14,8 @@ public sealed record BackupContents(bool AppSettings, bool Database, bool Window
 }
 
 /// <summary>
-/// Exports and imports the user's data files (per-user appsettings.json,
-/// practice-results.db, window-sizes.json) as a single ZIP archive, and makes an import
+/// Exports and imports the user's data files (per-user settings.prmt,
+/// practice-results.db, windows.prmt) as a single ZIP archive, and makes an import
 /// live in the running application (configuration reload, statistics-store reset,
 /// window-size cache invalidation).
 /// </summary>
@@ -39,8 +39,8 @@ public interface IUserBackupService
     /// <summary>
     /// Replaces the on-disk user data with the archive's recognized entries and makes the
     /// change live. Only the entries present in the archive are replaced; entries
-    /// recognized are the three flat names appsettings.json, practice-results.db and
-    /// window-sizes.json (anything else in the archive is ignored, which also rules out
+    /// recognized are the three flat names settings.prmt, practice-results.db and
+    /// windows.prmt (anything else in the archive is ignored, which also rules out
     /// path traversal). Throws <see cref="PentaGrammata.Exceptions.UserBackupException"/> with a user-facing
     /// message on any failure. Before replacement, creates a uniquely named backup in
     /// the app data directory's backups subdirectory; if backup creation fails, no entries

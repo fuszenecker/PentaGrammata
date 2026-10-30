@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Stores;
+using PentaGrammata.Configuration;
 
 namespace PentaGrammata.Tests.Stores;
 
@@ -122,7 +123,7 @@ public sealed class WindowSizeStoreTests
     public void TryGetSize_WhenFileIsCorrupt_ReturnsNullWithoutThrowing()
     {
         Directory.CreateDirectory(_tempDirectory);
-        File.WriteAllText(Path.Combine(_tempDirectory, "window-sizes.json"), "{ this is not json");
+        File.WriteAllText(Path.Combine(_tempDirectory, "windows.prmt"), "{ this is not a container");
 
         var sut = CreateStore();
 
@@ -137,9 +138,12 @@ public sealed class WindowSizeStoreTests
         sut.SaveSize("MainWindow", 800, 500); // warms the in-memory cache and writes the file
 
         // The file is replaced behind the store's back, as a backup import does.
-        File.WriteAllText(
-            Path.Combine(_tempDirectory, "window-sizes.json"),
-            """{ "TrendsDialog": { "Width": 1200, "Height": 800 } }""");
+        File.WriteAllBytes(
+            Path.Combine(_tempDirectory, "windows.prmt"),
+            PromptuariumSerializer.Serialize(new Dictionary<string, object>
+            {
+                ["TrendsDialog"] = new { Width = 1200, Height = 800 },
+            }));
 
         // Before invalidation the stale cache wins; after it the file is re-read.
         Assert.IsNull(sut.TryGetSize("TrendsDialog"));
