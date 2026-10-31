@@ -13,6 +13,7 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Services;
 
@@ -63,7 +64,7 @@ public sealed class UserBackupService : IUserBackupService
             // while the live state is always the complete, authoritative one.
             // Serialized as ConfigurationStore persists it, so the exported settings entry is
             // byte-equivalent to the per-user settings.prmt on disk.
-            var settingsBytes = PromptuariumSerializer.Serialize(_configurationService.Current);
+            var settingsBytes = PromptuariumSerializer.Serialize(_configurationService.Current, ConfigurationFormat.Options);
 
             byte[]? windowSizesBytes = null;
             // The file name matches WindowSizeStore's own backing file.
@@ -530,7 +531,7 @@ public sealed class UserBackupService : IUserBackupService
     {
         try
         {
-            PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes);
+            PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options);
         }
         catch (InvalidDataException ex)
         {
@@ -542,7 +543,7 @@ public sealed class UserBackupService : IUserBackupService
     {
         try
         {
-            return PromptuariumSerializer.Deserialize<AppConfig>(bytes);
+            return PromptuariumSerializer.Deserialize<AppConfig>(bytes, ConfigurationFormat.Options);
         }
         catch (InvalidDataException ex)
         {

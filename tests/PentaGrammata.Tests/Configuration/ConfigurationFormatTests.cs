@@ -8,13 +8,14 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Stores;
 using Promptuarium;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Configuration;
 
 [TestClass]
-public sealed class PromptuariumSerializerTests
+public sealed class ConfigurationFormatTests
 {
-    // docs/CONFIG_FORMAT.md, section 7.
+    // Promptuarium SERIALIZER_FORMAT.md, section 7: the files written before the library keep their bytes.
     private const string TestVector = """
         6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 44 6b 65
         79 31 21 00 41 80 21 01 c6 76 61 6c 75 65 31 21
@@ -42,7 +43,7 @@ public sealed class PromptuariumSerializerTests
         hex.Split((char[])[' ', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(b => Convert.ToByte(b, 16)).ToArray();
 
     private static Element Root() =>
-        new ElementBuilder().WithSignature(Data.FromAsciiString(PromptuariumSerializer.Signature)).Build();
+        new ElementBuilder().WithSignature(Data.FromAsciiString(PromptuariumSerializerOptions.ConfigurationSignature)).Build();
 
     private static Element Member(string name, byte type, ReadOnlyMemory<byte>? value = null)
     {
@@ -58,13 +59,13 @@ public sealed class PromptuariumSerializerTests
     [TestMethod]
     public void Serialize_SpecExample_MatchesTestVector()
     {
-        CollectionAssert.AreEqual(Hex(TestVector), PromptuariumSerializer.Serialize(Example()));
+        CollectionAssert.AreEqual(Hex(TestVector), PromptuariumSerializer.Serialize(Example(), ConfigurationFormat.Options));
     }
 
     [TestMethod]
     public void Deserialize_TestVector_GivesSpecExample()
     {
-        var decoded = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(Hex(TestVector));
+        var decoded = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(Hex(TestVector), ConfigurationFormat.Options);
 
         Assert.AreEqual("value1", decoded["key1"]);
         Assert.AreEqual(1.5, decoded["key2"]);
@@ -84,18 +85,18 @@ public sealed class PromptuariumSerializerTests
     [TestMethod]
     public void Blob_IsWrittenFromAndReadIntoByteArray()
     {
-        var bytes = PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["key"] = new byte[] { 0xde, 0xad, 0xbe, 0xef } });
+        var bytes = PromptuariumSerializer.Serialize(new Dictionary<string, object> { ["key"] = new byte[] { 0xde, 0xad, 0xbe, 0xef } }, ConfigurationFormat.Options);
 
         CollectionAssert.AreEqual(Hex("6c 50 52 4d 54 3a 43 46 47 31 2d 4c 45 43 6b 65 79 21 00 41 f0 21 01 c4 de ad be ef 21 03 00"), bytes);
-        CollectionAssert.AreEqual(new byte[] { 0xde, 0xad, 0xbe, 0xef }, (byte[])PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes)["key"]!);
+        CollectionAssert.AreEqual(new byte[] { 0xde, 0xad, 0xbe, 0xef }, (byte[])PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options)["key"]!);
     }
 
     [TestMethod]
     public void Blob_RoundTripsThroughATypedProperty()
     {
-        var bytes = PromptuariumSerializer.Serialize(new WithBlob { Name = "x", Payload = [1, 2, 3] });
+        var bytes = PromptuariumSerializer.Serialize(new WithBlob { Name = "x", Payload = [1, 2, 3] }, ConfigurationFormat.Options);
 
-        var copy = PromptuariumSerializer.Deserialize<WithBlob>(bytes);
+        var copy = PromptuariumSerializer.Deserialize<WithBlob>(bytes, ConfigurationFormat.Options);
 
         Assert.AreEqual("x", copy.Name);
         CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, copy.Payload);
@@ -117,7 +118,7 @@ public sealed class PromptuariumSerializerTests
                 new Element(Data.FromByte(0x20), Data.FromByte(0x01)),
                 Member("Mine", 0x80, Data.FromUtf8String("XYZ"))));
 
-        PromptuariumSerializer.Populate(overlay.ToBytes(), target);
+        PromptuariumSerializer.Populate(overlay.ToBytes(), target, ConfigurationFormat.Options);
 
         Assert.AreEqual(25, target.Practice.CharacterWpm);
         Assert.AreEqual(12, target.Practice.AverageWpm);
@@ -129,12 +130,12 @@ public sealed class PromptuariumSerializerTests
     [TestMethod]
     public void Enum_IsWrittenByNameAndReadFromNameOrNumber()
     {
-        var bytes = PromptuariumSerializer.Serialize(new NoiseSettings { Type = NoiseType.Pink });
-        Assert.AreEqual(NoiseType.Pink, PromptuariumSerializer.Deserialize<NoiseSettings>(bytes).Type);
-        Assert.AreEqual("Pink", PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes)["Type"]);
+        var bytes = PromptuariumSerializer.Serialize(new NoiseSettings { Type = NoiseType.Pink }, ConfigurationFormat.Options);
+        Assert.AreEqual(NoiseType.Pink, PromptuariumSerializer.Deserialize<NoiseSettings>(bytes, ConfigurationFormat.Options).Type);
+        Assert.AreEqual("Pink", PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options)["Type"]);
 
         var numeric = Root().Add(Member("Type", 0x63, Data.FromDouble((double)NoiseType.Pink)));
-        Assert.AreEqual(NoiseType.Pink, PromptuariumSerializer.Deserialize<NoiseSettings>(numeric).Type);
+        Assert.AreEqual(NoiseType.Pink, PromptuariumSerializer.Deserialize<NoiseSettings>(numeric, ConfigurationFormat.Options).Type);
     }
 
     [TestMethod]
@@ -142,7 +143,7 @@ public sealed class PromptuariumSerializerTests
     {
         var bytes = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT:CFG1")).Build().ToBytes();
 
-        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes));
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options));
     }
 
     [TestMethod]
@@ -152,7 +153,7 @@ public sealed class PromptuariumSerializerTests
     {
         var root = Root().Add(Member("key", type, Data.FromInt(1)));
 
-        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(root));
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(root, ConfigurationFormat.Options));
     }
 
     [TestMethod]
@@ -163,7 +164,7 @@ public sealed class PromptuariumSerializerTests
                 new Element(Data.FromByte(0x20), Data.FromByte(0x01)),
                 Member("CharacterWpm", 0x63, Data.FromDouble(18.5))));
 
-        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<AppConfiguration>(root));
+        Assert.ThrowsExactly<InvalidDataException>(() => PromptuariumSerializer.Deserialize<AppConfiguration>(root, ConfigurationFormat.Options));
     }
 
     [TestMethod]
@@ -171,7 +172,7 @@ public sealed class PromptuariumSerializerTests
     {
         var root = Root().Add(Member("key", 0x80, Data.FromUtf8String("first")), Member("key", 0x80, Data.FromUtf8String("second")));
 
-        Assert.AreEqual("second", PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(root)["key"]);
+        Assert.AreEqual("second", PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(root, ConfigurationFormat.Options)["key"]);
     }
 
     [TestMethod]

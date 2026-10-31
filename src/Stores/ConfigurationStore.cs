@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using Promptuarium.Serializer;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
 
 namespace PentaGrammata.Stores;
@@ -27,13 +28,13 @@ public sealed class ConfigurationStore : IConfigurationStore
     {
         // The bundled defaults, then each per-user file applied on top of them.
         var config = PromptuariumSerializer.Deserialize<AppConfig>(
-            File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)));
+            File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)), ConfigurationFormat.Options);
 
         foreach (var userConfigPath in _appPaths.UserConfigPaths)
         {
             if (File.Exists(userConfigPath))
             {
-                PromptuariumSerializer.Populate(File.ReadAllBytes(userConfigPath), config);
+                PromptuariumSerializer.Populate(File.ReadAllBytes(userConfigPath), config, ConfigurationFormat.Options);
             }
         }
 
@@ -61,7 +62,7 @@ public sealed class ConfigurationStore : IConfigurationStore
         {
             Directory.CreateDirectory(directory);
 
-            var bytes = PromptuariumSerializer.Serialize(configuration);
+            var bytes = PromptuariumSerializer.Serialize(configuration, ConfigurationFormat.Options);
 
             temporaryPath = Path.Combine(directory, $".{Path.GetFileName(_userConfigPath)}.{Guid.NewGuid():N}.tmp");
             await File.WriteAllBytesAsync(temporaryPath, bytes).ConfigureAwait(false);

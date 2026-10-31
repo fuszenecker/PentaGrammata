@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Promptuarium.Serializer is experimental (opt-in diagnostic PRMTSER000) -->
+    <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

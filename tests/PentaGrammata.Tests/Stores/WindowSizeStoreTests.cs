@@ -6,6 +6,7 @@ using NSubstitute;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Stores;
 using PentaGrammata.Configuration;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Stores;
 
@@ -143,7 +144,7 @@ public sealed class WindowSizeStoreTests
             PromptuariumSerializer.Serialize(new Dictionary<string, object>
             {
                 ["TrendsDialog"] = new { Width = 1200, Height = 800 },
-            }));
+            }, ConfigurationFormat.Options));
 
         // Before invalidation the stale cache wins; after it the file is re-read.
         Assert.IsNull(sut.TryGetSize("TrendsDialog"));

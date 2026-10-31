@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Stores;
 
@@ -74,7 +75,7 @@ public sealed class WindowSizeStore : IWindowSizeStore
 
                 var directory = _appPaths.AppDataDirectory;
                 Directory.CreateDirectory(directory);
-                File.WriteAllBytes(Path.Combine(directory, FileName), PromptuariumSerializer.Serialize(sizes));
+                File.WriteAllBytes(Path.Combine(directory, FileName), PromptuariumSerializer.Serialize(sizes, ConfigurationFormat.Options));
             }
         }
         catch (Exception ex)
@@ -102,7 +103,7 @@ public sealed class WindowSizeStore : IWindowSizeStore
         var path = Path.Combine(_appPaths.AppDataDirectory, FileName);
         if (File.Exists(path))
         {
-            var parsed = PromptuariumSerializer.Deserialize<Dictionary<string, StoredSize>>(File.ReadAllBytes(path));
+            var parsed = PromptuariumSerializer.Deserialize<Dictionary<string, StoredSize>>(File.ReadAllBytes(path), ConfigurationFormat.Options);
             _sizes = parsed is null
                 ? new Dictionary<string, StoredSize>(StringComparer.Ordinal)
                 : new Dictionary<string, StoredSize>(parsed, StringComparer.Ordinal);

@@ -20,6 +20,7 @@ using PentaGrammata.Presentation;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Stores;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -51,7 +52,7 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         };
         configure?.Invoke(config);
         var paths = new ProfilePaths(DirectoryPath);
-        File.WriteAllBytes(paths.PreferredUserConfigPath, PromptuariumSerializer.Serialize(config));
+        File.WriteAllBytes(paths.PreferredUserConfigPath, PromptuariumSerializer.Serialize(config, ConfigurationFormat.Options));
         Storage = Substitute.For<IStorageProvider>();
         Storage.CanOpen.Returns(true);
         Storage.CanSave.Returns(true);

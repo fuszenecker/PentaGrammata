@@ -8,6 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\pentagrammata-icon.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 Róbert Fuszenecker, HA8LHS</Copyright>
+    <!-- Promptuarium.Serializer is experimental (opt-in diagnostic PRMTSER000) -->
+    <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,7 +43,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
-    <PackageReference Include="Promptuarium" />
+    <PackageReference Include="Promptuarium.Serializer" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
   </ItemGroup>
 </Project>

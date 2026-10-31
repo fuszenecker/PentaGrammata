@@ -6,6 +6,7 @@ using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Stores;
 using PentaGrammata.Configuration;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -113,7 +114,7 @@ public sealed partial class UserJourneyScenarios
         ui = await app.Dialog<UiSettingsDialog>();
         ScenarioDesktop.Click(ui, "Save");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenUiSettingsCommand.IsRunning, "retry saving display settings");
-        Assert.AreEqual(32d, PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path)).UiPreferences.ReceivedTextFontSize);
+        Assert.AreEqual(32d, PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path), ConfigurationFormat.Options).UiPreferences.ReceivedTextFontSize);
     });
 
     [TestMethod]

@@ -17,6 +17,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Services;
 using PentaGrammata.Stores;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Services;
 
@@ -25,7 +26,7 @@ namespace PentaGrammata.Tests.Services;
 [TestClass]
 public sealed class UserBackupServiceTests
 {
-    private static byte[] EmptyContainer() => PromptuariumSerializer.Serialize(new Dictionary<string, string>());
+    private static byte[] EmptyContainer() => PromptuariumSerializer.Serialize(new Dictionary<string, string>(), ConfigurationFormat.Options);
 
     private string _tempDirectory = string.Empty;
 
@@ -90,7 +91,7 @@ public sealed class UserBackupServiceTests
         await context.ConfigService.SaveAsync();
 
         var zip = await ExportToBytesAsync(context.Backup);
-        var settings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(zip, "settings.prmt"));
+        var settings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(zip, "settings.prmt"), ConfigurationFormat.Options);
 
         Assert.IsNotNull(settings);
         Assert.AreEqual(33, settings.Practice.CharacterWpm);
@@ -152,7 +153,7 @@ public sealed class UserBackupServiceTests
         Assert.IsTrue(Path.IsPathFullyQualified(result.BackupPath));
         Assert.AreEqual(Path.Combine(_tempDirectory, "target", "backups"), Path.GetDirectoryName(result.BackupPath));
         var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
-        var backedUpSettings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt"));
+        var backedUpSettings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt"), ConfigurationFormat.Options);
         Assert.IsNotNull(backedUpSettings);
         Assert.AreEqual(22, backedUpSettings.Practice.CharacterWpm);
 
@@ -174,7 +175,7 @@ public sealed class UserBackupServiceTests
         {
             Practice = new Practice { CharacterWpm = 66 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
-        });
+        }, ConfigurationFormat.Options);
         var zip = CreateZip(("settings.prmt", settings));
 
         var result = await target.Backup.ImportAsync(new MemoryStream(zip));
@@ -195,7 +196,7 @@ public sealed class UserBackupServiceTests
         var settings = PromptuariumSerializer.Serialize(new AppConfig
         {
             Practice = new Practice { CharacterWpm = 44 },
-        });
+        }, ConfigurationFormat.Options);
         var zip = CreateZip(("settings.prmt", settings));
 
         var first = await target.Backup.ImportAsync(new MemoryStream(zip));
@@ -204,9 +205,9 @@ public sealed class UserBackupServiceTests
 
         Assert.AreNotEqual(first.BackupPath, second.BackupPath);
         CollectionAssert.AreEqual(firstBytes, await File.ReadAllBytesAsync(first.BackupPath));
-        Assert.AreEqual(22, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(firstBytes, "settings.prmt"))!.Practice.CharacterWpm);
+        Assert.AreEqual(22, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(firstBytes, "settings.prmt"), ConfigurationFormat.Options)!.Practice.CharacterWpm);
         var secondBytes = await File.ReadAllBytesAsync(second.BackupPath);
-        Assert.AreEqual(44, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(secondBytes, "settings.prmt"))!.Practice.CharacterWpm);
+        Assert.AreEqual(44, PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(secondBytes, "settings.prmt"), ConfigurationFormat.Options)!.Practice.CharacterWpm);
     }
 
     [TestMethod]
@@ -449,7 +450,7 @@ public sealed class UserBackupServiceTests
         {
             Practice = new Practice { CharacterWpm = 55 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
-        });
+        }, ConfigurationFormat.Options);
         var zip = CreateZip(("settings.prmt", settings));
 
         var result = await target.Backup.ImportAsync(new MemoryStream(zip));
@@ -459,7 +460,7 @@ public sealed class UserBackupServiceTests
         // No per-user file exists on this platform, so nothing may have been written.
         Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "settings.prmt")));
         var backupBytes = await File.ReadAllBytesAsync(result.BackupPath);
-        Assert.IsNotNull(PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt")));
+        Assert.IsNotNull(PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(backupBytes, "settings.prmt"), ConfigurationFormat.Options));
     }
 
     [TestMethod]
@@ -580,7 +581,7 @@ public sealed class UserBackupServiceTests
         var configStore = Substitute.For<IConfigurationStore>();
         configStore.Load().Returns(_ => LoadConfig(configPath));
         configStore
-            .SaveAsync(Arg.Do<AppConfig>(config => File.WriteAllBytes(configPath, PromptuariumSerializer.Serialize(config))))
+            .SaveAsync(Arg.Do<AppConfig>(config => File.WriteAllBytes(configPath, PromptuariumSerializer.Serialize(config, ConfigurationFormat.Options))))
             .Returns(Task.CompletedTask);
 
         var configService = new ConfigurationService(configStore, Substitute.For<ILogger<ConfigurationService>>());
@@ -599,7 +600,7 @@ public sealed class UserBackupServiceTests
     private static AppConfig LoadConfig(string path)
     {
         return File.Exists(path)
-            ? PromptuariumSerializer.Deserialize<AppConfig>(File.ReadAllBytes(path))
+            ? PromptuariumSerializer.Deserialize<AppConfig>(File.ReadAllBytes(path), ConfigurationFormat.Options)
             : new AppConfig();
     }
 

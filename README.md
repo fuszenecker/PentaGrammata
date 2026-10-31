@@ -117,7 +117,7 @@ podman run --rm --userns=keep-id -v "${PWD}:/src:Z" -v pentagrammata-nuget:/tmp/
 
 ## Configuration
 
-`settings.prmt` in the application directory holds all defaults. It is a binary Promptuarium container (`PRMT:CFG1-LE`, see [docs/CONFIG_FORMAT.md](docs/CONFIG_FORMAT.md)); view or edit it with Promptuarium's [`pedit`](https://github.com/fuszenecker/Promptuarium/blob/master/tools/PEdit/README.md) or PStudio. Your own changes are saved to a per-user `settings.prmt` layered on top of it, and window sizes go to a per-user `windows.prmt`. `appsettings.json` in the application directory holds only the `Logging` section.
+`settings.prmt` in the application directory holds all defaults. It is a binary Promptuarium container (`PRMT:CFG1-LE`, written by [Promptuarium.Serializer](https://github.com/fuszenecker/Promptuarium/blob/master/src/Promptuarium.Serializer/README.md), format in [SERIALIZER_FORMAT.md](https://github.com/fuszenecker/Promptuarium/blob/master/SERIALIZER_FORMAT.md)); view or edit it with Promptuarium's [`pedit`](https://github.com/fuszenecker/Promptuarium/blob/master/tools/PEdit/README.md) or PStudio. Your own changes are saved to a per-user `settings.prmt` layered on top of it, and window sizes go to a per-user `windows.prmt`. `appsettings.json` in the application directory holds only the `Logging` section.
 
 | Section | Key | Default | Description |
 |---|---|---|---|

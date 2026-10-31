@@ -6,6 +6,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Stores;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -88,7 +89,7 @@ public sealed partial class UserJourneyScenarios
         }
         ScenarioDesktop.Click(dialog, "Close");
         await ScenarioDesktop.Until(() => !dialog.IsVisible, "retry closing analysis");
-        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path), ConfigurationFormat.Options)!;
         Assert.AreEqual(31d, confusions ? persisted.Analytics.ConfusionsHalfLifeDays : persisted.Analytics.CorrelationWindowDays);
     });
 
@@ -118,7 +119,7 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Click(dialog, "Practice confusions");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenConfusionsCommand.IsRunning, "retry creating confusion palette");
         Assert.AreEqual("Practice confusions", ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem);
-        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path), ConfigurationFormat.Options)!;
         Assert.AreEqual("Practice confusions", persisted.Practice.DefaultCharacterSet);
         Assert.IsNotEmpty(persisted.CharacterSets["Practice confusions"]);
     });

@@ -12,6 +12,7 @@ using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Views.Controls;
 using PentaGrammata.Stores;
+using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Headless;
 
@@ -138,7 +139,7 @@ public sealed partial class UserJourneyScenarios
         await app.Practice(null);
         Assert.AreEqual(expected, app.Main.FindControl<TextBox>("ReceivedTextBox")!.Text ?? "");
         Assert.AreEqual(30d, app.Main.FindControl<TextBox>("ReceivedTextBox")!.FontSize);
-        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(await File.ReadAllBytesAsync(Path.Combine(app.DirectoryPath, "settings.prmt")))!;
+        var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(await File.ReadAllBytesAsync(Path.Combine(app.DirectoryPath, "settings.prmt")), ConfigurationFormat.Options)!;
         Assert.AreEqual(reveal, persisted.UiPreferences.RevealSentTextAfterPractice);
     }, c => c.Practice.CustomText = "CQ <ar>");
 
