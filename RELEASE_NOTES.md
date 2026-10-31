@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.1.1
+
+- The settings files explain themselves: `settings.prmt`, `windows.prmt` and the settings in a backup carry a comment for every setting (what it is, in which unit), shown by Promptuarium's `pedit` and PStudio. Reading ignores the comments, so the files of 2.1.0 are read as before.
+- Backups are written in Promptuarium's specified ppak format, [PPAK1-LE](https://github.com/fuszenecker/Promptuarium/blob/master/examples/PPak/PPAK_FORMAT.md) (signature `PRMT:PPAK1-LE`). The backups made by 2.1.0 can still be imported.
+
 ## 2.1.0
 
 - The settings are read and written by [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/), the serializer of the Promptuarium package, instead of PentaGrammata's own. The files stay the same (`settings.prmt` and `windows.prmt`, `PRMT:CFG1-LE`), so the settings of 2.0 are kept. The format is specified in [SERIALIZER_FORMAT.md](https://github.com/fuszenecker/Promptuarium/blob/master/SERIALIZER_FORMAT.md).

@@ -9,11 +9,11 @@ using Promptuarium;
 namespace PentaGrammata.Services;
 
 /// <summary>
-/// A backup archive: a Promptuarium container in the layout of Promptuarium's ppak example
-/// (<c>examples/PPak</c>), so <c>ppak list</c>, <c>ppak verify</c> and <c>ppak unpack</c> work on it:
+/// A backup archive: a Promptuarium container in the PPAK1-LE format of Promptuarium's ppak example
+/// (<c>examples/PPak</c>, specified in its <c>PPAK_FORMAT.md</c>), so <c>ppak list</c>, <c>ppak verify</c> and <c>ppak unpack</c> work on it:
 ///
 /// <code>
-/// root                      metadata: the signature "PRMT:PPAK1"
+/// root                      metadata: the signature "PRMT:PPAK1-LE"
 /// ├── entry                 data: the file name (UTF-8)
 /// │   ├── info "type"       "file" (UTF-8)
 /// │   ├── info "content"    the content of the file
@@ -27,7 +27,7 @@ namespace PentaGrammata.Services;
 /// </summary>
 internal static class BackupArchive
 {
-    public const string Signature = "PRMT:PPAK1";
+    public const string Signature = "PRMT:PPAK1-LE";
 
     private const string TypeFlag = "type";
     private const string ContentFlag = "content";

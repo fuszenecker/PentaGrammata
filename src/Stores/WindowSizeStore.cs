@@ -110,9 +110,13 @@ public sealed class WindowSizeStore : IWindowSizeStore
 
     private static bool IsUsable(double value) => double.IsFinite(value) && value > 0;
 
+    [PromptuariumComment("The last size of the window, in device-independent pixels")]
     private sealed class StoredSize
     {
+        [PromptuariumComment("The width, in device-independent pixels")]
         public double Width { get; set; }
+
+        [PromptuariumComment("The height, in device-independent pixels")]
         public double Height { get; set; }
     }
 }

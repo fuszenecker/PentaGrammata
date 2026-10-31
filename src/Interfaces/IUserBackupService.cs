@@ -15,7 +15,7 @@ public sealed record BackupContents(bool AppSettings, bool Database)
 
 /// <summary>
 /// Exports and imports the user's data (per-user settings.prmt and practice-results.db)
-/// as a single PPAK1 Promptuarium archive, and makes an import live in the running
+/// as a single PPAK1-LE Promptuarium archive, and makes an import live in the running
 /// application (configuration reload, statistics-store reset). Window sizes are not
 /// part of a backup.
 /// </summary>
@@ -34,7 +34,7 @@ public interface IUserBackupService
 
     /// <summary>
     /// Returns the known entries present in the archive, or <c>null</c> when the stream is
-    /// not a readable PPAK1 archive containing at least one recognized entry.
+    /// not a readable PPAK1-LE archive containing at least one recognized entry.
     /// </summary>
     BackupContents? InspectArchive(Stream archive);
 

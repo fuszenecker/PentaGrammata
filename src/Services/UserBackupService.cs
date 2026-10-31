@@ -18,7 +18,7 @@ namespace PentaGrammata.Services;
 
 /// <summary>
 /// Archives and restores the user's data (per-user settings.prmt and practice-results.db)
-/// as a single PPAK1 Promptuarium archive (<see cref="BackupArchive"/>). Window sizes are
+/// as a single PPAK1-LE Promptuarium archive (<see cref="BackupArchive"/>). Window sizes are
 /// not part of a backup. Imports replace only
 /// the entries present in the archive and make the change live in the running app. The
 /// original data is automatically backed up before replacement. An in-process rollback

@@ -64,7 +64,7 @@ public sealed class UserBackupServiceTests
         // The layout of Promptuarium's ppak: entries named by their data, each with a "type",
         // a "content" and a "crc32" info node.
         var root = Element.FromBytes(buffer.ToArray());
-        Assert.AreEqual("PRMT:PPAK1", root.MetaData.AsAsciiString());
+        Assert.AreEqual("PRMT:PPAK1-LE", root.MetaData.AsAsciiString());
         CollectionAssert.AreEqual(
             new[] { "settings.prmt", "practice-results.db" },
             root.Children.Select(entry => entry.Data.AsUtf8String()).ToArray());

@@ -176,6 +176,30 @@ public sealed class ConfigurationFormatTests
     }
 
     [TestMethod]
+    public void Serialize_Configuration_WritesComments()
+    {
+        var root = Element.FromBytes(PromptuariumSerializer.Serialize(new AppConfiguration(), ConfigurationFormat.Options));
+
+        Assert.IsTrue(IsComment(root.Children[0]), "the root starts with the comment of the file");
+        var sampleRate = Child(Child(root, "Audio"), "SampleRate");
+        Assert.IsTrue(IsComment(sampleRate.Children[1]), "the comment follows the TYPE node of the member");
+        Assert.AreEqual("The sample rate of the audio output, in Hz", sampleRate.Children[1].Data.AsUtf8String());
+    }
+
+    [TestMethod]
+    public void BundledSettings_CarryComments()
+    {
+        var root = Element.FromBytes(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)));
+
+        Assert.IsTrue(IsComment(root.Children[0]));
+        Assert.IsTrue(IsComment(Child(Child(root, "Practice"), "ErrorThreshold").Children[1]));
+    }
+
+    private static bool IsComment(Element node) => node.MetaData.Span.SequenceEqual(new byte[] { 0x04 });
+
+    private static Element Child(Element holder, string name) => holder.Children.Single(child => child.MetaData.Span.SequenceEqual(new byte[] { 0x00 }) && child.Data.AsUtf8String() == name);
+
+    [TestMethod]
     public void ConfigurationStore_LoadsBundledDefaults()
     {
         var paths = Substitute.For<IAppPaths>();
