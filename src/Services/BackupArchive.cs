@@ -29,6 +29,8 @@ internal static class BackupArchive
 {
     public const string Signature = "PRMT:PPAK1-LE";
 
+    private static readonly byte[] SignatureBytes = System.Text.Encoding.ASCII.GetBytes(Signature);
+
     private const string TypeFlag = "type";
     private const string ContentFlag = "content";
     private const string Crc32Flag = "crc32";
@@ -60,19 +62,27 @@ internal static class BackupArchive
 
     /// <summary>
     /// Reads the files of an archive whose names are in <paramref name="names"/> (matched
-    /// regardless of case, keyed by the name given there). Reading is tolerant: what matters
-    /// is a top-level entry with a known name and a "content" info node. The signature, the
-    /// type, the time and every other info node are optional, the entries that are not wanted
+    /// regardless of case, keyed by the name given there). The signature is strict: the root
+    /// must carry exactly <see cref="Signature"/> (byte by byte, so no other case and no earlier
+    /// <c>PRMT:PPAK1</c>). Otherwise reading is tolerant: what matters is a top-level entry with
+    /// a known name and a "content" info node. The type, the time and every other info node are
+    /// optional, the entries that are not wanted
     /// are ignored (only flat names are matched, which also rules out path traversal), and a
     /// repeated name keeps its first entry. The only extra a reader does not ignore is a
     /// well-formed CRC-32 that does not match the content: that content is corrupt.
     /// </summary>
     /// <exception cref="InvalidDataException">
-    /// The stream is not a Promptuarium container, or the content of a wanted file does not match its CRC.
+    /// The stream is not a Promptuarium container, its signature is not <see cref="Signature"/>, or the
+    /// content of a wanted file does not match its CRC.
     /// </exception>
     public static Dictionary<string, byte[]> Read(Stream source, IReadOnlyCollection<string> names)
     {
         var root = Load(source);
+        if (!root.MetaData.Span.SequenceEqual(SignatureBytes))
+        {
+            throw new InvalidDataException($"The file is not a PentaGrammata backup (its signature is not {Signature}).");
+        }
+
         var files = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in root.Children)
         {

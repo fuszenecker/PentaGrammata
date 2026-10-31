@@ -411,9 +411,8 @@ public sealed class UserBackupServiceTests
     {
         var target = CreateContext(_tempDirectory);
         var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
-        // Another signature, no type, no CRC, no time, an unknown info node, and a repeated
-        // name (the first one counts).
-        var root = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT:OTHER")).Build();
+        // No type, no CRC, no time, an unknown info node, and a repeated name (the first one counts).
+        var root = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT:PPAK1-LE")).Build();
         root.Add(new Element(Data.FromUtf8String("SETTINGS.PRMT"), null,
             new Element(Data.FromUtf8String("whatever"), Data.FromAsciiString("note")),
             new Element(settings, Data.FromAsciiString("content"))));
@@ -424,6 +423,26 @@ public sealed class UserBackupServiceTests
 
         Assert.AreEqual(new BackupContents(AppSettings: true, Database: false), result.Contents);
         Assert.AreEqual(44, target.ConfigService.Current.Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    [DataRow("PRMT:PPAK1")]
+    [DataRow("PRMT:PPak1-LE")]
+    [DataRow("prmt:ppak1-le")]
+    [DataRow("PRMT:OTHER")]
+    [DataRow(null)]
+    public async Task ImportAsync_WhenSignatureIsNotExact_ThrowsAndKeepsLiveData(string? signature)
+    {
+        var target = CreateContext(_tempDirectory);
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var root = Element.FromBytes(CreateArchive(("settings.prmt", settings)));
+        root.MetaData = signature is null ? ReadOnlyMemory<byte>.Empty : Data.FromAsciiString(signature);
+
+        await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.ImportAsync(new MemoryStream(root.ToBytes())));
+
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
     }
 
     [TestMethod]
