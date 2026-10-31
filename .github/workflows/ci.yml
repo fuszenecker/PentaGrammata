@@ -4,26 +4,43 @@ on:
   push:
     branches: [ '**' ]
   pull_request:
-    branches: [ '**' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Build and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
-      - name: Restore dependencies
+
+      # A release is refused without notes, so the version being prepared must have them before it is tagged
+      - name: Release notes of version.txt
+        run: ./scripts/Release-Notes.sh "$(cat version.txt)"
+
+      - name: Restore
         run: dotnet restore PentaGrammata.slnx
+
       - name: Build
         run: dotnet build PentaGrammata.slnx --configuration Release --no-restore
+
       - name: Test
         run: dotnet test PentaGrammata.slnx --configuration Release --no-build --verbosity normal --logger trx --results-directory TestResults
+
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults/*.trx

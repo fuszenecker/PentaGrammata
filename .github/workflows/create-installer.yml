@@ -1,89 +1,114 @@
 name: Create Installer
 
-# Builds the Linux (.deb + .rpm), Windows (.exe) and macOS (.dmg) installers for
-# a newly pushed tag and publishes them as downloadable assets on a GitHub Release,
-# with the release notes of the version (RELEASE_NOTES.md) and the downloads.
+# The only place the installers are built: a pushed version tag (MAJOR.MINOR.PATCH.BUILD, e.g. 2.1.0.0) builds the
+# Linux (.deb + .rpm), Windows (.exe) and macOS (.dmg) installers and publishes them on a GitHub release, with the
+# release notes of the version (RELEASE_NOTES.md) and the downloads. It can also be started by hand for an existing
+# tag, e.g. to rebuild its installers; the release is then refreshed.
 #
-# The notes are checked first (a tag without notes stops here); the build jobs run in
-# parallel and the release job waits for all of them, so a release is only created
-# once every installer has built successfully.
-#
-#   notes          -> the section of the version in RELEASE_NOTES.md
-#   build-linux    -> .deb (Ubuntu 26.04) + .rpm (Rocky 10) via Podman
-#   build-windows  -> .exe (NSIS) on a real Windows runner
+#   check          -> the tag is the version of version.txt, and RELEASE_NOTES.md has its notes
+#   test           -> the tests of the tagged code
+#   build-linux    -> .deb (Ubuntu 26.04) + .rpm (Rocky 10), built in Podman containers of those distributions
+#   build-windows  -> .exe (NSIS) on a Windows runner
 #   build-macos    -> .dmg (Apple Silicon) on a macOS runner
-#   release        -> gh release create --latest (a stable release) with the notes and all assets
+#   release        -> a stable release, always marked latest, with the notes and all the installers
 #
-# The Linux installers build on ubuntu-latest using the same Podman pipeline as
-# locally (scripts/Build-Installer.Podman.sh). The Windows installer builds
-# natively on windows-latest: .NET publishes win-x64 and NSIS (installed via
-# Chocolatey) compiles the .nsi into a real Windows setup.exe. The macOS
-# installer builds natively on macos-latest (scripts/Build-Dmg-Installer.sh).
-#
-# The release version is taken from the tag (a leading "v" is stripped if
-# present) and forwarded to the build scripts so artifact filenames match.
+# The release job waits for every other job, so a release is only created once the tests passed and every
+# installer has built.
 
 on:
   push:
     tags:
-      - '**'
+      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing version tag to (re)release, e.g. 2.1.0.0
+        required: true
 
 permissions:
   contents: write
 
 concurrency:
-  group: create-installer-${{ github.ref }}
+  group: create-installer-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
-  notes:
-    name: Release notes
+  check:
+    name: Version and release notes
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      # The scripts name the installers after version.txt, so the tag must be that version
+      - name: Check the version
+        id: version
+        run: |
+          set -eu
+          version="$(tr -d '[:space:]' < version.txt)"
+          if ! [[ "${TAG}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The tag (${TAG}) is not a MAJOR.MINOR.PATCH.BUILD version."
+            exit 1
+          fi
+          if [ "${version}" != "${TAG}" ]; then
+            echo "::error::The tag (${TAG}) is not the version of version.txt (${version})."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Extract the notes of the version
         run: |
-          ./scripts/Release-Notes.sh "${GITHUB_REF_NAME#v}" > release-notes.md
+          ./scripts/Release-Notes.sh "${TAG}" > release-notes.md
           cat release-notes.md
 
-      - name: Upload the notes
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-notes
           path: release-notes.md
           if-no-files-found: error
 
-  build-linux:
-    name: Build .deb and .rpm (Podman)
-    needs: notes
+  test:
+    name: Test
+    needs: check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
 
-      - name: Resolve version from tag
-        id: version
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test PentaGrammata.slnx --configuration Release
+
+  build-linux:
+    name: Build .deb and .rpm (Podman)
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Build the .deb and .rpm installers
+        run: ./scripts/Build-Installer.Podman.sh --format all --version "${VERSION}"
+
+      - name: Verify the installers
         run: |
-          # The tag is the release version, e.g. "1.11.4.0" (or "v1.11.4.0").
-          version="${GITHUB_REF_NAME#v}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: ${version}"
+          ls -lh installer/deb/pentagrammata_${VERSION}_*.deb
+          ls -lh installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
 
-      - name: Build .deb and .rpm installers
-        run: |
-          ./scripts/Build-Installer.Podman.sh --format all --version "${{ steps.version.outputs.version }}"
-
-      - name: Verify built artifacts
-        run: |
-          echo "== .deb =="
-          ls -lh installer/deb/pentagrammata_${{ steps.version.outputs.version }}_*.deb
-          echo "== .rpm =="
-          ls -lh installer/rpm/x86_64/pentagrammata-${{ steps.version.outputs.version }}-*.rpm
-
-      - name: Upload Linux installers
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-installers
           path: |
@@ -93,47 +118,38 @@ jobs:
 
   build-windows:
     name: Build Windows .exe (NSIS)
-    needs: notes
+    needs: check
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
 
-      - name: Resolve version from tag
-        id: version
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: ${version}"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
       - name: Install NSIS
         shell: pwsh
         run: |
-          choco install nsis -y --no-progress
-          # Put makensis on PATH for subsequent steps.
-          "C:\Program Files (x86)\NSIS" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
-          & "C:\Program Files (x86)\NSIS\makensis.exe" -version
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) {
+            choco install nsis -y --no-progress
+          }
+          "${env:ProgramFiles(x86)}\NSIS" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" -VERSION
 
-      - name: Build Windows installer
-        # The script publishes win-x64 (self-contained) and runs makensis.
-        # Its -DAPP_VERSION flag works with native Windows makensis.
+      # The script publishes win-x64 (self-contained) and runs makensis
+      - name: Build the Windows installer
         shell: pwsh
-        run: |
-          ./scripts/Build-Installer.ps1 -Version "${{ steps.version.outputs.version }}"
+        run: ./scripts/Build-Installer.ps1 -Version $env:VERSION
 
-      - name: Verify built artifact
+      - name: Verify the installer
         shell: bash
-        run: |
-          ls -lh installer/nsis/PentaGrammata-${{ steps.version.outputs.version }}-win-x64-setup.exe
+        run: ls -lh "installer/nsis/PentaGrammata-${VERSION}-win-x64-setup.exe"
 
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: installer/nsis/PentaGrammata-*-win-x64-setup.exe
@@ -141,106 +157,88 @@ jobs:
 
   build-macos:
     name: Build macOS .dmg
-    needs: notes
+    needs: check
     runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
 
-      - name: Resolve version from tag
-        id: version
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: ${version}"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build macOS installer
-        run: |
-          ./scripts/Build-Dmg-Installer.sh --runtime osx-arm64 --version "${{ steps.version.outputs.version }}"
+      - name: Build the macOS installer
+        run: ./scripts/Build-Dmg-Installer.sh --runtime osx-arm64 --version "${VERSION}"
 
-      - name: Verify built artifact
-        run: |
-          ls -lh installer/dmg/PentaGrammata-${{ steps.version.outputs.version }}-osx-arm64.dmg
+      - name: Verify the installer
+        run: ls -lh "installer/dmg/PentaGrammata-${VERSION}-osx-arm64.dmg"
 
-      - name: Upload macOS installer
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-installer
           path: installer/dmg/PentaGrammata-*-osx-arm64.dmg
           if-no-files-found: error
 
   release:
-    name: Create the release with all installers
-    needs: [notes, build-linux, build-windows, build-macos]
+    name: Release
+    needs: [check, test, build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
 
-      - name: Download all installer artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
 
-      - name: Collect installer files
-        id: files
+      - name: Collect the installers
         run: |
           set -eu
-          mapfile -t files < <(find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' \) | sort)
-          if [ "${#files[@]}" -lt 4 ]; then
-            echo "Expected at least 4 installers (deb, rpm, exe, dmg); found ${#files[@]}:"
-            printf '  %s\n' "${files[@]}" >&2
+          find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' \) | sort > installers.txt
+          cat installers.txt
+          if [ "$(wc -l < installers.txt)" -lt 4 ]; then
+            echo "::error::Expected 4 installers (deb, rpm, exe, dmg)."
             exit 1
           fi
-          printf 'Installers to publish:\n'
-          printf '  %s\n' "${files[@]}"
-          # Pass the list as a JSON array for the next step.
-          {
-            echo 'files<<EOF'
-            for f in "${files[@]}"; do echo "$f"; done
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
 
       # The notes of the version, then the downloads (with how to install them)
       - name: Compose the release notes
         run: |
           set -eu
-          version="${GITHUB_REF_NAME#v}"
           {
             cat artifacts/release-notes/release-notes.md
             echo
             echo "### Downloads"
             echo
-            echo "- **Windows** (x64): \`PentaGrammata-${version}-win-x64-setup.exe\`, the installer."
-            echo "- **Debian, Ubuntu** (x64): \`sudo apt install ./pentagrammata_${version}_amd64.deb\`"
-            echo "- **Fedora, RHEL, Rocky** (x64): \`sudo dnf install ./pentagrammata-${version}-*.x86_64.rpm\`"
-            echo "- **macOS** (Apple Silicon): \`PentaGrammata-${version}-osx-arm64.dmg\`. The image is not signed: open the app the first time with right-click → Open (or run \`xattr -dr com.apple.quarantine /Applications/PentaGrammata.app\`)."
+            echo "- **Windows** (x64): \`PentaGrammata-${VERSION}-win-x64-setup.exe\`, the installer."
+            echo "- **Debian, Ubuntu** (x64): \`sudo apt install ./pentagrammata_${VERSION}_amd64.deb\`"
+            echo "- **Fedora, RHEL, Rocky** (x64): \`sudo dnf install ./pentagrammata-${VERSION}-*.x86_64.rpm\`"
+            echo "- **macOS** (Apple Silicon): \`PentaGrammata-${VERSION}-osx-arm64.dmg\`. The image is not signed: open the app the first time with right-click → Open (or run \`xattr -dr com.apple.quarantine /Applications/PentaGrammata.app\`)."
             echo
             echo "No .NET is needed: every installer is self-contained."
           } > release-notes-full.md
           cat release-notes-full.md
 
-      # A stable release, and the latest one; a release of an existing tag gets the new notes and assets
-      - name: Create release and upload installers
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Always a stable release and the latest one; a release of an existing tag gets the new notes and installers
+      - name: Create or refresh the release
         run: |
           set -eu
-          mapfile -t files < <(printf '%s\n' '${{ steps.files.outputs.files }}')
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "Release ${GITHUB_REF_NAME} already exists; refreshing the notes and the assets."
-            gh release upload "${GITHUB_REF_NAME}" --clobber "${files[@]}"
-            gh release edit "${GITHUB_REF_NAME}" --notes-file release-notes-full.md --prerelease=false --latest
+          mapfile -t installers < installers.txt
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" --clobber "${installers[@]}"
+            gh release edit "${TAG}" --title "${TAG}" --notes-file release-notes-full.md --prerelease=false --draft=false --latest
           else
-            gh release create "${GITHUB_REF_NAME}" \
-              --title "${GITHUB_REF_NAME}" \
+            gh release create "${TAG}" "${installers[@]}" \
+              --title "${TAG}" \
               --notes-file release-notes-full.md \
               --generate-notes \
-              --latest \
-              "${files[@]}"
+              --verify-tag \
+              --latest
           fi

@@ -5,6 +5,9 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.1.0
 
 - The settings are read and written by [Promptuarium.Serializer](https://www.nuget.org/packages/Promptuarium.Serializer/), the serializer of the Promptuarium package, instead of PentaGrammata's own. The files stay the same (`settings.prmt` and `windows.prmt`, `PRMT:CFG1-LE`), so the settings of 2.0 are kept. The format is specified in [SERIALIZER_FORMAT.md](https://github.com/fuszenecker/Promptuarium/blob/master/SERIALIZER_FORMAT.md).
+- **Backups are Promptuarium files.** File → Export saves a single `.prmt` file (`pentagrammata-backup-YYYY-MM-DD.prmt`) instead of a ZIP, with the settings and the practice statistics; the automatic backups made before an import or a restore are `.prmt` files too. Promptuarium's `ppak` tool can list, verify and unpack them.
+- Window sizes are no longer part of a backup: every installation keeps its own.
+- ZIP backups made by earlier versions can not be imported any more.
 
 ## 2.0.0
 

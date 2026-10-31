@@ -103,11 +103,11 @@ dotnet test tests/PentaGrammata.Headless.Tests/PentaGrammata.Headless.Tests.cspr
 
 ## Packaging
 
-Scripts in `scripts/` read the version from `version.txt`. Update `version.txt` when bumping the version — not the `.csproj`.
+Installers are built **only by the pipeline** (`create-installer.yml`), never locally; the scripts in `scripts/` are what the workflow runs. They read the version from `version.txt`. Update `version.txt` when bumping the version — not the `.csproj`.
 
 ## Releases
 
-Releases are produced automatically by the `Create Installer` workflow (`.github/workflows/create-installer.yml`) on every pushed tag.
+Releases are produced automatically by the `Create Installer` workflow (`.github/workflows/create-installer.yml`) on every pushed version tag (`[0-9]+.[0-9]+.[0-9]+.[0-9]+`). It can also be run by hand (`workflow_dispatch`, input `tag`) for an existing tag, which rebuilds the installers and refreshes the release.
 
 The version is **4-part: `MAJOR.MINOR.PATCH.BUILD`** (e.g. `1.11.4.4`), and the roles are fixed — do not deviate:
 
@@ -119,10 +119,10 @@ The version is **4-part: `MAJOR.MINOR.PATCH.BUILD`** (e.g. `1.11.4.4`), and the 
 To cut a new release (only when commanded):
 
 1. **Increment the BUILD segment** in `version.txt` (`1.11.4.4` → `1.11.4.5`). Do not change MAJOR, MINOR, or PATCH.
-2. **Write the release notes**: `RELEASE_NOTES.md` needs a section for the version without its BUILD number (`## 1.11.4`), newest first, describing what changed for the user, one line per paragraph or item (GitHub shows every line break); releases of the same code share the section. Check it with `scripts/Release-Notes.sh <version>`. The workflow refuses a tag without notes.
+2. **Write the release notes**: `RELEASE_NOTES.md` needs a section for the version without its BUILD number (`## 1.11.4`), newest first, describing what changed for the user, one line per paragraph or item (GitHub shows every line break); releases of the same code share the section. Check it with `scripts/Release-Notes.sh <version>`. Every release has proper notes: CI fails when the version in `version.txt` has no notes, and the workflow refuses a tag without notes or whose version is not the one in `version.txt`.
 3. **Commit** the version bump together with the changes on `main`.
 4. **Push `main`.**
 5. **Tag** the commit as `<version>` (no leading `v`): `git tag 1.11.4.5`.
 6. **Push the tag**: `git push origin 1.11.4.5`.
 
-The tag push triggers `create-installer.yml`, which builds the Linux (`.deb` + `.rpm` via Podman on `ubuntu-latest`) and Windows (`.exe` via NSIS on `windows-latest`) installers in parallel, then creates a GitHub release named after the tag — a **stable release, marked `latest`** — with the notes of the version (from `RELEASE_NOTES.md`), the downloads, and all the installers attached. Do not create the release or upload assets by hand — the workflow owns that. Verify the run succeeded and the release lists all three assets before considering the release done.
+The tag push triggers `create-installer.yml`, which checks the version and the notes, runs the tests, and builds the Linux (`.deb` + `.rpm` via Podman on `ubuntu-latest`), Windows (`.exe` via NSIS on `windows-latest`) and macOS (`.dmg` on `macos-latest`) installers in parallel, then creates a GitHub release named after the tag — **always a stable release, always marked `latest`** — with the notes of the version (from `RELEASE_NOTES.md`), the downloads, and all the installers attached. Do not create the release or upload assets by hand — the workflow owns that. Verify the run succeeded and the release lists all four assets before considering the release done.
