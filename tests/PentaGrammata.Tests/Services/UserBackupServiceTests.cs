@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -17,6 +16,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Services;
 using PentaGrammata.Stores;
+using Promptuarium;
 using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Services;
@@ -51,7 +51,7 @@ public sealed class UserBackupServiceTests
     }
 
     [TestMethod]
-    public async Task ExportAsync_ProducesArchiveWithAllThreeEntries()
+    public async Task ExportAsync_ProducesPpakArchiveWithSettingsAndDatabaseOnly()
     {
         var context = CreateContext(_tempDirectory);
         await context.Statistics.SaveAsync(CreateRecord());
@@ -61,9 +61,18 @@ public sealed class UserBackupServiceTests
         using var buffer = new MemoryStream();
         await context.Backup.ExportAsync(buffer);
 
-        using var archive = new ZipArchive(new MemoryStream(buffer.ToArray()), ZipArchiveMode.Read);
-        var names = archive.Entries.Select(entry => entry.FullName).OrderBy(name => name, StringComparer.Ordinal).ToArray();
-        CollectionAssert.AreEqual(new[] { "practice-results.db", "settings.prmt", "windows.prmt" }, names);
+        // The layout of Promptuarium's ppak: entries named by their data, each with a "type",
+        // a "content" and a "crc32" info node.
+        var root = Element.FromBytes(buffer.ToArray());
+        Assert.AreEqual("PRMT:PPAK1", root.MetaData.AsAsciiString());
+        CollectionAssert.AreEqual(
+            new[] { "settings.prmt", "practice-results.db" },
+            root.Children.Select(entry => entry.Data.AsUtf8String()).ToArray());
+        foreach (var entry in root.Children)
+        {
+            var flags = entry.Children.Select(info => info.MetaData.AsAsciiString()).ToArray();
+            CollectionAssert.IsSubsetOf(new[] { "type", "content", "crc32" }, flags);
+        }
     }
 
     [TestMethod]
@@ -73,9 +82,9 @@ public sealed class UserBackupServiceTests
         await context.Statistics.SaveAsync(CreateRecord());
         await context.Statistics.SaveAsync(CreateRecord());
 
-        var zip = await ExportToBytesAsync(context.Backup);
+        var archiveBytes = await ExportToBytesAsync(context.Backup);
         var databasePath = Path.Combine(_tempDirectory, "exported.db");
-        File.WriteAllBytes(databasePath, ReadEntry(zip, "practice-results.db"));
+        File.WriteAllBytes(databasePath, ReadEntry(archiveBytes, "practice-results.db"));
 
         // The snapshot must be readable on its own, even though the live database keeps
         // its committed data in WAL sidecars.
@@ -90,27 +99,15 @@ public sealed class UserBackupServiceTests
         context.ConfigService.Current.Practice.CharacterWpm = 33;
         await context.ConfigService.SaveAsync();
 
-        var zip = await ExportToBytesAsync(context.Backup);
-        var settings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(zip, "settings.prmt"), ConfigurationFormat.Options);
+        var archiveBytes = await ExportToBytesAsync(context.Backup);
+        var settings = PromptuariumSerializer.Deserialize<AppConfig>(ReadEntry(archiveBytes, "settings.prmt"), ConfigurationFormat.Options);
 
         Assert.IsNotNull(settings);
         Assert.AreEqual(33, settings.Practice.CharacterWpm);
     }
 
     [TestMethod]
-    public async Task ExportAsync_WhenWindowSizesFileMissing_OmitsEntry()
-    {
-        var context = CreateContext(_tempDirectory);
-
-        var zip = await ExportToBytesAsync(context.Backup);
-
-        using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
-        Assert.IsNull(archive.GetEntry("windows.prmt"));
-        Assert.IsNotNull(archive.GetEntry("settings.prmt"));
-    }
-
-    [TestMethod]
-    public async Task ImportAsync_RoundTrip_ReplacesDatabaseConfigAndWindowSizes()
+    public async Task ImportAsync_RoundTrip_ReplacesDatabaseAndConfigButNotWindowSizes()
     {
         var source = CreateContext(Path.Combine(_tempDirectory, "source"));
         await source.Statistics.SaveAsync(CreateRecord());
@@ -118,23 +115,21 @@ public sealed class UserBackupServiceTests
         source.ConfigService.Current.Practice.CharacterWpm = 44;
         await source.ConfigService.SaveAsync();
 
-        var zip = await ExportToBytesAsync(source.Backup);
+        var archiveBytes = await ExportToBytesAsync(source.Backup);
 
         var target = CreateContext(Path.Combine(_tempDirectory, "target"));
-        // Diverge the target: two records, a different window size, and a warm window-size
-        // cache that would otherwise hide the imported file behind stale data.
+        // Diverge the target: two records and a different window size.
         await target.Statistics.SaveAsync(CreateRecord());
         await target.Statistics.SaveAsync(CreateRecord());
         target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         var targetCurrent = target.ConfigService.Current;
         targetCurrent.Practice.CharacterWpm = 22;
 
-        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
         var contents = result.Contents;
 
         Assert.IsTrue(contents.AppSettings);
         Assert.IsTrue(contents.Database);
-        Assert.IsTrue(contents.WindowSizes);
 
         // The live configuration was reloaded into the same shared instance.
         Assert.AreSame(targetCurrent, target.ConfigService.Current);
@@ -143,11 +138,8 @@ public sealed class UserBackupServiceTests
         // The statistics database was replaced with the source's single record.
         Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
 
-        // The window-size cache was invalidated, so the imported size is visible.
-        var size = target.WindowSizes.TryGetSize("TrendsDialog");
-        Assert.IsNotNull(size);
-        Assert.AreEqual(980, size.Value.Width);
-        Assert.AreEqual(600, size.Value.Height);
+        // Window sizes are not part of a backup: the target keeps its own.
+        Assert.AreEqual((100.0, 100.0), target.WindowSizes.TryGetSize("TrendsDialog")!.Value);
 
         // The automatic backup contains the original data, including unsaved live settings.
         Assert.IsTrue(Path.IsPathFullyQualified(result.BackupPath));
@@ -161,7 +153,8 @@ public sealed class UserBackupServiceTests
         await restored.Backup.ImportAsync(new MemoryStream(backupBytes));
         Assert.AreEqual(22, restored.ConfigService.Current.Practice.CharacterWpm);
         Assert.HasCount(2, await restored.Statistics.GetStatisticsRecordsAsync());
-        Assert.AreEqual((100.0, 100.0), restored.WindowSizes.TryGetSize("TrendsDialog")!.Value);
+        Assert.IsNull(restored.WindowSizes.TryGetSize("TrendsDialog"));
+        Assert.AreEqual(IUserBackupService.FileExtension, Path.GetExtension(result.BackupPath));
         Assert.IsEmpty(Directory.GetFiles(Path.GetDirectoryName(result.BackupPath)!, "*.tmp"));
     }
 
@@ -176,14 +169,13 @@ public sealed class UserBackupServiceTests
             Practice = new Practice { CharacterWpm = 66 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
         }, ConfigurationFormat.Options);
-        var zip = CreateZip(("settings.prmt", settings));
+        var archiveBytes = CreateArchive(("settings.prmt", settings));
 
-        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
         var contents = result.Contents;
 
         Assert.IsTrue(contents.AppSettings);
         Assert.IsFalse(contents.Database);
-        Assert.IsFalse(contents.WindowSizes);
         Assert.AreEqual(66, target.ConfigService.Current.Practice.CharacterWpm);
         Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
     }
@@ -197,11 +189,11 @@ public sealed class UserBackupServiceTests
         {
             Practice = new Practice { CharacterWpm = 44 },
         }, ConfigurationFormat.Options);
-        var zip = CreateZip(("settings.prmt", settings));
+        var archiveBytes = CreateArchive(("settings.prmt", settings));
 
-        var first = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var first = await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
         var firstBytes = await File.ReadAllBytesAsync(first.BackupPath);
-        var second = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var second = await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
 
         Assert.AreNotEqual(first.BackupPath, second.BackupPath);
         CollectionAssert.AreEqual(firstBytes, await File.ReadAllBytesAsync(first.BackupPath));
@@ -254,7 +246,7 @@ public sealed class UserBackupServiceTests
         source.ConfigService.Current.Practice.CharacterWpm = 44;
         source.WindowSizes.SaveSize("TrendsDialog", 980, 600);
         await source.Statistics.SaveAsync(CreateRecord());
-        var zip = await ExportToBytesAsync(source.Backup);
+        var archiveBytes = await ExportToBytesAsync(source.Backup);
 
         var targetDirectory = Path.Combine(_tempDirectory, "target");
         var target = CreateContext(targetDirectory);
@@ -267,7 +259,7 @@ public sealed class UserBackupServiceTests
         File.WriteAllText(Path.Combine(targetDirectory, "backups"), "blocks directory creation");
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
 
         StringAssert.Contains(exception.Message, "No data was replaced");
         Assert.IsNull(exception.BackupPath);
@@ -287,13 +279,12 @@ public sealed class UserBackupServiceTests
         var statistics = Substitute.For<IPracticeResultStatisticsStore>();
         statistics.CreateConsistentCopyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new StatisticsStoreException("Snapshot failed.", new IOException("Disk full."))));
-        var windowSizes = Substitute.For<IWindowSizeStore>();
-        var backup = new UserBackupService(paths, configuration, statistics, windowSizes,
+        var backup = new UserBackupService(paths, configuration, statistics,
             Substitute.For<ILogger<UserBackupService>>());
-        var zip = CreateZip(("settings.prmt", EmptyContainer()), ("windows.prmt", EmptyContainer()));
+        var archiveBytes = CreateArchive(("settings.prmt", EmptyContainer()));
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => backup.ImportAsync(new MemoryStream(zip)));
+            () => backup.ImportAsync(new MemoryStream(archiveBytes)));
 
         StringAssert.Contains(exception.Message, "No data was replaced");
         Assert.IsNull(exception.BackupPath);
@@ -301,8 +292,6 @@ public sealed class UserBackupServiceTests
         await statistics.DidNotReceive().ReplaceDatabaseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         configuration.DidNotReceive().ReloadFromDisk();
         configuration.DidNotReceive().ApplyImported(Arg.Any<AppConfig>());
-        windowSizes.DidNotReceive().InvalidateCache();
-        Assert.IsFalse(File.Exists(Path.Combine(_tempDirectory, "windows.prmt")));
     }
 
     [TestMethod]
@@ -311,7 +300,7 @@ public sealed class UserBackupServiceTests
         var source = CreateContext(Path.Combine(_tempDirectory, "source"));
         await source.Statistics.SaveAsync(CreateRecord());
         source.WindowSizes.SaveSize("TrendsDialog", 980, 600);
-        var zip = await ExportToBytesAsync(source.Backup);
+        var archiveBytes = await ExportToBytesAsync(source.Backup);
 
         var targetDirectory = Path.Combine(_tempDirectory, "target");
         var target = CreateContext(targetDirectory);
@@ -323,7 +312,7 @@ public sealed class UserBackupServiceTests
         Directory.CreateDirectory(Path.Combine(targetDirectory, "settings.prmt"));
 
         var exception = await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
 
         Assert.IsNotNull(exception.BackupPath);
         Assert.IsTrue(File.Exists(exception.BackupPath));
@@ -376,9 +365,9 @@ public sealed class UserBackupServiceTests
 
         // SqliteConnection pooling may retain the legacy file handle after disposal.
         SqliteConnection.ClearAllPools();
-        var zip = CreateZip(("practice-results.db", await File.ReadAllBytesAsync(legacyPath)));
+        var archiveBytes = CreateArchive(("practice-results.db", await File.ReadAllBytesAsync(legacyPath)));
 
-        await target.Backup.ImportAsync(new MemoryStream(zip));
+        await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
 
         var records = await target.Statistics.GetStatisticsRecordsAsync();
         Assert.HasCount(1, records);
@@ -391,19 +380,84 @@ public sealed class UserBackupServiceTests
     public async Task ImportAsync_WhenNoKnownEntries_ThrowsUserBackupException()
     {
         var target = CreateContext(_tempDirectory);
-        var zip = CreateZip(("readme.txt", "not a backup"u8.ToArray()));
+        var archiveBytes = CreateArchive(("readme.txt", "not a backup"u8.ToArray()));
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
     }
 
     [TestMethod]
-    public async Task ImportAsync_WhenNotAZip_ThrowsUserBackupException()
+    public async Task ImportAsync_WhenNotAnArchive_ThrowsUserBackupException()
     {
         var target = CreateContext(_tempDirectory);
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream("plain text, not a zip"u8.ToArray())));
+            () => target.Backup.ImportAsync(new MemoryStream("plain text, not an archive"u8.ToArray())));
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenZipArchive_ThrowsUserBackupException()
+    {
+        var target = CreateContext(_tempDirectory);
+        // The start of a ZIP: the old backup format is not read any more.
+        var archiveBytes = "PK\u0003\u0004\u0014\u0000\u0000\u0000settings.prmt"u8.ToArray();
+
+        await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_OnlyNameAndContent_IsEnough()
+    {
+        var target = CreateContext(_tempDirectory);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        // Another signature, no type, no CRC, no time, an unknown info node, and a repeated
+        // name (the first one counts).
+        var root = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT:OTHER")).Build();
+        root.Add(new Element(Data.FromUtf8String("SETTINGS.PRMT"), null,
+            new Element(Data.FromUtf8String("whatever"), Data.FromAsciiString("note")),
+            new Element(settings, Data.FromAsciiString("content"))));
+        root.Add(new Element(Data.FromUtf8String("settings.prmt"), null,
+            new Element("not a container"u8.ToArray(), Data.FromAsciiString("content"))));
+
+        var result = await target.Backup.ImportAsync(new MemoryStream(root.ToBytes()));
+
+        Assert.AreEqual(new BackupContents(AppSettings: true, Database: false), result.Contents);
+        Assert.AreEqual(44, target.ConfigService.Current.Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_WhenContentDoesNotMatchCrc_ThrowsAndKeepsLiveData()
+    {
+        var target = CreateContext(_tempDirectory);
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var root = Element.FromBytes(CreateArchive(("settings.prmt", settings)));
+        root.Children[0].Children.Single(info => info.MetaData.AsAsciiString() == "crc32").Data = Data.FromUInt(0);
+
+        await Assert.ThrowsExactlyAsync<UserBackupException>(
+            () => target.Backup.ImportAsync(new MemoryStream(root.ToBytes())));
+
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
+        Assert.IsFalse(Directory.Exists(Path.Combine(_tempDirectory, "backups")));
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_IgnoresWindowSizesAndPathTraversalEntries()
+    {
+        var target = CreateContext(_tempDirectory);
+        target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
+        var windowSizesPath = Path.Combine(_tempDirectory, "windows.prmt");
+        var windowSizesBytes = await File.ReadAllBytesAsync(windowSizesPath);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var archive = CreateArchive(("windows.prmt", EmptyContainer()), ("../settings.prmt", EmptyContainer()), ("settings.prmt", settings));
+
+        var result = await target.Backup.ImportAsync(new MemoryStream(archive));
+
+        Assert.AreEqual(new BackupContents(AppSettings: true, Database: false), result.Contents);
+        Assert.AreEqual(44, target.ConfigService.Current.Practice.CharacterWpm);
+        CollectionAssert.AreEqual(windowSizesBytes, await File.ReadAllBytesAsync(windowSizesPath));
+        Assert.IsFalse(File.Exists(Path.Combine(Path.GetDirectoryName(_tempDirectory)!, "settings.prmt")));
     }
 
     [TestMethod]
@@ -412,10 +466,10 @@ public sealed class UserBackupServiceTests
         var target = CreateContext(_tempDirectory);
         await target.Statistics.SaveAsync(CreateRecord());
 
-        var zip = CreateZip(("practice-results.db", "garbage bytes"u8.ToArray()));
+        var archiveBytes = CreateArchive(("practice-results.db", "garbage bytes"u8.ToArray()));
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
 
         // Validation runs before any replacement, so the live database survives.
         Assert.HasCount(1, await target.Statistics.GetStatisticsRecordsAsync());
@@ -423,23 +477,13 @@ public sealed class UserBackupServiceTests
     }
 
     [TestMethod]
-    public async Task ImportAsync_WhenWindowSizesEntryIsNotAnObject_ThrowsUserBackupException()
-    {
-        var target = CreateContext(_tempDirectory);
-        var zip = CreateZip(("windows.prmt", "[1,2,3]"u8.ToArray()));
-
-        await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
-    }
-
-    [TestMethod]
     public async Task ImportAsync_WhenSettingsEntryIsNotAContainer_ThrowsUserBackupException()
     {
         var target = CreateContext(_tempDirectory);
-        var zip = CreateZip(("settings.prmt", "{ this is not a container"u8.ToArray()));
+        var archiveBytes = CreateArchive(("settings.prmt", "{ this is not a container"u8.ToArray()));
 
         await Assert.ThrowsExactlyAsync<UserBackupException>(
-            () => target.Backup.ImportAsync(new MemoryStream(zip)));
+            () => target.Backup.ImportAsync(new MemoryStream(archiveBytes)));
     }
 
     [TestMethod]
@@ -451,9 +495,9 @@ public sealed class UserBackupServiceTests
             Practice = new Practice { CharacterWpm = 55 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
         }, ConfigurationFormat.Options);
-        var zip = CreateZip(("settings.prmt", settings));
+        var archiveBytes = CreateArchive(("settings.prmt", settings));
 
-        var result = await target.Backup.ImportAsync(new MemoryStream(zip));
+        var result = await target.Backup.ImportAsync(new MemoryStream(archiveBytes));
 
         Assert.IsTrue(result.Contents.AppSettings);
         Assert.AreEqual(55, target.ConfigService.Current.Practice.CharacterWpm);
@@ -471,22 +515,21 @@ public sealed class UserBackupServiceTests
         context.WindowSizes.SaveSize("TrendsDialog", 980, 600);
         await context.ConfigService.SaveAsync();
 
-        var zip = await ExportToBytesAsync(context.Backup);
+        var archiveBytes = await ExportToBytesAsync(context.Backup);
 
-        var contents = context.Backup.InspectArchive(new MemoryStream(zip));
+        var contents = context.Backup.InspectArchive(new MemoryStream(archiveBytes));
 
         Assert.IsNotNull(contents);
         Assert.IsTrue(contents.AppSettings);
         Assert.IsTrue(contents.Database);
-        Assert.IsTrue(contents.WindowSizes);
     }
 
     [TestMethod]
-    public void InspectArchive_WhenNotAZip_ReturnsNull()
+    public void InspectArchive_WhenNotAnArchive_ReturnsNull()
     {
         var context = CreateContext(_tempDirectory);
 
-        var contents = context.Backup.InspectArchive(new MemoryStream("not a zip"u8.ToArray()));
+        var contents = context.Backup.InspectArchive(new MemoryStream("not an archive"u8.ToArray()));
 
         Assert.IsNull(contents);
     }
@@ -495,9 +538,9 @@ public sealed class UserBackupServiceTests
     public void InspectArchive_WhenArchiveHasNoKnownEntries_ReturnsNull()
     {
         var context = CreateContext(_tempDirectory);
-        var zip = CreateZip(("unrelated.txt", "hello"u8.ToArray()));
+        var archiveBytes = CreateArchive(("unrelated.txt", "hello"u8.ToArray()));
 
-        var contents = context.Backup.InspectArchive(new MemoryStream(zip));
+        var contents = context.Backup.InspectArchive(new MemoryStream(archiveBytes));
 
         Assert.IsNull(contents);
     }
@@ -509,29 +552,16 @@ public sealed class UserBackupServiceTests
         return buffer.ToArray();
     }
 
-    private static byte[] CreateZip(params (string EntryName, byte[] Bytes)[] entries)
+    private static byte[] CreateArchive(params (string EntryName, byte[] Bytes)[] entries)
     {
         using var buffer = new MemoryStream();
-        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create))
-        {
-            foreach (var (entryName, bytes) in entries)
-            {
-                var entry = archive.CreateEntry(entryName);
-                using var entryStream = entry.Open();
-                entryStream.Write(bytes, 0, bytes.Length);
-            }
-        }
-
+        BackupArchive.Write(buffer, entries);
         return buffer.ToArray();
     }
 
-    private static byte[] ReadEntry(byte[] zipBytes, string entryName)
+    private static byte[] ReadEntry(byte[] archiveBytes, string entryName)
     {
-        using var archive = new ZipArchive(new MemoryStream(zipBytes), ZipArchiveMode.Read);
-        using var entryStream = archive.GetEntry(entryName)!.Open();
-        using var buffer = new MemoryStream();
-        entryStream.CopyTo(buffer);
-        return buffer.ToArray();
+        return BackupArchive.Read(new MemoryStream(archiveBytes), [entryName])[entryName];
     }
 
     private static async Task<long> CountRowsAsync(string databasePath)
@@ -591,7 +621,6 @@ public sealed class UserBackupServiceTests
             paths,
             configService,
             statistics,
-            windowSizes,
             Substitute.For<ILogger<UserBackupService>>());
 
         return new BackupContext(backup, configService, statistics, windowSizes);

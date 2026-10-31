@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,8 +17,9 @@ using Promptuarium.Serializer;
 namespace PentaGrammata.Services;
 
 /// <summary>
-/// Archives and restores the user's data files (per-user settings.prmt,
-/// practice-results.db, windows.prmt) as a single ZIP archive. Imports replace only
+/// Archives and restores the user's data (per-user settings.prmt and practice-results.db)
+/// as a single PPAK1 Promptuarium archive (<see cref="BackupArchive"/>). Window sizes are
+/// not part of a backup. Imports replace only
 /// the entries present in the archive and make the change live in the running app. The
 /// original data is automatically backed up before replacement. An in-process rollback
 /// snapshot also restores the complete prior profile when any apply step fails.
@@ -28,7 +28,7 @@ public sealed class UserBackupService : IUserBackupService
 {
     private const string AppSettingsEntryName = ConfigurationPaths.SettingsFileName;
     private const string DatabaseEntryName = "practice-results.db";
-    private const string WindowSizesEntryName = ConfigurationPaths.WindowSizesFileName;
+    private static readonly string[] EntryNames = [AppSettingsEntryName, DatabaseEntryName];
 
     // The first 16 bytes of every SQLite database file (ASCII "SQLite format 3" + NUL).
     private static readonly byte[] SqliteHeader = "SQLite format 3\0"u8.ToArray();
@@ -36,20 +36,17 @@ public sealed class UserBackupService : IUserBackupService
     private readonly IAppPaths _appPaths;
     private readonly IConfigurationService _configurationService;
     private readonly IPracticeResultStatisticsStore _statisticsStore;
-    private readonly IWindowSizeStore _windowSizeStore;
     private readonly ILogger<UserBackupService> _logger;
 
     public UserBackupService(
         IAppPaths appPaths,
         IConfigurationService configurationService,
         IPracticeResultStatisticsStore statisticsStore,
-        IWindowSizeStore windowSizeStore,
         ILogger<UserBackupService> logger)
     {
         _appPaths = appPaths;
         _configurationService = configurationService;
         _statisticsStore = statisticsStore;
-        _windowSizeStore = windowSizeStore;
         _logger = logger;
     }
 
@@ -66,27 +63,14 @@ public sealed class UserBackupService : IUserBackupService
             // byte-equivalent to the per-user settings.prmt on disk.
             var settingsBytes = PromptuariumSerializer.Serialize(_configurationService.Current, ConfigurationFormat.Options);
 
-            byte[]? windowSizesBytes = null;
-            // The file name matches WindowSizeStore's own backing file.
-            var windowSizesPath = Path.Combine(_appPaths.AppDataDirectory, WindowSizesEntryName);
-            if (File.Exists(windowSizesPath))
-            {
-                windowSizesBytes = await File.ReadAllBytesAsync(windowSizesPath, cancellationToken);
-            }
-
             // VACUUM INTO refuses to overwrite, so the temporary copy gets a fresh name.
             var tempDatabasePath = Path.Combine(Path.GetTempPath(), $"pentagrammata-{Guid.NewGuid():N}.db");
             try
             {
                 await _statisticsStore.CreateConsistentCopyAsync(tempDatabasePath, cancellationToken);
 
-                using var archive = new ZipArchive(destination, ZipArchiveMode.Create);
-                WriteEntry(archive, AppSettingsEntryName, settingsBytes);
-                WriteEntry(archive, DatabaseEntryName, await File.ReadAllBytesAsync(tempDatabasePath, cancellationToken));
-                if (windowSizesBytes is not null)
-                {
-                    WriteEntry(archive, WindowSizesEntryName, windowSizesBytes);
-                }
+                var databaseBytes = await File.ReadAllBytesAsync(tempDatabasePath, cancellationToken);
+                BackupArchive.Write(destination, [(AppSettingsEntryName, settingsBytes), (DatabaseEntryName, databaseBytes)]);
             }
             finally
             {
@@ -113,23 +97,14 @@ public sealed class UserBackupService : IUserBackupService
 
     public BackupContents? InspectArchive(Stream archive)
     {
-        var seekable = EnsureSeekable(archive);
         try
         {
-            using var zip = new ZipArchive(seekable, ZipArchiveMode.Read, leaveOpen: true);
-            var contents = ReadContents(zip);
+            var contents = ReadContents(BackupArchive.Read(archive, EntryNames));
             return contents.Any ? contents : null;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
         {
             return null;
-        }
-        finally
-        {
-            if (!ReferenceEquals(seekable, archive))
-            {
-                seekable.Dispose();
-            }
         }
     }
 
@@ -145,7 +120,7 @@ public sealed class UserBackupService : IUserBackupService
         {
             var backupDirectory = Path.Combine(_appPaths.AppDataDirectory, "backups");
             var restorePoint = Directory.Exists(backupDirectory)
-                ? Directory.GetFiles(backupDirectory, "pentagrammata-before-import-*.zip")
+                ? Directory.GetFiles(backupDirectory, $"pentagrammata-before-import-*{IUserBackupService.FileExtension}")
                     .OrderByDescending(File.GetLastWriteTimeUtc)
                     .FirstOrDefault()
                 : null;
@@ -181,11 +156,19 @@ public sealed class UserBackupService : IUserBackupService
         // another write while imported files are being published.
         await _configurationService.FlushAsync();
 
-        var seekable = EnsureSeekable(archive);
         try
         {
-            using var zip = new ZipArchive(seekable, ZipArchiveMode.Read, leaveOpen: true);
-            var contents = ReadContents(zip);
+            Dictionary<string, byte[]> files;
+            try
+            {
+                files = BackupArchive.Read(archive, EntryNames);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new UserBackupException("The selected file is not a valid PentaGrammata backup archive.", ex);
+            }
+
+            var contents = ReadContents(files);
             if (!contents.Any)
             {
                 throw new UserBackupException("The selected file is not a PentaGrammata backup archive.");
@@ -198,30 +181,19 @@ public sealed class UserBackupService : IUserBackupService
                 // cannot destroy the live data part-way through the import.
                 AppConfig? importedSettings = null;
                 byte[]? settingsBytes = null;
-                byte[]? windowSizesBytes = null;
 
                 if (contents.Database)
                 {
                     tempDatabasePath = Path.Combine(Path.GetTempPath(), $"pentagrammata-{Guid.NewGuid():N}.db");
-                    await using (var databaseStream = File.Create(tempDatabasePath))
-                    {
-                        var entry = FindEntry(zip, DatabaseEntryName)!;
-                        await entry.Open().CopyToAsync(databaseStream, cancellationToken);
-                    }
+                    await File.WriteAllBytesAsync(tempDatabasePath, files[DatabaseEntryName], cancellationToken);
 
                     ValidateSqliteDatabase(tempDatabasePath);
                 }
 
                 if (contents.AppSettings)
                 {
-                    settingsBytes = ReadEntryBytes(zip, AppSettingsEntryName);
+                    settingsBytes = files[AppSettingsEntryName];
                     importedSettings = ParseSettings(settingsBytes);
-                }
-
-                if (contents.WindowSizes)
-                {
-                    windowSizesBytes = ReadEntryBytes(zip, WindowSizesEntryName);
-                    ValidateWindowSizes(windowSizesBytes);
                 }
 
                 var databaseExistedBeforeImport = contents.Database && File.Exists(_statisticsStore.DatabasePath);
@@ -232,9 +204,7 @@ public sealed class UserBackupService : IUserBackupService
 
                 var previousConfiguration = _configurationService.Current.Clone();
                 var configurationPath = _appPaths.PreferredUserConfigPath;
-                var windowSizesPath = Path.Combine(_appPaths.AppDataDirectory, WindowSizesEntryName);
                 var previousConfigurationFile = CaptureFile(configurationPath);
-                var previousWindowSizesFile = CaptureFile(windowSizesPath);
                 string? rollbackDatabasePath = null;
                 var databaseExisted = databaseExistedBeforeImport;
                 if (databaseExisted)
@@ -246,17 +216,11 @@ public sealed class UserBackupService : IUserBackupService
                 try
                 {
                     // Every replacement happens only after a complete rollback snapshot
-                    // exists. The settings and window-size writes use sibling temp files
-                    // and atomic moves, so a failed individual write preserves its target.
+                    // exists. The settings write uses a sibling temp file and an atomic
+                    // move, so a failed write preserves its target.
                     if (contents.Database)
                     {
                         await _statisticsStore.ReplaceDatabaseAsync(tempDatabasePath!, cancellationToken);
-                    }
-
-                    if (windowSizesBytes is not null)
-                    {
-                        await ReplaceFileAtomicallyAsync(windowSizesPath, windowSizesBytes, cancellationToken);
-                        _windowSizeStore.InvalidateCache();
                     }
 
                     if (settingsBytes is not null)
@@ -284,8 +248,6 @@ public sealed class UserBackupService : IUserBackupService
                         databaseExisted,
                         configurationPath,
                         previousConfigurationFile,
-                        windowSizesPath,
-                        previousWindowSizesFile,
                         previousConfiguration);
                     if (rollbackErrors.Count > 0)
                     {
@@ -330,19 +292,12 @@ public sealed class UserBackupService : IUserBackupService
             _logger.LogError(ex, "Failed to import user data from a backup archive");
             throw new UserBackupException("Could not import the backup archive.", ex, recoveryArchivePath);
         }
-        finally
-        {
-            if (!ReferenceEquals(seekable, archive))
-            {
-                seekable.Dispose();
-            }
-        }
     }
 
     private async Task<string> CreateAutomaticBackupAsync(CancellationToken cancellationToken, string kind)
     {
         var directory = Path.GetFullPath(Path.Combine(_appPaths.AppDataDirectory, "backups"));
-        var backupPath = Path.Combine(directory, $"pentagrammata-{kind}-{DateTime.Now:yyyy-MM-dd-HHmmss}-{Guid.NewGuid():N}.zip");
+        var backupPath = Path.Combine(directory, $"pentagrammata-{kind}-{DateTime.Now:yyyy-MM-dd-HHmmss}-{Guid.NewGuid():N}{IUserBackupService.FileExtension}");
         var temporaryPath = backupPath + ".tmp";
         try
         {
@@ -380,8 +335,6 @@ public sealed class UserBackupService : IUserBackupService
         bool databaseExisted,
         string? configurationPath,
         FileSnapshot configurationFile,
-        string windowSizesPath,
-        FileSnapshot windowSizesFile,
         AppConfig previousConfiguration)
     {
         var errors = new System.Collections.Generic.List<Exception>();
@@ -397,16 +350,6 @@ public sealed class UserBackupService : IUserBackupService
                 {
                     await _statisticsStore.DeleteDatabaseAsync(CancellationToken.None);
                 }
-            }
-            catch (Exception ex) { errors.Add(ex); }
-        }
-
-        if (contents.WindowSizes)
-        {
-            try
-            {
-                await RestoreFileAsync(windowSizesPath, windowSizesFile);
-                _windowSizeStore.InvalidateCache();
             }
             catch (Exception ex) { errors.Add(ex); }
         }
@@ -474,35 +417,9 @@ public sealed class UserBackupService : IUserBackupService
 
     private sealed record FileSnapshot(bool Existed, byte[]? Bytes);
 
-    private static BackupContents ReadContents(ZipArchive archive)
+    private static BackupContents ReadContents(IReadOnlyDictionary<string, byte[]> files)
     {
-        // Only the three exact flat names are recognized, which also rules out path
-        // traversal inside the archive.
-        return new BackupContents(
-            FindEntry(archive, AppSettingsEntryName) is not null,
-            FindEntry(archive, DatabaseEntryName) is not null,
-            FindEntry(archive, WindowSizesEntryName) is not null);
-    }
-
-    private static ZipArchiveEntry? FindEntry(ZipArchive archive, string entryName)
-    {
-        return archive.Entries.FirstOrDefault(entry =>
-            string.Equals(entry.FullName, entryName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static void WriteEntry(ZipArchive archive, string entryName, byte[] bytes)
-    {
-        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
-        using var stream = entry.Open();
-        stream.Write(bytes, 0, bytes.Length);
-    }
-
-    private static byte[] ReadEntryBytes(ZipArchive archive, string entryName)
-    {
-        using var entryStream = FindEntry(archive, entryName)!.Open();
-        using var buffer = new MemoryStream();
-        entryStream.CopyTo(buffer);
-        return buffer.ToArray();
+        return new BackupContents(files.ContainsKey(AppSettingsEntryName), files.ContainsKey(DatabaseEntryName));
     }
 
     private static void ValidateSqliteDatabase(string path)
@@ -527,18 +444,6 @@ public sealed class UserBackupService : IUserBackupService
         }
     }
 
-    private static void ValidateWindowSizes(byte[] bytes)
-    {
-        try
-        {
-            PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options);
-        }
-        catch (InvalidDataException ex)
-        {
-            throw new UserBackupException("The backup contains an invalid window-sizes file.", ex);
-        }
-    }
-
     private static AppConfig ParseSettings(byte[] bytes)
     {
         try
@@ -549,22 +454,5 @@ public sealed class UserBackupService : IUserBackupService
         {
             throw new UserBackupException("The backup contains an invalid settings file.", ex);
         }
-    }
-
-    /// <summary>
-    /// ZipArchive in read mode needs a seekable stream; picker-provided streams always are,
-    /// but a non-seekable one is buffered in memory rather than rejected.
-    /// </summary>
-    private static Stream EnsureSeekable(Stream stream)
-    {
-        if (stream.CanSeek)
-        {
-            return stream;
-        }
-
-        var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        buffer.Position = 0;
-        return buffer;
     }
 }

@@ -84,14 +84,6 @@ public sealed class WindowSizeStore : IWindowSizeStore
         }
     }
 
-    public void InvalidateCache()
-    {
-        lock (_gate)
-        {
-            _sizes = null;
-        }
-    }
-
     // Loads the file once and caches it; callers hold _gate.
     private Dictionary<string, StoredSize> LoadLocked()
     {

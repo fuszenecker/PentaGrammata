@@ -5,8 +5,6 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Stores;
-using PentaGrammata.Configuration;
-using Promptuarium.Serializer;
 
 namespace PentaGrammata.Tests.Stores;
 
@@ -129,32 +127,6 @@ public sealed class WindowSizeStoreTests
         var sut = CreateStore();
 
         Assert.IsNull(sut.TryGetSize("MainWindow"));
-    }
-
-    [TestMethod]
-    public void InvalidateCache_ForcesNextReadToRereadFile()
-    {
-        Directory.CreateDirectory(_tempDirectory);
-        var sut = CreateStore();
-        sut.SaveSize("MainWindow", 800, 500); // warms the in-memory cache and writes the file
-
-        // The file is replaced behind the store's back, as a backup import does.
-        File.WriteAllBytes(
-            Path.Combine(_tempDirectory, "windows.prmt"),
-            PromptuariumSerializer.Serialize(new Dictionary<string, object>
-            {
-                ["TrendsDialog"] = new { Width = 1200, Height = 800 },
-            }, ConfigurationFormat.Options));
-
-        // Before invalidation the stale cache wins; after it the file is re-read.
-        Assert.IsNull(sut.TryGetSize("TrendsDialog"));
-
-        sut.InvalidateCache();
-
-        var size = sut.TryGetSize("TrendsDialog");
-        Assert.IsNotNull(size);
-        Assert.AreEqual(1200, size.Value.Width);
-        Assert.AreEqual(800, size.Value.Height);
     }
 
     private WindowSizeStore CreateStore()

@@ -1,8 +1,8 @@
-using System.IO.Compression;
 using Avalonia.Controls;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
@@ -36,9 +36,9 @@ public sealed partial class UserJourneyScenarios
                 """;
             await command.ExecuteNonQueryAsync();
         }
-        var zip = Path.Combine(app.DirectoryPath, "old-profile.zip");
-        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
-            archive.CreateEntryFromFile(legacy, "practice-results.db");
+        var zip = Path.Combine(app.DirectoryPath, "old-profile.prmt");
+        using (var archive = File.Create(zip))
+            BackupArchive.Write(archive, [("practice-results.db", File.ReadAllBytes(legacy))]);
         app.OpenChoices.Enqueue(zip);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
@@ -61,7 +61,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserRecoversTheirOriginalProfileWhenApplyingABackupFails() => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
-        var zip = Path.Combine(app.DirectoryPath, "export.zip");
+        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
         app.SaveChoices.Enqueue(zip);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export original profile");
@@ -69,10 +69,10 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
-        var sizes = Path.Combine(app.DirectoryPath, "windows.prmt");
-        var previousSizes = File.ReadAllBytes(sizes);
-        File.Delete(sizes);
-        Directory.CreateDirectory(sizes); // The disk refuses one replacement after staging.
+        var settingsPath = Path.Combine(app.DirectoryPath, "settings.prmt");
+        var previousSettings = File.ReadAllBytes(settingsPath);
+        File.Delete(settingsPath);
+        Directory.CreateDirectory(settingsPath); // The disk refuses the settings after the database was replaced.
         app.OpenChoices.Enqueue(zip);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
@@ -82,11 +82,11 @@ public sealed partial class UserJourneyScenarios
         StringAssert.Contains(((InfoDialogViewModel)info.DataContext!).DetailMessage, "Recovery archive:");
         ScenarioDesktop.Click(info, "OK");
         await ScenarioDesktop.Until(() => !app.ViewModel.ImportCommand.IsRunning, "roll back failed import");
-        Directory.Delete(sizes);
-        File.WriteAllBytes(sizes, previousSizes);
+        Directory.Delete(settingsPath);
+        File.WriteAllBytes(settingsPath, previousSettings);
         Assert.AreEqual("NEW", app.Configuration.Current.Practice.CustomText);
         Assert.HasCount(2, await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync());
-        Assert.IsNotEmpty(Directory.GetFiles(Path.Combine(app.DirectoryPath, "backups"), "*.zip"));
+        Assert.IsNotEmpty(Directory.GetFiles(Path.Combine(app.DirectoryPath, "backups"), "*.prmt"));
         await app.Practice("NEW");
         var result = await app.Result();
         Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
@@ -275,22 +275,19 @@ public sealed partial class UserJourneyScenarios
     [TestMethod]
     [DataRow("settings.prmt")]
     [DataRow("practice-results.db")]
-    [DataRow("windows.prmt")]
     public Task UserImportsAnArchiveContainingOnlyOneProfileComponent(string component) => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
-        var full = Path.Combine(app.DirectoryPath, "full.zip");
+        var full = Path.Combine(app.DirectoryPath, "full.prmt");
         app.SaveChoices.Enqueue(full);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export source backup");
-        var partial = Path.Combine(app.DirectoryPath, "partial.zip");
-        using (var source = ZipFile.OpenRead(full))
-        using (var target = ZipFile.Open(partial, ZipArchiveMode.Create))
-        {
-            using var input = source.GetEntry(component)!.Open();
-            using var output = target.CreateEntry(component).Open();
-            input.CopyTo(output);
-        }
+        var partial = Path.Combine(app.DirectoryPath, "partial.prmt");
+        byte[] content;
+        using (var source = File.OpenRead(full))
+            content = BackupArchive.Read(source, [component])[component];
+        using (var target = File.Create(partial))
+            BackupArchive.Write(target, [(component, content)]);
         var settings = await Settings(app);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
         await ApplySettings(app, settings);
@@ -313,12 +310,12 @@ public sealed partial class UserJourneyScenarios
     [DataRow("unrelated.txt", "data")]
     [DataRow("settings.prmt", "not a container")]
     [DataRow("practice-results.db", "not SQLite")]
-    [DataRow("windows.prmt", "not a container")]
+    [DataRow("windows.prmt", "{}")]
     public Task UserRejectsAnUnsafeOrCorruptBackupAndKeepsTheirData(string entry, string contents) => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "invalid.zip");
-        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
-        using (var writer = new StreamWriter(archive.CreateEntry(entry).Open())) writer.Write(contents);
+        var zip = Path.Combine(app.DirectoryPath, "invalid.prmt");
+        using (var archive = File.Create(zip))
+            BackupArchive.Write(archive, [(entry, System.Text.Encoding.UTF8.GetBytes(contents))]);
         app.OpenChoices.Enqueue(zip);
         app.Menu("_Import");
         // Invalid contents may be rejected either before confirmation or during staged validation.
@@ -338,7 +335,7 @@ public sealed partial class UserJourneyScenarios
     [TestMethod]
     public Task UserCannotImportWithoutASafetyBackupAndCanRetryAfterRepairingTheDisk() => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "export.zip");
+        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
         app.SaveChoices.Enqueue(zip);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export backup");

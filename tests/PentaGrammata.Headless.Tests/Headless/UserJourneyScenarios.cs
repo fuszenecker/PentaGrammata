@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,6 +7,7 @@ using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 using PentaGrammata.Views.Controls;
@@ -380,15 +380,14 @@ public sealed partial class UserJourneyScenarios
     public Task UserExportsImportsCancelsAndRestoresTheirWholeProfile() => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
-        var zip = Path.Combine(app.DirectoryPath, "export.zip");
+        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
         app.SaveChoices.Enqueue(zip);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export backup");
-        using (var archive = ZipFile.OpenRead(zip))
+        using (var archive = File.OpenRead(zip))
         {
-            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "settings.prmt"));
-            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "practice-results.db"));
-            Assert.IsTrue(archive.Entries.Any(e => e.FullName == "windows.prmt"));
+            var entries = BackupArchive.Read(archive, ["settings.prmt", "practice-results.db", "windows.prmt"]);
+            CollectionAssert.AreEquivalent(new[] { "settings.prmt", "practice-results.db" }, entries.Keys.ToArray());
         }
         var settings = await Settings(app);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
@@ -429,8 +428,8 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "cancel export picker");
         app.Menu("_Import");
         await ScenarioDesktop.Until(() => !app.ViewModel.ImportCommand.IsRunning, "cancel import picker");
-        var invalid = Path.Combine(app.DirectoryPath, "invalid.zip");
-        File.WriteAllText(invalid, "not a ZIP");
+        var invalid = Path.Combine(app.DirectoryPath, "invalid.prmt");
+        File.WriteAllText(invalid, "not a backup");
         app.OpenChoices.Enqueue(invalid);
         app.Menu("_Import");
         var info = await app.Dialog<InfoDialog>();

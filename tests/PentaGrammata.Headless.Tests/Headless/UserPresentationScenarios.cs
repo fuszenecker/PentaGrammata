@@ -126,7 +126,7 @@ public sealed partial class UserJourneyScenarios
         Assert.AreEqual("Export failed", info.Title);
         ScenarioDesktop.Click(info, "OK");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "dismiss backup export error");
-        var zip = Path.Combine(app.DirectoryPath, "retry.zip");
+        var zip = Path.Combine(app.DirectoryPath, "retry.prmt");
         app.SaveChoices.Enqueue(zip);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "retry backup export");
@@ -138,7 +138,7 @@ public sealed partial class UserJourneyScenarios
     [DataRow(true)]
     public Task UserSeesAnImportReadFailureAndKeepsTheirActiveProfile(bool disappearsAfterConfirmation) => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "source.zip");
+        var zip = Path.Combine(app.DirectoryPath, "source.prmt");
         if (disappearsAfterConfirmation)
         {
             app.SaveChoices.Enqueue(zip);

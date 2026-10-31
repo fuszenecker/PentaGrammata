@@ -12,9 +12,9 @@ namespace PentaGrammata.Presentation;
 
 public sealed class BackupDialogService : IBackupDialogService
 {
-    private static readonly FilePickerFileType ZipFileType = new("ZIP archive")
+    private static readonly FilePickerFileType BackupFileType = new("PentaGrammata backup")
     {
-        Patterns = ["*.zip"],
+        Patterns = [$"*{IUserBackupService.FileExtension}"],
     };
 
     private readonly IWindowContext _windowContext;
@@ -46,10 +46,10 @@ public sealed class BackupDialogService : IBackupDialogService
         {
             Title = "Export PentaGrammata data",
             // Dated so repeated exports on different days suggest different names.
-            SuggestedFileName = $"pentagrammata-backup-{DateTime.Now:yyyy-MM-dd}.zip",
-            DefaultExtension = "zip",
+            SuggestedFileName = $"pentagrammata-backup-{DateTime.Now:yyyy-MM-dd}{IUserBackupService.FileExtension}",
+            DefaultExtension = IUserBackupService.FileExtension.TrimStart('.'),
             ShowOverwritePrompt = true,
-            FileTypeChoices = [ZipFileType],
+            FileTypeChoices = [BackupFileType],
         });
 
         if (file is null)
@@ -88,7 +88,7 @@ public sealed class BackupDialogService : IBackupDialogService
         {
             Title = "Import PentaGrammata data",
             AllowMultiple = false,
-            FileTypeFilter = [ZipFileType],
+            FileTypeFilter = [BackupFileType],
         });
 
         var file = files?.FirstOrDefault();
@@ -190,7 +190,6 @@ public sealed class BackupDialogService : IBackupDialogService
         {
             contents.AppSettings ? "settings" : null,
             contents.Database ? "practice results" : null,
-            contents.WindowSizes ? "window sizes" : null,
         }.Where(part => part is not null);
 
         var list = string.Join(", ", parts);
@@ -203,7 +202,6 @@ public sealed class BackupDialogService : IBackupDialogService
         {
             contents.AppSettings ? "settings" : null,
             contents.Database ? "practice results" : null,
-            contents.WindowSizes ? "window sizes" : null,
         }.Where(part => part is not null);
         return string.Join(", ", parts);
     }
