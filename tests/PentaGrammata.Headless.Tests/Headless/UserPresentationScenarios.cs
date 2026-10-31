@@ -126,11 +126,11 @@ public sealed partial class UserJourneyScenarios
         Assert.AreEqual("Export failed", info.Title);
         ScenarioDesktop.Click(info, "OK");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "dismiss backup export error");
-        var zip = Path.Combine(app.DirectoryPath, "retry.prmt");
-        app.SaveChoices.Enqueue(zip);
+        var archivePath = Path.Combine(app.DirectoryPath, "retry.prmt");
+        app.SaveChoices.Enqueue(archivePath);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "retry backup export");
-        Assert.IsTrue(File.Exists(zip));
+        Assert.IsTrue(File.Exists(archivePath));
     });
 
     [TestMethod]
@@ -138,19 +138,19 @@ public sealed partial class UserJourneyScenarios
     [DataRow(true)]
     public Task UserSeesAnImportReadFailureAndKeepsTheirActiveProfile(bool disappearsAfterConfirmation) => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "source.prmt");
+        var archivePath = Path.Combine(app.DirectoryPath, "source.prmt");
         if (disappearsAfterConfirmation)
         {
-            app.SaveChoices.Enqueue(zip);
+            app.SaveChoices.Enqueue(archivePath);
             app.Menu("_Export");
             await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "prepare import source");
         }
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         if (disappearsAfterConfirmation)
         {
             var confirm = await app.Dialog<ConfirmDialog>();
-            File.Delete(zip); // The external file disappears while the user reviews the confirmation.
+            File.Delete(archivePath); // The external file disappears while the user reviews the confirmation.
             ScenarioDesktop.Click(confirm, "Replace");
         }
         var info = await app.Dialog<InfoDialog>();

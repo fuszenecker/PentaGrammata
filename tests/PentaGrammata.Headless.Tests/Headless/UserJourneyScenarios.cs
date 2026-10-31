@@ -380,11 +380,11 @@ public sealed partial class UserJourneyScenarios
     public Task UserExportsImportsCancelsAndRestoresTheirWholeProfile() => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
-        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
-        app.SaveChoices.Enqueue(zip);
+        var archivePath = Path.Combine(app.DirectoryPath, "export.prmt");
+        app.SaveChoices.Enqueue(archivePath);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export backup");
-        using (var archive = File.OpenRead(zip))
+        using (var archive = File.OpenRead(archivePath))
         {
             var entries = BackupArchive.Read(archive, ["settings.prmt", "practice-results.db", "windows.prmt"]);
             CollectionAssert.AreEquivalent(new[] { "settings.prmt", "practice-results.db" }, entries.Keys.ToArray());
@@ -393,13 +393,13 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Cancel");
         await ScenarioDesktop.Until(() => !app.ViewModel.ImportCommand.IsRunning, "cancel backup import");
         Assert.AreEqual("NEW", app.Configuration.Current.Practice.CustomText);
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Replace");

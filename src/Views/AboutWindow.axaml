@@ -84,7 +84,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Backup export/import: settings, statistics and window sizes in a single ZIP archive"/>
+                        <TextBlock Grid.Column="1" Text="Backup export/import: settings and statistics in a single Promptuarium (.prmt) archive"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

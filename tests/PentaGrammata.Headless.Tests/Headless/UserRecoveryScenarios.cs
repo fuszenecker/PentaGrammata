@@ -36,10 +36,10 @@ public sealed partial class UserJourneyScenarios
                 """;
             await command.ExecuteNonQueryAsync();
         }
-        var zip = Path.Combine(app.DirectoryPath, "old-profile.prmt");
-        using (var archive = File.Create(zip))
+        var archivePath = Path.Combine(app.DirectoryPath, "old-profile.prmt");
+        using (var archive = File.Create(archivePath))
             BackupArchive.Write(archive, [("practice-results.db", File.ReadAllBytes(legacy))]);
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Replace");
@@ -61,8 +61,8 @@ public sealed partial class UserJourneyScenarios
     public Task UserRecoversTheirOriginalProfileWhenApplyingABackupFails() => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
-        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
-        app.SaveChoices.Enqueue(zip);
+        var archivePath = Path.Combine(app.DirectoryPath, "export.prmt");
+        app.SaveChoices.Enqueue(archivePath);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export original profile");
         var settings = await Settings(app);
@@ -73,7 +73,7 @@ public sealed partial class UserJourneyScenarios
         var previousSettings = File.ReadAllBytes(settingsPath);
         File.Delete(settingsPath);
         Directory.CreateDirectory(settingsPath); // The disk refuses the settings after the database was replaced.
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Replace");
@@ -313,10 +313,10 @@ public sealed partial class UserJourneyScenarios
     [DataRow("windows.prmt", "{}")]
     public Task UserRejectsAnUnsafeOrCorruptBackupAndKeepsTheirData(string entry, string contents) => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "invalid.prmt");
-        using (var archive = File.Create(zip))
+        var archivePath = Path.Combine(app.DirectoryPath, "invalid.prmt");
+        using (var archive = File.Create(archivePath))
             BackupArchive.Write(archive, [(entry, System.Text.Encoding.UTF8.GetBytes(contents))]);
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         // Invalid contents may be rejected either before confirmation or during staged validation.
         await ScenarioDesktop.Until(() => app.Main.OwnedWindows.Any(w => w.IsVisible), "inspect invalid backup");
@@ -335,13 +335,13 @@ public sealed partial class UserJourneyScenarios
     [TestMethod]
     public Task UserCannotImportWithoutASafetyBackupAndCanRetryAfterRepairingTheDisk() => Run(async app =>
     {
-        var zip = Path.Combine(app.DirectoryPath, "export.prmt");
-        app.SaveChoices.Enqueue(zip);
+        var archivePath = Path.Combine(app.DirectoryPath, "export.prmt");
+        app.SaveChoices.Enqueue(archivePath);
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export backup");
         var backups = Path.Combine(app.DirectoryPath, "backups");
         File.WriteAllText(backups, "external disk obstruction");
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         var confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Replace");
@@ -351,7 +351,7 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => !app.ViewModel.ImportCommand.IsRunning, "handle unavailable safety backup");
         Assert.AreEqual("TEST", app.Configuration.Current.Practice.CustomText);
         File.Delete(backups);
-        app.OpenChoices.Enqueue(zip);
+        app.OpenChoices.Enqueue(archivePath);
         app.Menu("_Import");
         confirm = await app.Dialog<ConfirmDialog>();
         ScenarioDesktop.Click(confirm, "Replace");
