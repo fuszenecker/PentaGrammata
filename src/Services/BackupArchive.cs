@@ -9,8 +9,8 @@ using Promptuarium;
 namespace PentaGrammata.Services;
 
 /// <summary>
-/// A backup archive: a Promptuarium container in the PPAK1-LE format of Promptuarium's ppak example
-/// (<c>examples/PPak</c>, specified in its <c>PPAK_FORMAT.md</c>), so <c>ppak list</c>, <c>ppak verify</c> and <c>ppak unpack</c> work on it:
+/// A backup archive: a Promptuarium container in the PPAK1-LE format of Promptuarium's ppak tool
+/// (<c>tools/PPak</c>, specified in its <c>PPAK_FORMAT.md</c>), so <c>ppak list</c>, <c>ppak verify</c> and <c>ppak unpack</c> work on it:
 ///
 /// <code>
 /// root                      metadata: the signature "PRMT:PPAK1-LE"

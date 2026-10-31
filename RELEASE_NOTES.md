@@ -10,7 +10,7 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.1.1
 
 - The settings files explain themselves: `settings.prmt`, `windows.prmt` and the settings in a backup carry a comment for every setting (what it is, in which unit), shown by Promptuarium's `pedit` and PStudio. Reading ignores the comments, so the files of 2.1.0 are read as before.
-- Backups are written in Promptuarium's specified ppak format, [PPAK1-LE](https://github.com/fuszenecker/Promptuarium/blob/master/examples/PPak/PPAK_FORMAT.md) (signature `PRMT:PPAK1-LE`). The backups made by 2.1.0 can still be imported.
+- Backups are written in Promptuarium's specified ppak format, [PPAK1-LE](https://github.com/fuszenecker/Promptuarium/blob/master/tools/PPak/PPAK_FORMAT.md) (signature `PRMT:PPAK1-LE`). The backups made by 2.1.0 can still be imported.
 
 ## 2.1.0
 
