@@ -4,8 +4,10 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Platform;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
@@ -162,9 +164,10 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
     public async Task Practice(string? received, bool stop = false, bool failAudio = false)
     {
         Audio.Begin(failAudio);
+        using var trace = new ClickTrace(Main);
         Click(Main, "Practice");
         await Until(() => Audio.Started || !ViewModel.Practice.IsPracticeOperationActive, "start audio playback");
-        Assert.IsTrue(Audio.Started, "The real Morse renderer must reach the audio device.");
+        Assert.IsTrue(Audio.Started, $"The real Morse renderer must reach the audio device. {trace.Report()}");
         if (received is not null) Text(Main, Main.FindControl<TextBox>("ReceivedTextBox")!,
             received == "@sent" ? Services.GetRequiredService<IPracticeController>().LastGeneratedText : received);
         if (stop) Click(Main, "Stop"); else Audio.Complete();
@@ -257,6 +260,59 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         public string AppDataDirectory => directory;
         public string PreferredUserConfigPath => Path.Combine(directory, "settings.prmt");
         public IReadOnlyList<string> UserConfigPaths => [PreferredUserConfigPath];
+    }
+}
+
+/// <summary>
+/// Explains a click that never reached its button: on rare runs the first click on Practice is
+/// swallowed by the popup overlay layer. Passive on purpose, because walking the visual tree
+/// before the click changes the timing and hides the failure.
+/// </summary>
+internal sealed class ClickTrace : IDisposable
+{
+    private const int MaximumPopupEvents = 12;
+    private static readonly Queue<string> PopupEvents = new();
+    private static bool _hooked;
+    private readonly TopLevel _window;
+    private readonly List<string> _pressed = [];
+    private readonly List<string> _released = [];
+
+    public ClickTrace(TopLevel window)
+    {
+        _window = window;
+        Hook();
+        _window.AddHandler(InputElement.PointerPressedEvent, OnPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        _window.AddHandler(InputElement.PointerReleasedEvent, OnReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    public string Report() =>
+        $"Pressed: [{string.Join(", ", _pressed)}]. Released: [{string.Join(", ", _released)}]. " +
+        $"Recent popups: [{string.Join("; ", PopupEvents)}].";
+
+    public void Dispose()
+    {
+        _window.RemoveHandler(InputElement.PointerPressedEvent, OnPressed);
+        _window.RemoveHandler(InputElement.PointerReleasedEvent, OnReleased);
+    }
+
+    private void OnPressed(object? sender, PointerPressedEventArgs e) => _pressed.Add(e.Source?.GetType().Name ?? "none");
+
+    private void OnReleased(object? sender, PointerReleasedEventArgs e) => _released.Add(e.Source?.GetType().Name ?? "none");
+
+    private static void Hook()
+    {
+        if (_hooked) return;
+        _hooked = true;
+        Popup.IsOpenProperty.Changed.AddClassHandler<Popup>((popup, e) => Record(
+            $"popup open={e.NewValue} parent={popup.Parent?.GetType().Name} owner={popup.TemplatedParent?.GetType().Name} target={popup.PlacementTarget?.GetType().Name}"));
+        ToolTip.IsOpenProperty.Changed.AddClassHandler<Control>((control, e) => Record(
+            $"tooltip open={e.NewValue} on={control.GetType().Name} tip={ToolTip.GetTip(control)}"));
+    }
+
+    private static void Record(string popupEvent)
+    {
+        PopupEvents.Enqueue($"{DateTime.Now:HH:mm:ss.fff} {popupEvent}");
+        if (PopupEvents.Count > MaximumPopupEvents) PopupEvents.Dequeue();
     }
 }
 
