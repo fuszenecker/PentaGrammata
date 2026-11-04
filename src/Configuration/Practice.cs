@@ -37,7 +37,7 @@ public sealed class Practice
 	/// <see cref="AutoAdjustWpm"/>. Must be at least 1.
 	/// </summary>
 	[PromptuariumComment("The number of recent sessions whose error rates drive the automatic speed adjustment")]
-	public int AutoAdjustWindowSize { get; set; } = 3;
+	public int AutoAdjustWindowSize { get; set; } = 1;
 
 	public Practice Clone() => new()
 	{

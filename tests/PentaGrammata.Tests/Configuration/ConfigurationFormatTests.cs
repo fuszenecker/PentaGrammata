@@ -209,6 +209,7 @@ public sealed class ConfigurationFormatTests
         var configuration = store.Load();
 
         Assert.AreEqual(18, configuration.Practice.CharacterWpm);
+        Assert.AreEqual(1, configuration.Practice.AutoAdjustWindowSize);
         Assert.AreEqual("Default", configuration.Practice.DefaultCharacterSet);
         Assert.AreEqual(39, configuration.CharacterSets.Keys.Count(name => name.StartsWith("Koch-LCWO-", StringComparison.Ordinal)));
     }

@@ -76,7 +76,7 @@ The installers are built only by the `Create Installer` workflow (`.github/workf
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
 | `Practice` | `CustomText` | _(empty)_ | Your own text to send instead of generated groups; empty = generate as usual |
 | `Practice` | `AutoAdjustWpm` | `false` | Dynamically adjust the practice WPM in memory after each scored session (slow down when the recent average error rate — or the session just finished — is above `ErrorThreshold`, speed up otherwise); the dynamic WPM is not persisted and restarts from the configured WPM on each app start |
-| `Practice` | `AutoAdjustWindowSize` | `3` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm` |
+| `Practice` | `AutoAdjustWindowSize` | `1` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm` |
 | `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
 | `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
 | `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |

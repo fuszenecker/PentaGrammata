@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.1.3
+
+- **Auto-adjust WPM reacts to the session you just finished:** the window size now defaults to 1 instead of 3. This applies to new profiles; a window size you already saved stays as it is, and you can change it in Settings.
+- The About window describes backups correctly: a `.prmt` archive, not a ZIP, without the window sizes.
+
 ## 2.1.2
 
 - **Import accepts only backups signed `PRMT:PPAK1-LE`**, the signature of 2.1.1, compared byte by byte. Any other file is refused before anything is replaced.
