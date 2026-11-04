@@ -76,7 +76,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your recent error rate"/>
+                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your last session, or the average of your last N"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
@@ -84,7 +84,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Backup export/import: settings and statistics in a single Promptuarium (.prmt) archive"/>
+                        <TextBlock Grid.Column="1" Text="Backup export, import and restore: settings and statistics in a single Promptuarium (.prmt) archive"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
