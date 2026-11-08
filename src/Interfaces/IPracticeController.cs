@@ -47,6 +47,12 @@ public interface IPracticeController
 
     Task<PracticeResult> BuildResultAsync(string receivedText);
 
+    /// <summary>
+    /// Feeds the saved result of the current session to the auto-adjusting WPM (when it is
+    /// on). Only a saved result moves the dynamic WPM, at most once per session.
+    /// </summary>
+    void RecordSavedResult(PracticeResult result);
+
     AppConfig CreateSettingsSnapshot();
 
     bool TryApplySettings(AppConfig settings, out string error);

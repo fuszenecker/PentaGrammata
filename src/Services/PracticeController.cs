@@ -24,8 +24,8 @@ public class PracticeController : IPracticeController
     private readonly ILogger<PracticeController> _logger;
     private CancellationTokenSource? _cancellationTokenSource;
 
-    // True once the current session's error rate has been fed to the dynamic WPM adjuster, so
-    // repeated BuildResult calls for the same session never stack adjustments.
+    // True once the current session's saved error rate has been fed to the dynamic WPM
+    // adjuster, so a session never stacks adjustments.
     private bool _sessionResultRecorded;
 
     // Captured at the start of each session so the result window/statistics record reflects
@@ -186,38 +186,28 @@ public class PracticeController : IPracticeController
     {
         LastReceivedText = receivedText ?? string.Empty;
         var practice = _configurationService.Current.Practice;
-        var result = _resultEvaluator.Evaluate(LastGeneratedText, LastReceivedText, practice.ErrorThreshold);
-
-        // Adjust the in-memory dynamic WPM once per session, only when auto-adjust is on.
-        // Repeated BuildResult calls for the same session (e.g. reopening the result window)
-        // must not re-record the same error rate or stack adjustments.
-        if (practice.AutoAdjustWpm && !_sessionResultRecorded)
-        {
-            _sessionResultRecorded = true;
-            _dynamicWpmAdjuster.Adjust(result.ErrorRatePercent, practice.ErrorThreshold, practice.AutoAdjustWindowSize);
-        }
-
-        return result;
+        return _resultEvaluator.Evaluate(LastGeneratedText, LastReceivedText, practice.ErrorThreshold);
     }
 
     public async Task<PracticeResult> BuildResultAsync(string receivedText)
     {
         LastReceivedText = receivedText ?? string.Empty;
         var sentText = LastGeneratedText;
-        var practice = _configurationService.Current.Practice;
-        var threshold = practice.ErrorThreshold;
-        var autoAdjust = practice.AutoAdjustWpm;
-        var windowSize = practice.AutoAdjustWindowSize;
         var received = LastReceivedText;
-        var result = await Task.Run(() => _resultEvaluator.Evaluate(sentText, received, threshold));
+        var threshold = _configurationService.Current.Practice.ErrorThreshold;
+        return await Task.Run(() => _resultEvaluator.Evaluate(sentText, received, threshold));
+    }
 
-        if (autoAdjust && !_sessionResultRecorded)
+    public void RecordSavedResult(PracticeResult result)
+    {
+        // The dynamic WPM moves when a session's result is saved, never when it is merely
+        // checked: an unsaved session does not count, and a session counts only once.
+        var practice = _configurationService.Current.Practice;
+        if (practice.AutoAdjustWpm && !_sessionResultRecorded)
         {
             _sessionResultRecorded = true;
-            _dynamicWpmAdjuster.Adjust(result.ErrorRatePercent, threshold, windowSize);
+            _dynamicWpmAdjuster.Adjust(result.ErrorRatePercent, practice.ErrorThreshold, practice.AutoAdjustWindowSize);
         }
-
-        return result;
     }
 
     public AppConfig CreateSettingsSnapshot()

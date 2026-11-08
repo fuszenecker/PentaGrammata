@@ -33,6 +33,9 @@ public partial class PracticeViewModel : ViewModelBase
     private bool _resultSavedForCurrentSession;
     private Guid _currentSessionId;
     private PracticeResult? _completedResult;
+    // The copy _completedResult was scored from: a correction to the received text after
+    // checking the result makes the next check score the corrected copy.
+    private string? _completedResultReceivedText;
     private AppConfiguration? _completedSettings;
 
     private CancellationTokenSource? _practiceTimerCancellationTokenSource;
@@ -103,6 +106,7 @@ public partial class PracticeViewModel : ViewModelBase
         _resultSavedForCurrentSession = false;
         _currentSessionId = Guid.NewGuid();
         _completedResult = null;
+        _completedResultReceivedText = null;
         _completedSettings = null;
         UpdateCommandStates();
         ReceivedText = string.Empty;
@@ -180,7 +184,13 @@ public partial class PracticeViewModel : ViewModelBase
 
     public async Task OpenResultWindowAsync()
     {
-        _completedResult ??= await _practiceController.BuildResultAsync(ReceivedText);
+        if (_completedResult is null || !string.Equals(_completedResultReceivedText, ReceivedText, StringComparison.Ordinal))
+        {
+            var receivedText = ReceivedText;
+            _completedResult = await _practiceController.BuildResultAsync(receivedText);
+            _completedResultReceivedText = receivedText;
+        }
+
         _completedSettings ??= _practiceController.CreateSettingsSnapshot();
         var result = _completedResult;
         var settings = _completedSettings;
@@ -195,11 +205,12 @@ public partial class PracticeViewModel : ViewModelBase
             _resultSavedForCurrentSession,
             settings.Practice.ErrorThreshold,
             settings.Audio.Noise);
-        // BuildResult may have adjusted the dynamic WPM; refresh the status-bar readout.
-        RefreshNextWpm();
-        if (saved)
+        if (saved && !_resultSavedForCurrentSession)
         {
             _resultSavedForCurrentSession = true;
+            // Saving is what moves the auto-adjusted WPM; refresh the status-bar readout.
+            _practiceController.RecordSavedResult(result);
+            RefreshNextWpm();
         }
     }
 

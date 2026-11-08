@@ -322,7 +322,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public async Task BuildResult_WithErrorAboveThreshold_SlowsDownDynamicAverageWpm()
+    public async Task RecordSavedResult_WithErrorAboveThreshold_SlowsDownDynamicAverageWpm()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -339,7 +339,7 @@ public sealed class PracticeControllerTests
         var sut = CreateController(configService, evaluator);
 
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
 
         // Only one error rate in the window (30 %), which is above the 10 % threshold, so the
         // average WPM slows from 15 to 14 with the character WPM left unchanged.
@@ -349,7 +349,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public async Task BuildResult_WithErrorBelowThreshold_SpeedsUpAndRaisesCharacterWpmWhenReached()
+    public async Task RecordSavedResult_WithErrorBelowThreshold_SpeedsUpAndRaisesCharacterWpmWhenReached()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -367,9 +367,9 @@ public sealed class PracticeControllerTests
         var sut = CreateController(configService, evaluator);
 
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
 
         // Two clean sessions: 15 -> 16 -> 17, with character WPM raised alongside.
         await sut.StartAsync();
@@ -378,7 +378,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public async Task BuildResult_AveragesErrorRatesOverWindowRatherThanUsingLatestSession()
+    public async Task RecordSavedResult_AveragesErrorRatesOverWindowRatherThanUsingLatestSession()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -397,27 +397,27 @@ public sealed class PracticeControllerTests
 
         // Two flawless sessions: 15 -> 16 -> 17.
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(17, sut.LastUsedAverageWpm);
 
         // Third session at 9 % passes on its own and the window average is (0 + 0 + 9) / 3 =
         // 3 %, so the speed keeps climbing.
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(18, sut.LastUsedAverageWpm);
 
         // Fourth session at 24 % pushes the window average to (0 + 9 + 24) / 3 = 11 %, above
         // the threshold, so the speed drops.
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(17, sut.LastUsedAverageWpm);
     }
 
     [TestMethod]
-    public async Task BuildResult_WithFailingLatestSession_SlowsDownEvenWhenWindowAverageIsGood()
+    public async Task RecordSavedResult_WithFailingLatestSession_SlowsDownEvenWhenWindowAverageIsGood()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -436,22 +436,22 @@ public sealed class PracticeControllerTests
 
         // Two flawless sessions: 15 -> 16 -> 17.
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(17, sut.LastUsedAverageWpm);
 
         // The window average is (0 + 0 + 24) / 3 = 8 %, below the 10 % threshold, so averaging
         // alone would speed up. The newest session failed at 24 %, and that veto wins.
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(16, sut.LastUsedAverageWpm);
         Assert.AreEqual(20, sut.LastUsedCharacterWpm);
     }
 
     [TestMethod]
-    public async Task BuildResult_KeepsOnlyTheLastWindowSizeErrorRates()
+    public async Task RecordSavedResult_KeepsOnlyTheLastWindowSizeErrorRates()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -470,22 +470,22 @@ public sealed class PracticeControllerTests
         var sut = CreateController(configService, evaluator);
 
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(16, sut.LastUsedAverageWpm);
 
         // The earlier 0 % is evicted, so the 24 % session alone drives the slow-down.
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(15, sut.LastUsedAverageWpm);
 
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
         Assert.AreEqual(16, sut.LastUsedAverageWpm);
     }
 
     [TestMethod]
-    public async Task BuildResult_AdjustsAtMostOncePerSession()
+    public async Task RecordSavedResult_AdjustsAtMostOncePerSession()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -502,16 +502,44 @@ public sealed class PracticeControllerTests
         var sut = CreateController(configService, evaluator);
 
         await sut.StartAsync();
-        sut.BuildResult("rx");
-        // Reopening the result window for the same session must not slow down again.
-        sut.BuildResult("rx");
+        var result = sut.BuildResult("rx");
+        sut.RecordSavedResult(result);
+        // Recording the same session again must not slow down again.
+        sut.RecordSavedResult(result);
 
         await sut.StartAsync();
         Assert.AreEqual(14, sut.LastUsedAverageWpm);
     }
 
     [TestMethod]
-    public async Task BuildResult_WithAutoAdjustOff_LeavesWpmAtConfigured()
+    public async Task BuildResult_WithoutSaving_LeavesTheDynamicWpmUnchanged()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.AutoAdjustWpm = true;
+        config.Practice.CharacterWpm = 20;
+        config.Practice.AverageWpm = 15;
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustWindowSize = 1;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Failed());
+
+        var sut = CreateController(configService, evaluator);
+
+        // Checking the result (even repeatedly) decides nothing; only saving does.
+        await sut.StartAsync();
+        sut.BuildResult("rx");
+        await sut.BuildResultAsync("rx");
+
+        await sut.StartAsync();
+        Assert.AreEqual(20, sut.LastUsedCharacterWpm);
+        Assert.AreEqual(15, sut.LastUsedAverageWpm);
+    }
+
+    [TestMethod]
+    public async Task RecordSavedResult_WithAutoAdjustOff_LeavesWpmAtConfigured()
     {
         var configService = Substitute.For<IConfigurationService>();
         var config = CreateDefaultConfiguration();
@@ -527,7 +555,7 @@ public sealed class PracticeControllerTests
         var sut = CreateController(configService, evaluator);
 
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         await sut.StartAsync();
 
         Assert.AreEqual(20, sut.LastUsedCharacterWpm);
@@ -561,7 +589,7 @@ public sealed class PracticeControllerTests
 
         // Speed up once (15 -> 16), then re-apply the same settings: dynamic must reset.
         await sut.StartAsync();
-        sut.BuildResult("rx");
+        sut.RecordSavedResult(sut.BuildResult("rx"));
         Assert.IsTrue(sut.TryApplySettings(config.Clone(), out _));
         await sut.StartAsync();
 

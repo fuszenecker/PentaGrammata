@@ -220,6 +220,70 @@ public sealed class PracticeViewModelTests
     }
 
     [TestMethod]
+    public async Task OpenResultWindowAsync_AfterTheCopyIsCorrected_ScoresAndShowsTheCorrectedCopy()
+    {
+        var practiceController = CreateController();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+
+        var wrong = new PracticeResult { CharacterCount = 4, ErrorCount = 1, ErrorRatePercent = 25, IsSuccessful = false };
+        var corrected = new PracticeResult { CharacterCount = 4, ErrorCount = 0, ErrorRatePercent = 0, IsSuccessful = true };
+        practiceController.BuildResultAsync("TEXT").Returns(Task.FromResult(wrong));
+        practiceController.BuildResultAsync("TEST").Returns(Task.FromResult(corrected));
+        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        practiceController.LastUsedCharacterWpm.Returns(20);
+        practiceController.LastUsedAverageWpm.Returns(15);
+        resultWindowService.ShowPracticeResultAsync(Arg.Any<PracticeResult>(), 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>())
+            .Returns(Task.FromResult(false));
+
+        var sut = CreateSut(practiceController, resultWindowService);
+        sut.ReceivedText = "TEXT";
+        await sut.OpenResultWindowAsync();
+
+        sut.ReceivedText = "TEST";
+        await sut.OpenResultWindowAsync();
+        // Reopening without another correction reuses the corrected result.
+        await sut.OpenResultWindowAsync();
+
+        await practiceController.Received(1).BuildResultAsync("TEXT");
+        await practiceController.Received(1).BuildResultAsync("TEST");
+        await resultWindowService.Received(1).ShowPracticeResultAsync(wrong, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
+        await resultWindowService.Received(2).ShowPracticeResultAsync(corrected, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
+    }
+
+    [TestMethod]
+    public async Task OpenResultWindowAsync_RecordsTheResultForAutoAdjustOnlyWhenSaved()
+    {
+        var practiceController = CreateController();
+        var resultWindowService = Substitute.For<IPracticeResultWindowService>();
+
+        var wrong = new PracticeResult { CharacterCount = 4, ErrorCount = 1, ErrorRatePercent = 25, IsSuccessful = false };
+        var corrected = new PracticeResult { CharacterCount = 4, ErrorCount = 0, ErrorRatePercent = 0, IsSuccessful = true };
+        practiceController.BuildResultAsync("TEXT").Returns(Task.FromResult(wrong));
+        practiceController.BuildResultAsync("TEST").Returns(Task.FromResult(corrected));
+        practiceController.CreateSettingsSnapshot().Returns(CreateConfig("Default", 5, 20, 15));
+        practiceController.LastUsedCharacterWpm.Returns(20);
+        practiceController.LastUsedAverageWpm.Returns(15);
+        practiceController.CurrentAverageWpm.Returns(15, 16);
+        // The checked-but-unsaved wrong copy, then the saved correction, then a reopen.
+        resultWindowService.ShowPracticeResultAsync(Arg.Any<PracticeResult>(), 20, 15, Arg.Any<Guid>(), Arg.Any<bool>(), 10, Arg.Any<NoiseSettings>())
+            .Returns(false, true, true);
+
+        var sut = CreateSut(practiceController, resultWindowService);
+        sut.ReceivedText = "TEXT";
+        await sut.OpenResultWindowAsync();
+        practiceController.DidNotReceive().RecordSavedResult(Arg.Any<PracticeResult>());
+
+        sut.ReceivedText = "TEST";
+        await sut.OpenResultWindowAsync();
+        await sut.OpenResultWindowAsync();
+
+        // Only the saved result decides, once, and the status bar shows the new speed.
+        practiceController.Received(1).RecordSavedResult(corrected);
+        practiceController.DidNotReceive().RecordSavedResult(wrong);
+        Assert.AreEqual(16, sut.NextAverageWpm);
+    }
+
+    [TestMethod]
     public async Task StartPracticeAsync_ResetsResultSavedStateForTheNewSession()
     {
         var practiceController = CreateController();

@@ -15,6 +15,7 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
     private readonly IWindowSizeService _windowSizeService;
     private readonly IInfoDialogService _infoDialogService;
     private Guid? _cachedSessionId;
+    private PracticeResult? _cachedResult;
     private PracticeResultWindowViewModel? _cachedViewModel;
 
     public PracticeResultWindowService(
@@ -44,9 +45,12 @@ public sealed class PracticeResultWindowService : IPracticeResultWindowService
             return false;
         }
 
-        if (_cachedSessionId != sessionId || _cachedViewModel is null)
+        // A new result for the same session (the copy was corrected after a check) needs a
+        // new view model; only an unchanged result reuses the frozen record and save state.
+        if (_cachedSessionId != sessionId || !ReferenceEquals(_cachedResult, result) || _cachedViewModel is null)
         {
             _cachedSessionId = sessionId;
+            _cachedResult = result;
             _cachedViewModel = _viewModelFactory.CreatePracticeResult(
                 result,
                 characterWpm,

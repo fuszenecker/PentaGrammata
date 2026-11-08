@@ -62,6 +62,29 @@ public sealed partial class UserJourneyScenarios
     }, c => c.Practice.CustomText = sent);
 
     [TestMethod]
+    public Task UserCorrectsTheirCopyAfterCheckingAndSeesTheCorrectedComparison() => Run(async app =>
+    {
+        await app.Practice("TEXT");
+        var result = await app.Result();
+        var vm = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("1", vm.ErrorsText);
+        Assert.AreEqual("TEXT", vm.Rows.Single().ReceivedGroup);
+        await app.CloseResult(result);
+
+        ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, "TEST");
+        result = await app.Result();
+        vm = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", vm.ErrorsText);
+        Assert.AreEqual("TEST", vm.Rows.Single().ReceivedGroup);
+        Assert.AreEqual(StatusLevel.Success, vm.ResultStatus);
+        Assert.IsTrue(ScenarioDesktop.Controls<TextBlock>(result).Any(t => t.Text == vm.ErrorRateText));
+        await app.SaveResult(result);
+        await app.CloseResult(result);
+        var saved = (await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync()).Single();
+        Assert.AreEqual(0, saved.ErrorCount);
+    }, c => c.Practice.CustomText = "TEST");
+
+    [TestMethod]
     public Task UserSelectsACharacterSetDurationAndCopiesRandomFiveCharacterGroups() => Run(async app =>
     {
         ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem = "Digits";

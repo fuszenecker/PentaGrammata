@@ -71,19 +71,42 @@ public sealed partial class UserJourneyScenarios
         await app.Practice("TEST");
         var result = await app.Result();
         await app.CloseResult(result);
-        Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
+        // Checking decides nothing: only saving moves the adaptive speed.
+        Assert.AreEqual(15, app.ViewModel.Practice.NextAverageWpm);
         result = await app.Result();
-        Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
+        Assert.AreEqual(15, app.ViewModel.Practice.NextAverageWpm);
         await app.SaveResult(result);
         await app.CloseResult(result);
-        result = await app.Result();
         Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
+        result = await app.Result();
         Assert.IsFalse(ScenarioDesktop.Button(result, "Save results").IsEffectivelyEnabled);
         await app.CloseResult(result);
+        Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
         var records = await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync();
         Assert.HasCount(1, records);
         Assert.AreEqual(15, records.Single().AverageWpm);
     }, c => c.Practice.AutoAdjustWpm = true);
+
+    [TestMethod]
+    public Task UserCorrectsAFailedCopyBeforeSavingAndAdaptiveSpeedFollowsTheSavedResult() => Run(async app =>
+    {
+        await app.Practice("TEXT");
+        var result = await app.Result();
+        Assert.AreEqual(StatusLevel.Error, ((PracticeResultWindowViewModel)result.DataContext!).ResultStatus);
+        await app.CloseResult(result);
+        Assert.AreEqual(15, app.ViewModel.Practice.NextAverageWpm);
+
+        ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, "TEST");
+        result = await app.Result();
+        Assert.AreEqual(StatusLevel.Success, ((PracticeResultWindowViewModel)result.DataContext!).ResultStatus);
+        await app.SaveResult(result);
+        await app.CloseResult(result);
+
+        // The failed check never counted; the saved clean copy speeds up.
+        Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
+        var saved = (await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync()).Single();
+        Assert.AreEqual(0, saved.ErrorCount);
+    }, c => { c.Practice.AutoAdjustWpm = true; c.Practice.CustomText = "TEST"; });
 
     [TestMethod]
     public Task UserSeesDisplaySettingsSaveFailureAndCanRetry() => Run(async app =>

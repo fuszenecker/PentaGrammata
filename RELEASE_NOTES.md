@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.1.5
+
+- **Check result scores your corrected copy:** if you fix a mistake in the received text after checking the result, checking again now compares the corrected text instead of showing the first comparison. A result you already saved stays as it was saved.
+- **Auto-adjust WPM decides when you save:** checking a result no longer changes the speed; saving it does, based on the result you saved. A session you never save does not count, and correcting your copy before saving counts the corrected result.
+
 ## 2.1.4
 
 - The About window is up to date: it describes auto-adjust WPM as it works now (your last session, or the average of your last N) and lists Restore next to backup export and import.

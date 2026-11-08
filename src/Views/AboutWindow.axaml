@@ -76,7 +76,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your last session, or the average of your last N"/>
+                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your last saved session, or the average of your last N"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
