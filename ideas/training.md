@@ -27,6 +27,8 @@ A settings ablakban a PRACTICE fül után legyen egy topics (témakörök) vagy 
 
 A characters set kerüljön az új topics (vagy tudomisén) után és az AUDIO elé.
 
+Elméletileg a gyakorlás ellenőrzése nem változik jelentősen, sem az értékelés módja, sem a megjelenítésé, ezeket a részeket talán nem is kell bántani.
+
 Mondanom sem kell, az új settingeket használnia kell a PentaGrammaténak és mentenie is kell tudni a settings.prmt-be.
 
 Természetesen, tesztekkel alaposan legyen lefedve és headless tesztekkel is.
