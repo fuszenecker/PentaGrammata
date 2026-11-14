@@ -2,6 +2,10 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.2.1
+
+- **Multi-word cities, names and abbreviations stay together:** an entry such as `NEW YORK`, `FRANKFURT AM MAIN`, `LITTLE JOHN` or `QSL VIA BURO` is one item. You type it with ordinary spaces as before; the result window now shows it in one row, its words joined by `_`, and still scores it word by word. An underscore you type counts as a space. Your custom text stays word by word.
+
 ## 2.2.0
 
 - **Practice topics:** a new Topic dropdown on the main window chooses what a session sends: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed. The character set applies to groups (and the groups of the mixed topic) only, and the duration to every topic but your own text.

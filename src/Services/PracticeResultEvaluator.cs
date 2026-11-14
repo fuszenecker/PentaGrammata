@@ -10,29 +10,30 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
 {
     public PracticeResult Evaluate(string sentText, string receivedText, double errorThresholdPercent)
     {
-        var sentGroups = SplitGroups(sentText ?? string.Empty);
-        var receivedGroups = SplitGroups(receivedText ?? string.Empty);
+        // The sent text keeps a multi-word item (its words joined by an underscore) as one
+        // group; the copy is typed with ordinary spaces, so its words are grouped the same way:
+        // a sent item of k words takes the next k received words. Within a group the words are
+        // compared one by one, so scoring is the same as word by word.
+        var sentGroups = PracticeItems.SplitItems(sentText);
+        var receivedWords = PracticeItems.SplitWords(receivedText);
 
-        var rowCount = Math.Max(sentGroups.Count, receivedGroups.Count);
-        var rows = new List<PracticeResultRow>(rowCount);
-
-        var characterCount = sentGroups.Sum(LevenshteinAlignment.CountSymbols);
+        var rows = new List<PracticeResultRow>();
+        var characterCount = 0;
         var errorCount = 0;
+        var nextReceived = 0;
 
-        for (var i = 0; i < rowCount; i++)
+        foreach (var sent in sentGroups)
         {
-            var sent = i < sentGroups.Count ? sentGroups[i] : string.Empty;
-            var received = i < receivedGroups.Count ? receivedGroups[i] : string.Empty;
+            var sentWords = PracticeItems.Words(sent);
+            var receivedForGroup = receivedWords.Skip(nextReceived).Take(sentWords.Length).ToList();
+            nextReceived += receivedForGroup.Count;
+            rows.Add(BuildRow(sentWords, receivedForGroup, ref characterCount, ref errorCount));
+        }
 
-            var groupErrors = GetLevenshteinDistance(sent, received);
-            errorCount += groupErrors;
-
-            rows.Add(new PracticeResultRow
-            {
-                SentGroup = sent,
-                ReceivedGroup = received,
-                Difference = BuildDifferenceText(sent, received)
-            });
+        // Words typed beyond the sent text are one group each, as before.
+        foreach (var extra in receivedWords.Skip(nextReceived))
+        {
+            rows.Add(BuildRow([], [extra], ref characterCount, ref errorCount));
         }
 
         var errorRatePercent = characterCount > 0
@@ -49,11 +50,29 @@ public sealed class PracticeResultEvaluator : IPracticeResultEvaluator
         };
     }
 
-    private static List<string> SplitGroups(string text)
+    private static PracticeResultRow BuildRow(
+        IReadOnlyList<string> sentWords,
+        IReadOnlyList<string> receivedWords,
+        ref int characterCount,
+        ref int errorCount)
     {
-        return text
-            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .ToList();
+        var wordCount = Math.Max(sentWords.Count, receivedWords.Count);
+        var differences = new List<string>(wordCount);
+        for (var i = 0; i < wordCount; i++)
+        {
+            var sent = i < sentWords.Count ? sentWords[i] : string.Empty;
+            var received = i < receivedWords.Count ? receivedWords[i] : string.Empty;
+            characterCount += LevenshteinAlignment.CountSymbols(sent);
+            errorCount += GetLevenshteinDistance(sent, received);
+            differences.Add(BuildDifferenceText(sent, received));
+        }
+
+        return new PracticeResultRow
+        {
+            SentGroup = string.Join(PracticeItems.WordJoiner, sentWords),
+            ReceivedGroup = string.Join(PracticeItems.WordJoiner, receivedWords),
+            Difference = string.Join(' ', differences),
+        };
     }
 
     private static string BuildDifferenceText(string expected, string actual)

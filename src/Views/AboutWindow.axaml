@@ -60,7 +60,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Editable topic lists in Settings: callsign patterns (# a digit, a lowercase letter a random letter), cities, names and abbreviations, kept in alphabetical order"/>
+                        <TextBlock Grid.Column="1" Text="Editable topic lists in Settings: callsign patterns (# a digit, a lowercase letter a random letter), cities, names and abbreviations, kept in alphabetical order. A multi-word entry (NEW YORK, QSL VIA BURO) is typed with spaces and checked as one item"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

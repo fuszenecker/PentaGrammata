@@ -98,8 +98,8 @@ public sealed class PracticeTextGeneratorFactoryTests
         var config = Config();
         Assert.IsTrue(Generate(PracticeTopic.Names, config).Split(' ').All(w => w == "LACI"));
         Assert.IsTrue(Generate(PracticeTopic.Abbreviations, config).Split(' ').All(w => w is "QRZ" or "73"));
-        var cities = Generate(PracticeTopic.Cities, config, 30);
-        Assert.AreEqual(cities.Replace("CAPE TOWN", string.Empty).Replace("BUDAPEST", string.Empty).Trim(), string.Empty);
+        var cities = PracticeItems.SplitItems(Generate(PracticeTopic.Cities, config, 30));
+        Assert.IsTrue(cities.All(c => c is "BUDAPEST" or "CAPE_TOWN"), string.Join('|', cities));
     }
 
     [TestMethod]
@@ -178,5 +178,54 @@ public sealed class PracticeTextGeneratorFactoryTests
         var items = Generate(PracticeTopic.Mixed, config, 10).Split(' ');
 
         Assert.IsTrue(items.All(i => i.Length == 5 && i.All(char.IsDigit)), string.Join(' ', items));
+    }
+
+    [TestMethod]
+    public void WordTopics_JoinTheWordsOfAMultiWordEntryWithAUnderscore()
+    {
+        var config = Config();
+        config.Topics.Names = ["Little  John"];
+        config.Topics.Abbreviations = ["QSL VIA BURO"];
+
+        var names = Generate(PracticeTopic.Names, config, 5);
+        var abbreviations = Generate(PracticeTopic.Abbreviations, config, 5);
+
+        Assert.IsTrue(PracticeItems.SplitItems(names).All(n => n == "LITTLE_JOHN"), names);
+        Assert.IsTrue(PracticeItems.SplitItems(abbreviations).All(a => a == "QSL_VIA_BURO"), abbreviations);
+        // Between items there is an ordinary space.
+        Assert.Contains("JOHN LITTLE", names);
+    }
+
+    [TestMethod]
+    public void WordTopics_CountTheLettersOfMultiWordItemsAgainstTheBudget()
+    {
+        var config = Config();
+        config.Topics.Cities = ["NEW YORK"];
+
+        var items = PracticeItems.SplitItems(Generate(PracticeTopic.Cities, config, 7));
+
+        // 35 characters at 7 letters an item: 5 items.
+        Assert.HasCount(5, items);
+    }
+
+    [TestMethod]
+    public void Mixed_KeepsMultiWordItemsWhole()
+    {
+        var config = Config();
+        config.Topics = new Topics { Cities = ["DEN HAAG"] };
+
+        var items = PracticeItems.SplitItems(Generate(PracticeTopic.Mixed, config, 200));
+
+        Assert.Contains("DEN_HAAG", items);
+        Assert.DoesNotContain("DEN", items);
+    }
+
+    [TestMethod]
+    public void CustomText_StaysWordByWord()
+    {
+        var config = Config();
+        config.Practice.CustomText = "QSL VIA BURO";
+
+        Assert.AreEqual("QSL VIA BURO", Generate(PracticeTopic.CustomText, config));
     }
 }

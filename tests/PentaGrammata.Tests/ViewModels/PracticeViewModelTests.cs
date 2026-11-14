@@ -68,6 +68,20 @@ public sealed class PracticeViewModelTests
     }
 
     [TestMethod]
+    public async Task StartPracticeAsync_RevealedTextUsesOrdinarySpaces()
+    {
+        var practiceController = CreateController();
+        practiceController.StartAsync().Returns(Task.CompletedTask);
+        practiceController.LastGeneratedText.Returns("NEW_YORK WIEN");
+
+        var sut = CreateSut(practiceController, revealSentText: true);
+
+        await sut.StartPracticeAsync();
+
+        Assert.AreEqual("NEW YORK WIEN", sut.ReceivedText);
+    }
+
+    [TestMethod]
     public async Task StartPracticeAsync_WhenRevealDisabledAndReceivedTextEmpty_DoesNotFill()
     {
         var practiceController = CreateController();

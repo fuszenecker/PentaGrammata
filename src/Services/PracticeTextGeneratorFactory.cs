@@ -57,7 +57,8 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
 
     private static Func<string>? WordSource(IEnumerable<string>? words)
     {
-        var list = Usable(words).Select(w => w.ToUpperInvariant()).ToList();
+        // A multi-word entry stays one item: its words are joined by an underscore.
+        var list = Usable(words).Select(w => PracticeItems.Join(w.ToUpperInvariant())).ToList();
         return list.Count == 0 ? null : () => list[Random.Shared.Next(list.Count)];
     }
 
@@ -124,7 +125,8 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
             {
                 var item = next();
                 items.Add(item);
-                sent += MorseAlphabet.Tokenize(item).Count(t => t != " ");
+                // Letters only: neither the spaces nor the underscores joining a multi-word item count.
+                sent += MorseAlphabet.Tokenize(item).Count(t => !string.IsNullOrWhiteSpace(t) && t != "_");
             }
 
             return string.Join(' ', items);
