@@ -137,6 +137,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserSeesSettingsPersistenceFailureAndCanSaveAgain() => Run(async app =>
     {
         var settings = await Settings(app);
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);

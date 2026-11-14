@@ -66,6 +66,9 @@ public sealed partial class UserJourneyScenarios
         app.Menu(confusions ? "_Confusions" : "C_orrelation");
         Window dialog = confusions ? await app.Dialog<ConfusionsDialog>() : await app.Dialog<CorrelationDialog>();
         ScenarioDesktop.Controls<NumericUpDown>(dialog).Single().Value = 31;
+        // Changing the value starts a background save; let it land before the settings file is
+        // swapped for a directory, or it can recreate the file in between (seen on CI).
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);
@@ -100,6 +103,7 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_Confusions");
         var dialog = await app.Dialog<ConfusionsDialog>();
         var vm = (ConfusionsDialogViewModel)dialog.DataContext!;
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);
