@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
@@ -109,19 +111,50 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             return false;
         }
 
-        // A blank custom text means "generate groups as usual", so only non-blank text is
-        // checked — every token in it has to be something the player can actually send.
+        // Every token of the custom text has to be something the player can actually send.
         var customText = CustomTextNormalizer.Normalize(settings.Practice.CustomText);
-        if (customText.Length > 0)
+        var unsendable = FirstUnsendable(customText);
+        if (unsendable is not null)
         {
-            foreach (var token in MorseAlphabet.Tokenize(customText))
-            {
-                if (!MorseAlphabet.Supports(token))
-                {
-                    error = $"Custom text contains something that cannot be sent as Morse code: \"{token}\".";
-                    return false;
-                }
-            }
+            error = $"Custom text contains something that cannot be sent as Morse code: \"{unsendable}\".";
+            return false;
+        }
+
+        if (!Enum.IsDefined(settings.Practice.Topic))
+        {
+            error = "Unknown practice topic.";
+            return false;
+        }
+
+        if (settings.Practice.Topic == PracticeTopic.CustomText && customText.Length == 0)
+        {
+            error = "The custom text topic needs a custom text.";
+            return false;
+        }
+
+        var topics = settings.Topics ?? new Topics();
+        if (!TryValidateCallsigns(topics.CallsignPatternsEmea, "EMEA callsign", out error)
+            || !TryValidateCallsigns(topics.CallsignPatternsGlobal, "Global callsign", out error)
+            || !TryValidateWords(topics.Cities, "City", out error)
+            || !TryValidateWords(topics.Names, "Name", out error)
+            || !TryValidateWords(topics.Abbreviations, "Abbreviation", out error))
+        {
+            return false;
+        }
+
+        var requiredList = settings.Practice.Topic switch
+        {
+            PracticeTopic.CallsignsEmea => (topics.CallsignPatternsEmea, "EMEA callsign patterns"),
+            PracticeTopic.CallsignsGlobal => (topics.CallsignPatternsGlobal, "global callsign patterns"),
+            PracticeTopic.Cities => (topics.Cities, "cities"),
+            PracticeTopic.Names => (topics.Names, "names"),
+            PracticeTopic.Abbreviations => (topics.Abbreviations, "abbreviations"),
+            _ => ((List<string>?)null, string.Empty),
+        };
+        if (requiredList.Item1 is not null && !requiredList.Item1.Any(i => !string.IsNullOrWhiteSpace(i)))
+        {
+            error = $"The selected topic needs at least one entry in the list of {requiredList.Item2}.";
+            return false;
         }
 
         if (settings.CharacterSets.Count == 0)
@@ -140,6 +173,50 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
         {
             error = "Default character set must match one of the configured character set names.";
             return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static string? FirstUnsendable(string text) =>
+        MorseAlphabet.Tokenize(text).FirstOrDefault(t => t != " " && !MorseAlphabet.Supports(t));
+
+    private static bool TryValidateWords(IEnumerable<string>? words, string label, out string error)
+    {
+        foreach (var word in words ?? [])
+        {
+            var unsendable = FirstUnsendable(CustomTextNormalizer.Normalize(word));
+            if (unsendable is not null)
+            {
+                error = $"{label} \"{word}\" contains something that cannot be sent as Morse code: \"{unsendable}\".";
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryValidateCallsigns(IEnumerable<string>? patterns, string label, out string error)
+    {
+        foreach (var pattern in patterns ?? [])
+        {
+            var trimmed = pattern.Trim();
+            if (trimmed.Any(char.IsWhiteSpace))
+            {
+                error = $"{label} pattern \"{trimmed}\" must not contain spaces.";
+                return false;
+            }
+
+            // # and lowercase letters are placeholders; everything else is sent as written.
+            var literal = new string(trimmed.Where(c => c != '#' && c is not (>= 'a' and <= 'z')).ToArray());
+            var unsendable = FirstUnsendable(literal);
+            if (unsendable is not null)
+            {
+                error = $"{label} pattern \"{trimmed}\" contains something that cannot be sent as Morse code: \"{unsendable}\".";
+                return false;
+            }
         }
 
         error = string.Empty;

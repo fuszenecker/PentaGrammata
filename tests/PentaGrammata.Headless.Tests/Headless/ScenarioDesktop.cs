@@ -47,7 +47,8 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         Directory.CreateDirectory(DirectoryPath);
         var config = new AppConfiguration
         {
-            Practice = new Practice { CustomText = "TEST", DefaultDurationMins = 1, DefaultCharacterSet = "Scenario", CharacterWpm = 20, AverageWpm = 15, ErrorThreshold = 5 },
+            AppMajorVersion = ConfigurationFormat.CurrentMajorVersion,
+            Practice = new Practice { Topic = PracticeTopic.CustomText, CustomText = "TEST", DefaultDurationMins = 1, DefaultCharacterSet = "Scenario", CharacterWpm = 20, AverageWpm = 15, ErrorThreshold = 5 },
             CharacterSets = new CharacterSets { ["Scenario"] = "A" },
             Audio = new Audio { SampleRate = 8000, Frequency = 650, VolumeDb = -12, BeepRampMs = 4 },
             UiPreferences = new UiPreferences { RevealSentTextAfterPractice = false },
@@ -135,11 +136,35 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         window.KeyTextInput(text);
     }
 
+    // The settings dialog nests a TabControl (the topic lists) inside its Topics tab:
+    // Tab selects among the outer tabs, SubTab among the nested ones.
     public static void Tab(Window window, int index)
     {
-        Controls<TabControl>(window).Single().SelectedIndex = index;
+        Controls<TabControl>(window).Single(t => t.FindLogicalAncestorOfType<TabControl>() is null).SelectedIndex = index;
         window.UpdateLayout();
     }
+
+    public static void SubTab(Window window, int index)
+    {
+        Controls<TabControl>(window).Single(t => t.FindLogicalAncestorOfType<TabControl>() is not null).SelectedIndex = index;
+        window.UpdateLayout();
+    }
+
+    // Settings tabs: Practice, Topics, Character sets, Audio, Noise.
+    public const int TopicsTab = 1, CharacterSetsTab = 2, AudioTab = 3, NoiseTab = 4;
+    // Topic sub-tabs: Callsigns (EMEA), Callsigns (global), Cities, Names, Abbreviations, Custom text.
+    public const int EmeaCallsignsSubTab = 0, GlobalCallsignsSubTab = 1, CitiesSubTab = 2, NamesSubTab = 3, AbbreviationsSubTab = 4, CustomTextSubTab = 5;
+
+    /// <summary>Opens Topics / Custom text in the settings dialog and returns the custom text box.</summary>
+    public static TextBox CustomText(Window settings)
+    {
+        Tab(settings, TopicsTab);
+        SubTab(settings, CustomTextSubTab);
+        return Tip<TextBox>(settings, "The text the Custom text topic");
+    }
+
+    public ComboBox TopicBox => Main.FindControl<ComboBox>("TopicComboBox")!;
+    public ComboBox CharacterSetBox => Main.FindControl<ComboBox>("CharacterSetComboBox")!;
 
     private IEnumerable<Window> Windows(Window owner) => owner.OwnedWindows.SelectMany(w => new[] { w }.Concat(Windows(w)));
 

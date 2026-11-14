@@ -401,6 +401,86 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
+    public async Task UpsertCharacterSetAndSelectAsync_SwitchesTheTopicToGroups()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        var config = CreateConfig();
+        config.Practice.Topic = PracticeTopic.Cities;
+        store.Load().Returns(config);
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        await sut.UpsertCharacterSetAndSelectAsync("Practice confusions", "AABBCC");
+
+        Assert.AreEqual(PracticeTopic.Groups, sut.Current.Practice.Topic);
+    }
+
+    [TestMethod]
+    public void SetAsideSettingsBackupPath_ComesFromTheStoreLoad()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        store.LastSetAsideBackupPath.Returns("/profile/backups/old.prmt");
+
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        Assert.AreEqual("/profile/backups/old.prmt", sut.SetAsideSettingsBackupPath);
+    }
+
+    [TestMethod]
+    public async Task SetSelectedTopic_WhenChanged_PersistsAndIsNoOpWhenUnchanged()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+
+        sut.SetSelectedTopic(PracticeTopic.Groups);
+        await sut.FlushAsync();
+        await store.DidNotReceive().SaveAsync(Arg.Any<AppConfig>());
+
+        sut.SetSelectedTopic(PracticeTopic.Names);
+        await sut.FlushAsync();
+        Assert.AreEqual(PracticeTopic.Names, sut.Current.Practice.Topic);
+        await store.Received(1).SaveAsync(Arg.Is<AppConfig>(c => c.Practice.Topic == PracticeTopic.Names));
+    }
+
+    [TestMethod]
+    public void ApplyPracticeSettings_CopiesTopicSettingsAsAnIndependentCopy()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        var settings = sut.Current.Clone();
+        settings.Practice.Topic = PracticeTopic.CustomText;
+        settings.Practice.ShuffleCustomText = true;
+        settings.Topics.Names = ["LACI"];
+
+        sut.ApplyPracticeSettings(settings);
+        settings.Topics.Names.Add("LEAKED");
+
+        Assert.AreEqual(PracticeTopic.CustomText, sut.Current.Practice.Topic);
+        Assert.IsTrue(sut.Current.Practice.ShuffleCustomText);
+        CollectionAssert.AreEqual(new[] { "LACI" }, sut.Current.Topics.Names);
+    }
+
+    [TestMethod]
+    public void ApplyImported_ReplacesTheTopicLists()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        var imported = CreateConfig();
+        imported.Topics.Cities = ["WIEN"];
+
+        sut.ApplyImported(imported);
+
+        CollectionAssert.AreEqual(new[] { "WIEN" }, sut.Current.Topics.Cities);
+        Assert.AreNotSame(imported.Topics, sut.Current.Topics);
+    }
+
+    [TestMethod]
     public void ApplyPracticeSettings_WhenPassedTheLiveCurrentItself_KeepsCharacterSets()
     {
         // The backup-import path re-applies the live config through the same wholesale

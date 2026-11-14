@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IMorseSignalRendererFactory, MorseSignalRendererFactory>();
             services.AddSingleton<IMorsePlayer, MorsePlayer>();
             services.AddSingleton<IMorseGenerator, MorseGenerator>();
+            services.AddSingleton<IPracticeTextGeneratorFactory, PracticeTextGeneratorFactory>();
             services.AddSingleton<IAppPaths, AppPaths>();
             services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) });
             services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();

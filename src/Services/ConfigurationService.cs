@@ -25,11 +25,14 @@ public sealed class ConfigurationService : IConfigurationService
 
     public AppConfig Current { get; }
 
+    public string? SetAsideSettingsBackupPath { get; }
+
     public ConfigurationService(IConfigurationStore store, ILogger<ConfigurationService> logger)
     {
         _store = store;
         _logger = logger;
         Current = _store.Load();
+        SetAsideSettingsBackupPath = _store.LastSetAsideBackupPath;
         Normalize();
     }
 
@@ -133,6 +136,17 @@ public sealed class ConfigurationService : IConfigurationService
         RequestSave();
     }
 
+    public void SetSelectedTopic(PracticeTopic topic)
+    {
+        if (Current.Practice.Topic == topic)
+        {
+            return;
+        }
+
+        Current.Practice.Topic = topic;
+        RequestSave();
+    }
+
     public void ApplyPracticeSettings(AppConfig settings)
     {
         var config = Current;
@@ -146,7 +160,10 @@ public sealed class ConfigurationService : IConfigurationService
         config.Audio.Noise = settings.Audio.Noise.Clone();
         config.Practice.DefaultCharacterSet = settings.Practice.DefaultCharacterSet;
         config.Practice.ErrorThreshold = settings.Practice.ErrorThreshold;
+        config.Practice.Topic = settings.Practice.Topic;
         config.Practice.CustomText = settings.Practice.CustomText;
+        config.Practice.ShuffleCustomText = settings.Practice.ShuffleCustomText;
+        config.Topics = (settings.Topics ?? new Topics()).Clone();
         config.Practice.AutoAdjustWpm = settings.Practice.AutoAdjustWpm;
         config.Practice.AutoAdjustWindowSize = settings.Practice.AutoAdjustWindowSize;
 
@@ -200,6 +217,9 @@ public sealed class ConfigurationService : IConfigurationService
     {
         Current.CharacterSets[name] = characters;
         Current.Practice.DefaultCharacterSet = name;
+        // A character set is only heard in 5-character groups, so selecting one to practice
+        // switches the topic to groups as well.
+        Current.Practice.Topic = PracticeTopic.Groups;
         return SaveAsync();
     }
 
@@ -225,6 +245,7 @@ public sealed class ConfigurationService : IConfigurationService
         var config = Current;
         config.Audio = copy.Audio;
         config.Practice = copy.Practice;
+        config.Topics = copy.Topics;
         config.Analytics = copy.Analytics;
         config.CharacterSets = copy.CharacterSets;
         config.UiPreferences = copy.UiPreferences;
