@@ -2,6 +2,13 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## Unreleased
+
+- **Practice topics:** a new Topic dropdown on the main window chooses what a session sends: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed. The character set applies to groups (and the groups of the mixed topic) only, and the duration to every topic but your own text.
+- **Topics tab in Settings:** edit the callsign patterns (`#` is a random digit, a lowercase letter a random letter, so `HA#xyz` gives e.g. `HA5ABC`), the cities, names and abbreviations, one per line, kept in alphabetical order. The custom text moved here from the Practice tab, with a new option to shuffle its words. The Character sets tab now follows Topics, before Audio.
+- **Settings remember their major version:** `settings.prmt` now records the major version of PentaGrammata that saved it. If a future major version cannot use your settings, it keeps your old file in the `backups` folder, starts from its defaults and tells you where the old file is. Your current settings are kept as they are. A backup made by another major version cannot be imported, and you are told why before anything is replaced.
+- **Your custom text is now a topic:** if you used a custom text before, choose "Custom text" in the Topic dropdown to hear it again; until then sessions send random groups.
+
 ## 2.1.5
 
 - **Check result scores your corrected copy:** if you fix a mistake in the received text after checking the result, checking again now compares the corrected text instead of showing the first comparison. A result you already saved stays as it was saved.

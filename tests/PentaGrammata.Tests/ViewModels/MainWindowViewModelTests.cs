@@ -277,6 +277,105 @@ public sealed class MainWindowViewModelTests
         Assert.AreEqual("Invalid settings", sut.Practice.TimeCounterText);
     }
 
+    [TestMethod]
+    public void SelectedTopic_StartsFromTheControllerAndListsEveryTopic()
+    {
+        var practiceController = CreateController();
+        practiceController.SelectedTopic.Returns(PracticeTopic.Cities);
+
+        var sut = CreateSut(practiceController);
+
+        Assert.AreEqual(PracticeTopic.Cities, sut.SelectedTopic.Topic);
+        CollectionAssert.AreEqual(Enum.GetValues<PracticeTopic>(), sut.Topics.Select(t => t.Topic).ToArray());
+        practiceController.DidNotReceiveWithAnyArgs().SelectedTopic = default;
+    }
+
+    [TestMethod]
+    public void SelectingATopic_IsPushedToTheController()
+    {
+        var practiceController = CreateController();
+        var sut = CreateSut(practiceController);
+
+        sut.SelectedTopic = sut.Topics.Single(t => t.Topic == PracticeTopic.Names);
+
+        practiceController.Received(1).SelectedTopic = PracticeTopic.Names;
+    }
+
+    [TestMethod]
+    [DataRow(PracticeTopic.Groups, true, true)]
+    [DataRow(PracticeTopic.Mixed, true, true)]
+    [DataRow(PracticeTopic.CallsignsEmea, false, true)]
+    [DataRow(PracticeTopic.Cities, false, true)]
+    [DataRow(PracticeTopic.CustomText, false, false)]
+    public void Topic_DecidesWhetherCharacterSetAndDurationApply(PracticeTopic topic, bool characterSet, bool duration)
+    {
+        var sut = CreateSut(CreateController());
+        var changed = new List<string?>();
+        sut.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        sut.SelectedTopic = sut.Topics.Single(t => t.Topic == topic);
+
+        Assert.AreEqual(characterSet, sut.CanSelectCharacterSet);
+        Assert.AreEqual(duration, sut.CanChangeDuration);
+        if (topic != PracticeTopic.Groups)
+        {
+            Assert.Contains(nameof(MainWindowViewModel.CanSelectCharacterSet), changed);
+            Assert.Contains(nameof(MainWindowViewModel.CanChangeDuration), changed);
+        }
+    }
+
+    [TestMethod]
+    public void NullTopicPushFromTheComboBox_KeepsTheTopic()
+    {
+        var practiceController = CreateController();
+        practiceController.SelectedTopic.Returns(PracticeTopic.Names);
+        var sut = CreateSut(practiceController);
+
+        sut.SelectedTopic = null!;
+
+        Assert.AreEqual(PracticeTopic.Names, sut.SelectedTopic.Topic);
+    }
+
+    [TestMethod]
+    public async Task ShowStartupNoticesAsync_TellsWhenTheSettingsWereSetAside()
+    {
+        var configService = CreateConfigService();
+        configService.SetAsideSettingsBackupPath.Returns("/profile/backups/old.prmt");
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        var sut = CreateSut(CreateController(), configService: configService, infoDialogService: infoDialogService);
+
+        await sut.ShowStartupNoticesAsync();
+
+        await infoDialogService.Received(1).ShowInfoAsync(
+            "Settings reset",
+            Arg.Is<string>(m => m.EndsWith("\n/profile/backups/old.prmt", StringComparison.Ordinal)),
+            Arg.Any<string?>(),
+            "Old settings file");
+    }
+
+    [TestMethod]
+    public async Task ShowStartupNoticesAsync_SaysNothingWhenNothingWasSetAside()
+    {
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        var sut = CreateSut(CreateController(), infoDialogService: infoDialogService);
+
+        await sut.ShowStartupNoticesAsync();
+
+        await infoDialogService.DidNotReceiveWithAnyArgs().ShowInfoAsync(default!, default!);
+    }
+
+    [TestMethod]
+    public async Task ShowStartupNoticesAsync_SwallowsADialogFailure()
+    {
+        var configService = CreateConfigService();
+        configService.SetAsideSettingsBackupPath.Returns("/profile/backups/old.prmt");
+        var infoDialogService = Substitute.For<IInfoDialogService>();
+        infoDialogService.ShowInfoAsync(default!, default!).ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("no window")));
+        var sut = CreateSut(CreateController(), configService: configService, infoDialogService: infoDialogService);
+
+        await sut.ShowStartupNoticesAsync();
+    }
+
     private static IPracticeController CreateController()
     {
         var practiceController = Substitute.For<IPracticeController>();
@@ -298,7 +397,8 @@ public sealed class MainWindowViewModelTests
         bool revealSentText = true,
         bool revealInLowercase = false,
         IConfigurationService? configService = null,
-        IBackupDialogService? backupDialogService = null)
+        IBackupDialogService? backupDialogService = null,
+        IInfoDialogService? infoDialogService = null)
     {
         configService ??= CreateConfigService(revealSentText, revealInLowercase);
         var practice = new PracticeViewModel(
@@ -316,7 +416,7 @@ public sealed class MainWindowViewModelTests
             confusionsDialogService ?? Substitute.For<IConfusionsDialogService>(),
             Substitute.For<ICorrelationDialogService>(),
             Substitute.For<IUpdateChecker>(),
-            Substitute.For<IInfoDialogService>(),
+            infoDialogService ?? Substitute.For<IInfoDialogService>(),
             backupDialogService ?? Substitute.For<IBackupDialogService>(),
             practice,
             logger ?? Substitute.For<ILogger<MainWindowViewModel>>());

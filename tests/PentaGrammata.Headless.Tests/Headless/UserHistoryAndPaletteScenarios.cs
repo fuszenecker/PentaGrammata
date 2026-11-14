@@ -48,7 +48,7 @@ public sealed partial class UserJourneyScenarios
         var defaults = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "settings.prmt")), ConfigurationFormat.Options);
         var allSymbols = defaults.CharacterSets["Full"];
         var settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), allSymbols);
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), allSymbols);
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "@sent");
         Assert.AreEqual(allSymbols, app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
@@ -58,9 +58,9 @@ public sealed partial class UserJourneyScenarios
     public Task UserSendsCustomTextRegardlessOfDurationOrSelectedPalette() => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "CQ\n   TEST <ar>");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "CQ\n   TEST <ar>");
         await ApplySettings(app, settings);
-        ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem = "Digits";
+        app.CharacterSetBox.SelectedItem = "Digits";
         ScenarioDesktop.Controls<NumericUpDown>(app.Main).Single().Value = 999;
         await ScoreAndSave(app, "CQ TEST <ar>");
         Assert.AreEqual("CQ TEST <ar>", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
@@ -78,7 +78,7 @@ public sealed partial class UserJourneyScenarios
     [DynamicData(nameof(BuiltInCharacterSets))]
     public Task UserSelectsAndPracticesEachBuiltInAndKochCharacterSet(string name) => Run(async app =>
     {
-        var selection = ScenarioDesktop.Controls<ComboBox>(app.Main).Single();
+        var selection = app.CharacterSetBox;
         selection.SelectedItem = name;
         await app.Practice("@sent");
         var result = await app.Result();
@@ -89,7 +89,7 @@ public sealed partial class UserJourneyScenarios
         await app.SaveResult(result);
         await app.CloseResult(result);
         Assert.AreEqual(name, app.Configuration.Current.Practice.DefaultCharacterSet);
-    }, c => c.Practice.CustomText = "");
+    }, c => c.Practice.Topic = PracticeTopic.Groups);
 
     [TestMethod]
     public Task UserSelectsAFontAndReopensTheirDisplayPreferences() => Run(async app =>
@@ -114,9 +114,9 @@ public sealed partial class UserJourneyScenarios
     public Task UserLowersTheReceiverGainToClearAnAudioDistortionWarning() => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 1);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.AudioTab);
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Signal level in dB").Value = 0;
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added").SelectedItem = NoiseType.Gaussian;
         ScenarioDesktop.Tip<NumericUpDown>(settings, "How much louder").Value = -20;
         ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, "AGC enabled")).IsChecked = true;
@@ -125,7 +125,7 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => !string.IsNullOrEmpty(vm.DistortionWarning), "display the real audio headroom warning");
         Assert.IsTrue(ScenarioDesktop.Controls<TextBlock>(settings).Any(t => t.Text == vm.DistortionWarning && t.IsVisible));
         ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added").SelectedItem = NoiseType.None;
-        ScenarioDesktop.Tab(settings, 1);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.AudioTab);
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Signal level in dB").Value = -40;
         await ScenarioDesktop.Until(() => string.IsNullOrEmpty(vm.DistortionWarning), "clear the distortion warning");
         await ApplySettings(app, settings);

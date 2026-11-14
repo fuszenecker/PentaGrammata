@@ -34,7 +34,9 @@ public interface IUserBackupService
 
     /// <summary>
     /// Returns the known entries present in the archive, or <c>null</c> when the stream is
-    /// not a readable PPAK1-LE archive containing at least one recognized entry.
+    /// not a readable PPAK1-LE archive containing at least one recognized entry. Throws
+    /// <c>UserBackupException</c> when the settings entry is unreadable or was saved by another
+    /// major version of the application, so the import is refused before it is confirmed.
     /// </summary>
     BackupContents? InspectArchive(Stream archive);
 

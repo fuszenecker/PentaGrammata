@@ -165,7 +165,7 @@ public sealed class UserBackupServiceTests
         await target.Statistics.SaveAsync(CreateRecord());
 
         var settings = PromptuariumSerializer.Serialize(new AppConfig
-        {
+        { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion,
             Practice = new Practice { CharacterWpm = 66 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
         }, ConfigurationFormat.Options);
@@ -181,12 +181,46 @@ public sealed class UserBackupServiceTests
     }
 
     [TestMethod]
+    [DataRow(1.0)]
+    [DataRow(99.0)]
+    public async Task ImportAsync_SettingsOfAnotherMajorVersion_AreRefusedBeforeAnythingChanges(double major)
+    {
+        var target = CreateContext(_tempDirectory);
+        target.ConfigService.Current.Practice.CharacterWpm = 22;
+        var settings = PromptuariumSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["AppMajorVersion"] = major,
+            ["Practice"] = new Dictionary<string, object?> { ["CharacterWpm"] = 44.0 },
+        }, ConfigurationFormat.Options);
+
+        var error = await Assert.ThrowsExactlyAsync<UserBackupException>(() =>
+            target.Backup.ImportAsync(new MemoryStream(CreateArchive(("settings.prmt", settings)))));
+
+        StringAssert.Contains(error.Message, $"PentaGrammata {(int)major}.x");
+        Assert.AreEqual(22, target.ConfigService.Current.Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    public async Task ImportAsync_SettingsWithoutAMajorVersion_AreImportedAsLegacy()
+    {
+        var target = CreateContext(_tempDirectory);
+        var settings = PromptuariumSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["Practice"] = new Dictionary<string, object?> { ["CharacterWpm"] = 44.0 },
+        }, ConfigurationFormat.Options);
+
+        await target.Backup.ImportAsync(new MemoryStream(CreateArchive(("settings.prmt", settings))));
+
+        Assert.AreEqual(44, target.ConfigService.Current.Practice.CharacterWpm);
+    }
+
+    [TestMethod]
     public async Task ImportAsync_RepeatedImports_KeepSeparateBackups()
     {
         var target = CreateContext(_tempDirectory);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
         var settings = PromptuariumSerializer.Serialize(new AppConfig
-        {
+        { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion,
             Practice = new Practice { CharacterWpm = 44 },
         }, ConfigurationFormat.Options);
         var archiveBytes = CreateArchive(("settings.prmt", settings));
@@ -410,7 +444,7 @@ public sealed class UserBackupServiceTests
     public async Task ImportAsync_OnlyNameAndContent_IsEnough()
     {
         var target = CreateContext(_tempDirectory);
-        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion, Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
         // No type, no CRC, no time, an unknown info node, and a repeated name (the first one counts).
         var root = new ElementBuilder().WithSignature(Data.FromAsciiString("PRMT:PPAK1-LE")).Build();
         root.Add(new Element(Data.FromUtf8String("SETTINGS.PRMT"), null,
@@ -435,7 +469,7 @@ public sealed class UserBackupServiceTests
     {
         var target = CreateContext(_tempDirectory);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
-        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion, Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
         var root = Element.FromBytes(CreateArchive(("settings.prmt", settings)));
         root.MetaData = signature is null ? ReadOnlyMemory<byte>.Empty : Data.FromAsciiString(signature);
 
@@ -450,7 +484,7 @@ public sealed class UserBackupServiceTests
     {
         var target = CreateContext(_tempDirectory);
         target.ConfigService.Current.Practice.CharacterWpm = 22;
-        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion, Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
         var root = Element.FromBytes(CreateArchive(("settings.prmt", settings)));
         root.Children[0].Children.Single(info => info.MetaData.AsAsciiString() == "crc32").Data = Data.FromUInt(0);
 
@@ -468,7 +502,7 @@ public sealed class UserBackupServiceTests
         target.WindowSizes.SaveSize("TrendsDialog", 100, 100);
         var windowSizesPath = Path.Combine(_tempDirectory, "windows.prmt");
         var windowSizesBytes = await File.ReadAllBytesAsync(windowSizesPath);
-        var settings = PromptuariumSerializer.Serialize(new AppConfig { Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
+        var settings = PromptuariumSerializer.Serialize(new AppConfig { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion, Practice = new Practice { CharacterWpm = 44 } }, ConfigurationFormat.Options);
         var archive = CreateArchive(("windows.prmt", EmptyContainer()), ("../settings.prmt", EmptyContainer()), ("settings.prmt", settings));
 
         var result = await target.Backup.ImportAsync(new MemoryStream(archive));
@@ -510,7 +544,7 @@ public sealed class UserBackupServiceTests
     {
         var target = CreateContext(_tempDirectory, withUserConfigPath: false);
         var settings = PromptuariumSerializer.Serialize(new AppConfig
-        {
+        { AppMajorVersion = ConfigurationFormat.CurrentMajorVersion,
             Practice = new Practice { CharacterWpm = 55 },
             CharacterSets = new CharacterSets { ["Letters"] = "ABCDEF" },
         }, ConfigurationFormat.Options);
@@ -541,6 +575,18 @@ public sealed class UserBackupServiceTests
         Assert.IsNotNull(contents);
         Assert.IsTrue(contents.AppSettings);
         Assert.IsTrue(contents.Database);
+    }
+
+    [TestMethod]
+    public void InspectArchive_SettingsOfAnotherMajorVersion_Throws()
+    {
+        var context = CreateContext(_tempDirectory);
+        var settings = PromptuariumSerializer.Serialize(new Dictionary<string, object?> { ["AppMajorVersion"] = 1.0 }, ConfigurationFormat.Options);
+
+        var error = Assert.ThrowsExactly<UserBackupException>(() =>
+            context.Backup.InspectArchive(new MemoryStream(CreateArchive(("settings.prmt", settings)))));
+
+        StringAssert.Contains(error.Message, "PentaGrammata 1.x");
     }
 
     [TestMethod]

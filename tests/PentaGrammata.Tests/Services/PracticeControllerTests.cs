@@ -45,7 +45,7 @@ public sealed class PracticeControllerTests
 
         morseGenerator.GenerateGroupsOf5("ABCDE", 28).Returns("ABCDE FGHIJ");
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         await sut.StartAsync();
 
@@ -76,7 +76,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public async Task StartAsync_WithConfiguredCustomText_SendsItVerbatimWithoutGenerating()
+    public async Task StartAsync_WithCustomTextTopic_SendsItVerbatimWithoutGenerating()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();
         var morseGenerator = Substitute.For<IMorseGenerator>();
@@ -86,10 +86,11 @@ public sealed class PracticeControllerTests
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.CustomText;
         config.Practice.CustomText = "CQ CQ DE HA5XYZ";
         configService.Current.Returns(config);
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         await sut.StartAsync();
 
@@ -112,10 +113,11 @@ public sealed class PracticeControllerTests
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.CustomText;
         config.Practice.CustomText = "  CQ  CQ\r\nDE   HA5XYZ\n";
         configService.Current.Returns(config);
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         await sut.StartAsync();
 
@@ -123,7 +125,7 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
-    public async Task StartAsync_WithBlankCustomText_FallsBackToGeneratedGroups()
+    public async Task StartAsync_WithGroupsTopic_IgnoresCustomTextAndGeneratesGroups()
     {
         var morsePlayer = Substitute.For<IMorsePlayer>();
         var morseGenerator = Substitute.For<IMorseGenerator>();
@@ -133,19 +135,63 @@ public sealed class PracticeControllerTests
         var logger = Substitute.For<ILogger<PracticeController>>();
 
         var config = CreateDefaultConfiguration();
-        config.Practice.CustomText = "   ";
+        config.Practice.Topic = PracticeTopic.Groups;
+        config.Practice.CustomText = "CQ CQ";
         config.Practice.DefaultDurationMins = 2;
         config.Practice.AverageWpm = 20;
         configService.Current.Returns(config);
 
         morseGenerator.GenerateGroupsOf5(Arg.Any<string>(), 28).Returns("ABCDE FGHIJ");
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         await sut.StartAsync();
 
         Assert.AreEqual("ABCDE FGHIJ", sut.LastGeneratedText);
         morseGenerator.Received(1).GenerateGroupsOf5("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 28);
+    }
+
+    [TestMethod]
+    public async Task StartAsync_WithCitiesTopic_SendsCitiesFromTheListForTheDuration()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var morseGenerator = Substitute.For<IMorseGenerator>();
+        var configService = Substitute.For<IConfigurationService>();
+
+        var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.Cities;
+        config.Practice.DefaultDurationMins = 1;
+        config.Practice.AverageWpm = 10;
+        config.Topics.Cities = ["Budapest", "Wien"];
+        configService.Current.Returns(config);
+
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator),
+            Substitute.For<IPracticeSettingsValidator>(), Substitute.For<IPracticeResultEvaluator>(), configService,
+            CreateAdjuster(), Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+
+        var words = sut.LastGeneratedText.Split(' ');
+        Assert.IsTrue(words.All(w => w is "BUDAPEST" or "WIEN"), sut.LastGeneratedText);
+        // 1 min at 10 WPM is worth 7 groups, i.e. 35 characters.
+        Assert.IsGreaterThanOrEqualTo(35, words.Sum(w => w.Length));
+        morseGenerator.DidNotReceiveWithAnyArgs().GenerateGroupsOf5(default!, default);
+    }
+
+    [TestMethod]
+    public void SelectedTopic_IsReadFromAndWrittenToTheConfiguration()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.Names;
+        configService.Current.Returns(config);
+        var sut = new PracticeController(Substitute.For<IMorsePlayer>(), new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
+            Substitute.For<IPracticeSettingsValidator>(), Substitute.For<IPracticeResultEvaluator>(), configService,
+            CreateAdjuster(), Substitute.For<ILogger<PracticeController>>());
+
+        Assert.AreEqual(PracticeTopic.Names, sut.SelectedTopic);
+        sut.SelectedTopic = PracticeTopic.Mixed;
+        configService.Received(1).SetSelectedTopic(PracticeTopic.Mixed);
     }
 
     [TestMethod]
@@ -168,7 +214,7 @@ public sealed class PracticeControllerTests
                 return true;
             });
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         var newSettings = CreateDefaultConfiguration();
         newSettings.Practice.CustomText = "NEW TEXT";
@@ -202,7 +248,7 @@ public sealed class PracticeControllerTests
         };
         resultEvaluator.Evaluate(string.Empty, "RX", 17.5).Returns(expected);
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         var actual = sut.BuildResult("RX");
 
@@ -229,7 +275,7 @@ public sealed class PracticeControllerTests
                 return false;
             });
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
 
         var success = sut.TryApplySettings(CreateDefaultConfiguration(), out var error);
 
@@ -257,7 +303,7 @@ public sealed class PracticeControllerTests
                 return true;
             });
 
-        var sut = new PracticeController(morsePlayer, morseGenerator, settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(morseGenerator), settingsValidator, resultEvaluator, configService, CreateAdjuster(), logger);
         var newSettings = new AppConfig
         {
             Practice = new Practice
@@ -623,7 +669,7 @@ public sealed class PracticeControllerTests
 
         var sut = new PracticeController(
             Substitute.For<IMorsePlayer>(),
-            Substitute.For<IMorseGenerator>(),
+            new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
             settingsValidator,
             Substitute.For<IPracticeResultEvaluator>(),
             configService,
@@ -650,7 +696,7 @@ public sealed class PracticeControllerTests
     {
         return new PracticeController(
             Substitute.For<IMorsePlayer>(),
-            Substitute.For<IMorseGenerator>(),
+            new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
             settingsValidator ?? Substitute.For<IPracticeSettingsValidator>(),
             resultEvaluator ?? Substitute.For<IPracticeResultEvaluator>(),
             configService,

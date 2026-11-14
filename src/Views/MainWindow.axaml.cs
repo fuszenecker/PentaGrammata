@@ -1,4 +1,6 @@
+using System;
 using Avalonia.Controls;
+using PentaGrammata.ViewModels;
 using Avalonia.Interactivity;
 
 namespace PentaGrammata.Views;
@@ -8,6 +10,16 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    protected override async void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        // async void is the event-handler boundary; the view model reports its own failures.
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            await viewModel.ShowStartupNoticesAsync();
+        }
     }
 
     private void OnPracticeClick(object? sender, RoutedEventArgs e)

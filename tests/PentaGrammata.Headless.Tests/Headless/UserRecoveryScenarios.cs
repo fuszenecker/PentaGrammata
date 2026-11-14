@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
@@ -66,7 +68,7 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_Export");
         await ScenarioDesktop.Until(() => !app.ViewModel.ExportCommand.IsRunning, "export original profile");
         var settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
         var settingsPath = Path.Combine(app.DirectoryPath, "settings.prmt");
@@ -139,7 +141,7 @@ public sealed partial class UserJourneyScenarios
         var original = File.ReadAllBytes(path);
         File.Delete(path);
         Directory.CreateDirectory(path);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "NEW");
         ScenarioDesktop.Click(settings, "Save");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "handle settings persistence failure");
         StringAssert.Contains(app.ViewModel.Practice.TimeCounterText, "could not be saved");
@@ -206,16 +208,14 @@ public sealed partial class UserJourneyScenarios
     public Task UserEditsCharacterSetsAndTheMainSelectionRefreshes() => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 3);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.CharacterSetsTab);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Format: name"), "My alphabet = KM<ar>\nMy digits = 0123");
         await ApplySettings(app, settings);
-        var selection = ScenarioDesktop.Controls<ComboBox>(app.Main).Single();
+        var selection = app.CharacterSetBox;
         Assert.AreEqual("My alphabet", selection.SelectedItem);
         Assert.IsTrue(selection.Items.Contains("My digits"));
         selection.SelectedItem = "My digits";
-        settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), " ");
-        await ApplySettings(app, settings);
+        app.TopicBox.SelectedItem = app.TopicBox.Items.OfType<PracticeTopicOption>().Single(t => t.Topic == PracticeTopic.Groups);
         await app.Practice("@sent");
         var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
         Assert.IsTrue(sent.Where(c => !char.IsWhiteSpace(c)).All(c => "0123".Contains(c)));
@@ -260,7 +260,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserPracticesAtTheToneVolumeAndEnvelopeControlLimits(int frequency, int volume, int ramp) => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 1);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.AudioTab);
         ScenarioDesktop.Tip<ComboBox>(settings, "Audio sample rate").SelectedItem = 48000;
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Pitch of the CW").Value = frequency;
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Signal level in dB").Value = volume;
@@ -289,7 +289,7 @@ public sealed partial class UserJourneyScenarios
         using (var target = File.Create(partial))
             BackupArchive.Write(target, [(component, content)]);
         var settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
         app.OpenChoices.Enqueue(partial);

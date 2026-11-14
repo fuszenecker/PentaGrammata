@@ -61,7 +61,10 @@ public sealed class UserBackupService : IUserBackupService
             // while the live state is always the complete, authoritative one.
             // Serialized as ConfigurationStore persists it, so the exported settings entry is
             // byte-equivalent to the per-user settings.prmt on disk.
-            var settingsBytes = PromptuariumSerializer.Serialize(_configurationService.Current, ConfigurationFormat.Options);
+            // Stamped with this major version, which an import checks.
+            var snapshot = _configurationService.Current.Clone();
+            snapshot.AppMajorVersion = ConfigurationFormat.CurrentMajorVersion;
+            var settingsBytes = PromptuariumSerializer.Serialize(snapshot, ConfigurationFormat.Options);
 
             // VACUUM INTO refuses to overwrite, so the temporary copy gets a fresh name.
             var tempDatabasePath = Path.Combine(Path.GetTempPath(), $"pentagrammata-{Guid.NewGuid():N}.db");
@@ -99,7 +102,15 @@ public sealed class UserBackupService : IUserBackupService
     {
         try
         {
-            var contents = ReadContents(BackupArchive.Read(archive, EntryNames));
+            var files = BackupArchive.Read(archive, EntryNames);
+            var contents = ReadContents(files);
+            if (contents.AppSettings)
+            {
+                // Refuse settings of another major version (or unreadable ones) before the user
+                // is asked to confirm the import. Throws UserBackupException with the reason.
+                ParseSettings(files[AppSettingsEntryName]);
+            }
+
             return contents.Any ? contents : null;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
@@ -446,13 +457,26 @@ public sealed class UserBackupService : IUserBackupService
 
     private static AppConfig ParseSettings(byte[] bytes)
     {
+        int majorVersion;
+        AppConfig settings;
         try
         {
-            return PromptuariumSerializer.Deserialize<AppConfig>(bytes, ConfigurationFormat.Options);
+            majorVersion = ConfigurationFormat.ReadMajorVersion(bytes);
+            settings = PromptuariumSerializer.Deserialize<AppConfig>(bytes, ConfigurationFormat.Options);
         }
         catch (InvalidDataException ex)
         {
             throw new UserBackupException("The backup contains an invalid settings file.", ex);
         }
+
+        // Settings of another major version may not fit this one (a breaking change), so they
+        // are refused here, before anything is replaced.
+        if (majorVersion != ConfigurationFormat.CurrentMajorVersion)
+        {
+            throw new UserBackupException(
+                $"The backup's settings were saved by PentaGrammata {majorVersion}.x; this version ({ConfigurationFormat.CurrentMajorVersion}.x) cannot import them.");
+        }
+
+        return settings;
     }
 }

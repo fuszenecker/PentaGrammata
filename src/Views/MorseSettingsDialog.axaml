@@ -14,8 +14,8 @@
         <TabControl Grid.Row="0" Background="#101010">
 
             <TabItem Header="Practice">
-                <Grid Margin="6" RowDefinitions="Auto,*">
-                    <StackPanel Grid.Row="0" Spacing="8">
+                <Grid Margin="6">
+                    <StackPanel Spacing="8">
                         <TextBlock Text="Character WPM"/>
                         <NumericUpDown Minimum="1" Maximum="50" Increment="1" FormatString="0" Value="{Binding CharacterWpm}"
                                        ToolTip.Tip="Speed at which each individual character is keyed (PARIS standard). Higher = dits and dahs are shorter and faster."/>
@@ -48,20 +48,81 @@
                                                ToolTip.Tip="When auto-adjust is on, the average error rate of the last N sessions is compared to the error threshold: above it slows the average WPM by 1, at or below it speeds up by 1. The session you just finished also counts on its own — if it is above the threshold the speed drops even when the average still looks good. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured WPM above is the starting point."/>
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="Custom text" Margin="0,4,0,0"/>
                     </StackPanel>
+                </Grid>
+            </TabItem>
 
-                    <TextBox Grid.Row="1" Margin="0,8,0,0"
-                             Text="{Binding CustomText}"
+            <TabItem Header="Topics">
+                <!-- Padding 0: the outer edges then sit 6 px from the window, as on the other tabs. -->
+                <TabControl Margin="6" Padding="0" TabStripPlacement="Left">
+                    <TabItem Header="Callsigns (EMEA)">
+                        <TextBox Margin="8,0,0,0" Text="{Binding CallsignPatternsEmeaText}"
+                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip.Tip="EMEA callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                    </TabItem>
+                    <TabItem Header="Callsigns (global)">
+                        <TextBox Margin="8,0,0,0" Text="{Binding CallsignPatternsGlobalText}"
+                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip.Tip="Worldwide callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                    </TabItem>
+                    <TabItem Header="Cities">
+                        <TextBox Margin="8,0,0,0" Text="{Binding CitiesText}"
+                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip.Tip="City names, one per line: the larger cities of the EMEA region and the capitals of the world."/>
+                    </TabItem>
+                    <TabItem Header="Names">
+                        <TextBox Margin="8,0,0,0" Text="{Binding NamesText}"
+                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip.Tip="Names, one per line: first names popular in Europe and the nicknames radio amateurs use."/>
+                    </TabItem>
+                    <TabItem Header="Abbreviations">
+                        <TextBox Margin="8,0,0,0" Text="{Binding AbbreviationsText}"
+                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip.Tip="Radio amateur abbreviations and Q-codes, one per line."/>
+                    </TabItem>
+                    <TabItem Header="Custom text">
+                        <Grid RowDefinitions="Auto,*" Margin="8,0,0,0">
+                            <CheckBox Grid.Row="0" Content="Shuffle words" IsChecked="{Binding ShuffleCustomText}"
+                                      ToolTip.Tip="Send the words of the custom text in a random order instead of as written."/>
+                            <TextBox Grid.Row="1" Margin="0,8,0,0"
+                                     Text="{Binding CustomText}"
+                                     TextWrapping="Wrap"
+                                     FontFamily="{StaticResource MonospaceFont}"
+                                     AcceptsReturn="True"
+                                     Padding="8,6"
+                                     MinHeight="60"
+                                     VerticalAlignment="Stretch"
+                                     HorizontalAlignment="Stretch"
+                                     ToolTip.Tip="The text the Custom text topic sends, whole, regardless of the practice duration and the character set. The Mixed topic mixes its words in too."
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </TabItem>
+
+            <TabItem Header="Character sets">
+                <Grid Margin="6" RowDefinitions="*">
+                    <TextBox Grid.Row="0"
+                             Text="{Binding CharacterSetsText}"
                              TextWrapping="Wrap"
                              FontFamily="{StaticResource MonospaceFont}"
                              AcceptsReturn="True"
                              Padding="8,6"
-                             MinHeight="60"
                              VerticalAlignment="Stretch"
                              HorizontalAlignment="Stretch"
-                             ToolTip.Tip="Leave empty to send randomly generated 5-character groups from the selected character set. Any text entered here is sent verbatim instead, ignoring the character set and the practice duration."
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ToolTip.Tip="Format: name = characters (one character set per line)."/>
                 </Grid>
             </TabItem>
 
@@ -187,21 +248,6 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Character sets">
-                <Grid Margin="6" RowDefinitions="*">
-                    <TextBox Grid.Row="0"
-                             Text="{Binding CharacterSetsText}"
-                             TextWrapping="Wrap"
-                             FontFamily="{StaticResource MonospaceFont}"
-                             AcceptsReturn="True"
-                             Padding="8,6"
-                             VerticalAlignment="Stretch"
-                             HorizontalAlignment="Stretch"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                             ToolTip.Tip="Format: name = characters (one character set per line)."/>
-                </Grid>
-            </TabItem>
 
         </TabControl>
 

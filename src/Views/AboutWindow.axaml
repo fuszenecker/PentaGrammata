@@ -35,7 +35,7 @@
                     <TextBlock Text="PentaGrammata" FontSize="26" FontWeight="Bold"/>
                     <TextBlock Text="Cross-platform Morse code copying practice"
                                Foreground="#9aa0a6" Margin="0,2,0,8"/>
-                    <TextBlock Text="Listen to five-character groups — or your own text — and type what you hear. Every session is scored, saved and turned into progress you can track."
+                    <TextBlock Text="Listen to five-character groups, callsigns, cities, names, Q-codes or your own text, and type what you hear. Every session is scored, saved and turned into progress you can track."
                                TextWrapping="Wrap" Foreground="#c9d1d9"/>
                 </StackPanel>
             </Grid>
@@ -56,7 +56,11 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Custom text mode: send your own text instead of random groups"/>
+                        <TextBlock Grid.Column="1" Text="Practice topics: random groups, EMEA or worldwide callsigns, cities, names, ham abbreviations and Q-codes, your own text (in order or shuffled), or all of them mixed"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Editable topic lists in Settings: callsign patterns (# a digit, a lowercase letter a random letter), cities, names and abbreviations, kept in alphabetical order"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
@@ -84,7 +88,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Backup export, import and restore: settings and statistics in a single Promptuarium (.prmt) archive"/>
+                        <TextBlock Grid.Column="1" Text="Backup export, import and restore: settings and statistics in a single Promptuarium (.prmt) archive. Settings saved by another major version are kept in the backups folder, and the defaults are used"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

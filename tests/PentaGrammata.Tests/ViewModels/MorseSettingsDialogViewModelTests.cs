@@ -446,6 +446,58 @@ public sealed class MorseSettingsDialogViewModelTests
     }
 
     /// <summary>A headroom analyzer that always reports 6 dB of headroom, so no warning shows.</summary>
+    [TestMethod]
+    public void TopicLists_AreShownOnePerLineAndSavedBackParsed()
+    {
+        var config = CreateConfig(20, 15, "Default");
+        config.Practice.Topic = PracticeTopic.Names;
+        config.Practice.ShuffleCustomText = true;
+        config.Topics = new Topics
+        {
+            CallsignPatternsEmea = ["HA#xyz", "DL#xy"],
+            CallsignPatternsGlobal = ["W#xy"],
+            Cities = ["WIEN", "CAPE TOWN"],
+            Names = ["LACI"],
+            Abbreviations = ["QRZ"],
+        };
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>()).Returns(true);
+        var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer(), new CharacterSetTextCodec());
+
+        // The editors show the lists in alphabetical order.
+        Assert.AreEqual("DL#xy" + Environment.NewLine + "HA#xyz", sut.CallsignPatternsEmeaText);
+        Assert.AreEqual("CAPE TOWN" + Environment.NewLine + "WIEN", sut.CitiesText);
+        Assert.IsTrue(sut.ShuffleCustomText);
+
+        sut.CallsignPatternsGlobalText = " VK#xyz \n\nJA#xyz";
+        sut.NamesText = "PISTA\nLACI\npista";
+        sut.AbbreviationsText = string.Empty;
+        sut.ShuffleCustomText = false;
+
+        Assert.IsTrue(sut.TryBuildSettings(out var settings));
+        Assert.AreEqual(PracticeTopic.Names, settings.Practice.Topic);
+        Assert.IsFalse(settings.Practice.ShuffleCustomText);
+        CollectionAssert.AreEqual(new[] { "DL#xy", "HA#xyz" }, settings.Topics.CallsignPatternsEmea);
+        CollectionAssert.AreEqual(new[] { "JA#xyz", "VK#xyz" }, settings.Topics.CallsignPatternsGlobal);
+        CollectionAssert.AreEqual(new[] { "CAPE TOWN", "WIEN" }, settings.Topics.Cities);
+        CollectionAssert.AreEqual(new[] { "LACI", "PISTA" }, settings.Topics.Names);
+        Assert.IsEmpty(settings.Topics.Abbreviations);
+    }
+
+    [TestMethod]
+    public void TryBuildSettings_ReportsTopicValidationErrors()
+    {
+        var config = CreateConfig(20, 15, "Default");
+        config.Practice.Topic = PracticeTopic.Cities;
+        config.Topics.Cities = ["WIEN"];
+        var sut = new MorseSettingsDialogViewModel(config, new PracticeSettingsValidator(), Analyzer(), new CharacterSetTextCodec());
+
+        sut.CitiesText = "  ";
+
+        Assert.IsFalse(sut.TryBuildSettings(out _));
+        Assert.AreEqual("The selected topic needs at least one entry in the list of cities.", sut.ErrorMessage);
+    }
+
     private static IAudioHeadroomAnalyzer Analyzer() => Analyzer(new AudioHeadroomReport(-6.0, 0.0, 6.0));
 
     private static IAudioHeadroomAnalyzer Analyzer(AudioHeadroomReport report)

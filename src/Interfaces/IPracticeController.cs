@@ -13,6 +13,9 @@ public interface IPracticeController
 
     string SelectedCharacterSet { get; set; }
 
+    /// <summary>What the next session sends (persisted as <c>Practice.Topic</c>).</summary>
+    PentaGrammata.Configuration.PracticeTopic SelectedTopic { get; set; }
+
     string LastGeneratedText { get; }
 
     /// <summary>

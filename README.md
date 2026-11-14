@@ -2,12 +2,14 @@
 
 A cross-platform Morse code copying practice application built with .NET 10 and Avalonia UI.
 
-PentaGrammata plays random five-character groups as Morse code audio and lets you type what you hear. After each session it scores your accuracy using Levenshtein distance and shows a side-by-side diff of sent vs. received groups.
+PentaGrammata plays random five-character groups (or callsigns, cities, names, abbreviations and Q-codes, or your own text) as Morse code audio and lets you type what you hear. After each session it scores your accuracy using Levenshtein distance and shows a side-by-side diff of sent vs. received groups.
 
 ## Features
 
 - Generates random 5-character groups from configurable character sets (letters, digits, punctuation, prosigns)
-- Optional custom text: enter your own text in Settings to send it verbatim instead of random groups
+- Practice topics, chosen from a dropdown on the main window: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed
+- Topic lists editable on the Topics tab of Settings, kept in alphabetical order: callsign patterns (`#` is a random digit, a lowercase letter a random letter, uppercase letters, digits and `/` are sent as written, so `HA#xyz` gives e.g. `HA5ABC`), cities, names and abbreviations
+- Custom text topic: your own text sent whole, in order or with its words shuffled
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
 - Receiver simulation: noise, band-pass filter, AGC and audio peak filter
 - Ionospheric QSB (signal fading) with adjustable fade depth and period
@@ -69,14 +71,22 @@ The installers are built only by the `Create Installer` workflow (`.github/workf
 | `Audio.Noise` | `QsbEnabled` | `false` | Ionospheric signal fading (QSB) on/off: the signal strength wanders down and recovers unpredictably, independently of noise |
 | `Audio.Noise` | `QsbDepthDb` | `10.0` | Deepest fade below full signal strength (dB); the signal wanders between full strength and this depth. 10 dB ≈ 3× down |
 | `Audio.Noise` | `QsbPeriodSeconds` | `5.0` | Seconds per fade cycle; larger = slower, more gradual fading |
+| _(root)_ | `AppMajorVersion` | current major | The major version that wrote the file; a per-user file of another major version is moved to `backups/` and the defaults are used |
 | `Practice` | `DefaultDurationMins` | `1` | Session length (minutes) |
 | `Practice` | `CharacterWpm` | `18` | Character speed (WPM) |
 | `Practice` | `AverageWpm` | `18` | Average (Farnsworth) speed (WPM) |
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
-| `Practice` | `CustomText` | _(empty)_ | Your own text to send instead of generated groups; empty = generate as usual |
+| `Practice` | `Topic` | `Groups` | What a session sends: `Groups`, `CallsignsEmea`, `CallsignsGlobal`, `Cities`, `Names`, `Abbreviations`, `CustomText` or `Mixed` |
+| `Practice` | `CustomText` | _(empty)_ | The text the `CustomText` topic sends whole (the duration and character set do not apply); `Mixed` mixes its words in too |
+| `Practice` | `ShuffleCustomText` | `false` | Send the words of the custom text in a random order |
 | `Practice` | `AutoAdjustWpm` | `false` | Dynamically adjust the practice WPM in memory after each scored session (slow down when the recent average error rate — or the session just finished — is above `ErrorThreshold`, speed up otherwise); the dynamic WPM is not persisted and restarts from the configured WPM on each app start |
 | `Practice` | `AutoAdjustWindowSize` | `1` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm` |
+| `Topics` | `CallsignPatternsEmea` | ~180 patterns | Callsign patterns of the EMEA region (`#` digit, lowercase letter = random letter) |
+| `Topics` | `CallsignPatternsGlobal` | ~310 patterns | Callsign patterns of the whole world |
+| `Topics` | `Cities` | ~280 cities | Larger cities of the EMEA region and the capitals of the world |
+| `Topics` | `Names` | ~180 names | First names popular in Europe and ham nicknames |
+| `Topics` | `Abbreviations` | ~100 entries | Ham abbreviations and Q-codes |
 | `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
 | `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
 | `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |
