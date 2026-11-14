@@ -10,7 +10,7 @@ PentaGrammata plays random five-character groups (or callsigns, cities, names, a
 - Practice topics, chosen from a dropdown on the main window: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed
 - Topic lists editable on the Topics tab of Settings, kept in alphabetical order: callsign patterns (`#` is a random digit, a lowercase letter a random letter, uppercase letters, digits and `/` are sent as written, so `HA#xyz` gives e.g. `HA5ABC`), cities, names and abbreviations
 - Custom text topic: your own text sent whole, in order or with its words shuffled
-- Multi-word entries (`NEW YORK`, `LITTLE JOHN`, `QSL VIA BURO`) are one item: you type them with ordinary spaces, and the result window shows each one in a single row (its words joined by `_`), scored word by word
+- Multi-word entries (`NEW YORK`, `LITTLE JOHN`, `QSL VIA BURO`) are one item: you type them with ordinary spaces, and the result window shows each one in a single row, with spaces that keep it on one line, scored word by word
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
 - Receiver simulation: noise, band-pass filter, AGC and audio peak filter
 - Ionospheric QSB (signal fading) with adjustable fade depth and period

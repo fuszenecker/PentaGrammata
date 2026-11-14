@@ -70,6 +70,12 @@ public static class PracticeItems
     public static List<string> SplitWords(string? text) =>
         PracticeItems.SplitItems(text).SelectMany(Words).ToList();
 
+    /// <summary>
+    /// An item as the result window shows it: the joiner becomes a no-break space, which looks
+    /// like an ordinary space but keeps a multi-word item on one line.
+    /// </summary>
+    public static string ToDisplay(string item) => item.Replace(WordJoiner, '\u00A0');
+
     /// <summary>The text with ordinary spaces only: for playback and for showing it to type.</summary>
     public static string ToPlain(string text) => text.Replace(WordJoiner, ' ');
 }

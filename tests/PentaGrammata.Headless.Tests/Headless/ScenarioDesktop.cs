@@ -108,6 +108,16 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         Assert.IsTrue(control.IsEffectivelyEnabled, $"Cannot operate disabled control {control}.");
         var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window);
         Assert.IsNotNull(point, "Control must be attached to the visible window.");
+        // A user moves the pointer to the control first, which closes a tooltip left open
+        // elsewhere (e.g. where the pointer rested after a dialog closed). Headless input has
+        // no motion between clicks, so do both here, or an overlapping tooltip takes the click.
+        window.MouseMove(point.Value);
+        foreach (var other in window.GetVisualDescendants().OfType<Control>().Where(c => !ReferenceEquals(c, control) && ToolTip.GetIsOpen(c)))
+        {
+            ToolTip.SetIsOpen(other, false);
+        }
+
+        window.UpdateLayout();
         window.MouseDown(point.Value, MouseButton.Left);
         window.MouseUp(point.Value, MouseButton.Left);
     }
