@@ -186,7 +186,7 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
     {
         foreach (var word in words ?? [])
         {
-            var unsendable = FirstUnsendable(CustomTextNormalizer.Normalize(word));
+            var unsendable = FirstUnsendable(PracticeItems.NormalizeEntry(word));
             if (unsendable is not null)
             {
                 error = $"{label} \"{word}\" contains something that cannot be sent as Morse code: \"{unsendable}\".";

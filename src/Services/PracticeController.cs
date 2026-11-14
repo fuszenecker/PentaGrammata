@@ -139,7 +139,8 @@ public class PracticeController : IPracticeController
 
             try
             {
-                string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
+                // The underscore joining the words of a multi-word item is an ordinary word gap.
+                string morseCodeToPlay = "vvv = " + PracticeItems.ToPlain(morseCode) + " <ar>";
                 var audio = _configurationService.Current.Audio;
                 var playbackSettings = MorsePlaybackSettings.From(audio, _lastUsedCharacterWpm, _lastUsedAverageWpm);
 

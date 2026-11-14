@@ -17,7 +17,8 @@ public static class TopicListText
     public static List<string> Parse(string? text) =>
         Sorted((text ?? string.Empty)
             .Split(["\r\n", "\n"], StringSplitOptions.None)
-            .Select(line => line.Trim())
+            // Any whitespace or underscore inside an entry is one ordinary space.
+            .Select(line => PracticeItems.NormalizeEntry(line))
             .Where(line => line.Length > 0));
 
     /// <summary>Alphabetical order (ignoring case), without repeats.</summary>

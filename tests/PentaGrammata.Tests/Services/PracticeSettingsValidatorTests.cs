@@ -413,6 +413,26 @@ public sealed class PracticeSettingsValidatorTests
         Assert.AreEqual("Unknown practice topic.", error);
     }
 
+    [TestMethod]
+    public void TryValidate_UnderscoreInAListEntry_IsASpace()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.Cities;
+        settings.Topics.Cities = ["NEW_YORK"];
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    public void TryValidate_UnderscoreInCustomText_CannotBeSent()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "QSL_VIA";
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        StringAssert.Contains(error, "\"_\"");
+    }
+
     private static AppConfig CreateValidSettings()
     {
         return new AppConfig

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
 
@@ -47,13 +48,13 @@ public sealed partial class UserJourneyScenarios
         {
             PracticeTopic.CallsignsEmea => item.Length == 6 && item.StartsWith("HA", StringComparison.Ordinal) && char.IsDigit(item[2]) && item[3..].All(char.IsAsciiLetterUpper),
             PracticeTopic.CallsignsGlobal => item.Length == 5 && item.StartsWith("JA1", StringComparison.Ordinal) && item[3..].All(char.IsAsciiLetterUpper),
-            PracticeTopic.Cities => item is "WIEN" or "CAPE" or "TOWN",
+            PracticeTopic.Cities => item is "WIEN" or "CAPE_TOWN",
             PracticeTopic.Names => item == "LACI",
             _ => item is "QRZ" or "73",
         };
-        Assert.IsTrue(sent.Split(' ').All(Matches), sent);
+        Assert.IsTrue(PracticeItems.SplitItems(sent).All(Matches), sent);
         // 1 minute at 15 WPM is worth 10 groups of 5 characters.
-        Assert.IsGreaterThanOrEqualTo(50, sent.Replace(" ", string.Empty).Length, sent);
+        Assert.IsGreaterThanOrEqualTo(50, string.Concat(PracticeItems.SplitWords(sent)).Length, sent);
 
         var result = await app.Result();
         Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
@@ -71,7 +72,7 @@ public sealed partial class UserJourneyScenarios
 
         var items = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText.Split(' ');
         Assert.IsTrue(items.All(i => i == "AAAAA" || i.StartsWith("HA", StringComparison.Ordinal) || i.StartsWith("JA1", StringComparison.Ordinal)
-            || i is "WIEN" or "CAPE" or "TOWN" or "LACI" or "QRZ" or "73" or "TEST"), string.Join(' ', items));
+            || i is "WIEN" or "CAPE_TOWN" or "LACI" or "QRZ" or "73" or "TEST"), string.Join(' ', items));
         Assert.IsGreaterThan(1, items.Select(i => i[..Math.Min(2, i.Length)]).Distinct().Count(), "A mixed session draws from more than one topic.");
         var result = await app.Result();
         Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
@@ -367,24 +368,109 @@ public sealed partial class UserJourneyScenarios
     });
 
     [TestMethod]
-    public Task UserCopiesMultiWordCityNamesAndMistakesAreCountedPerCharacter() => Run(async app =>
+    public Task UserCopiesMultiWordCityNamesAndSeesEachCityInOneRow() => Run(async app =>
     {
         SelectTopic(app, PracticeTopic.Cities);
         await app.Practice(null);
         var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
-        Assert.Contains("CAPE TOWN", sent);
+        var items = PracticeItems.SplitItems(sent);
+        Assert.IsTrue(items.All(i => i == "CAPE_TOWN"), sent);
 
-        var index = sent.IndexOf("TOWN", StringComparison.Ordinal);
-        var copy = sent[..index] + "TOWM" + sent[(index + 4)..];
-        ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, copy);
+        // Typed with ordinary spaces, one mistake in the first city.
+        var plain = PracticeItems.ToPlain(sent);
+        var index = plain.IndexOf("TOWN", StringComparison.Ordinal);
+        ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, plain[..index] + "TOWM" + plain[(index + 4)..]);
         var result = await app.Result();
         var vm = (PracticeResultWindowViewModel)result.DataContext!;
+
         Assert.AreEqual("1", vm.ErrorsText);
-        Assert.IsTrue(vm.Rows.Any(r => r.ReceivedGroup == "TOWM"));
+        Assert.HasCount(items.Count, vm.Rows, "One row per city, not per word.");
+        Assert.AreEqual("CAPE_TOWM", vm.Rows[0].ReceivedGroup);
+        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == "CAPE_TOWN"));
+        Assert.IsTrue(vm.Rows.Skip(1).All(r => r.ReceivedGroup == "CAPE_TOWN"));
+        Assert.AreEqual(((PracticeResultWindowViewModel)result.DataContext!).Rows.Count, items.Count);
+        await app.SaveResult(result);
         await app.CloseResult(result);
+        var saved = (await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync()).Single();
+        Assert.AreEqual(items.Count * 8, saved.CharacterCount, "The space inside a city is not a character.");
+        Assert.AreEqual(1, saved.ErrorCount);
     }, c =>
     {
         ArrangeTopicLists(c);
         c.Topics.Cities = ["CAPE TOWN"];
     });
+
+    [TestMethod]
+    [DataRow(PracticeTopic.Names, "LITTLE JOHN")]
+    [DataRow(PracticeTopic.Abbreviations, "QSL VIA BURO")]
+    public Task UserSeesTheRevealedTextWithOrdinarySpacesAndCopiesMultiWordItems(PracticeTopic topic, string entry) => Run(async app =>
+    {
+        SelectTopic(app, topic);
+        await app.Practice(null);
+
+        var revealed = app.ViewModel.Practice.ReceivedText;
+        Assert.DoesNotContain("_", revealed, "The copy box only ever holds ordinary spaces.");
+        StringAssert.StartsWith(revealed, entry);
+        var result = await app.Result();
+        var vm = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", vm.ErrorsText);
+        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == entry.Replace(' ', '_')));
+        await app.CloseResult(result);
+    }, c =>
+    {
+        ArrangeTopicLists(c);
+        c.Topics.Names = ["Little John"];
+        c.Topics.Abbreviations = ["QSL  VIA BURO"];
+        c.UiPreferences.RevealSentTextAfterPractice = true;
+    });
+
+    [TestMethod]
+    public Task UserTypesAUnderscoreAndItCountsAsASpace() => Run(async app =>
+    {
+        SelectTopic(app, PracticeTopic.Cities);
+        await app.Practice(null);
+        var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
+
+        // The copy uses underscores between the items as well: the same as ordinary ones.
+        ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, sent.Replace(' ', '_'));
+        var result = await app.Result();
+        Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
+        Assert.HasCount(PracticeItems.SplitItems(sent).Count, ((PracticeResultWindowViewModel)result.DataContext!).Rows);
+        await app.CloseResult(result);
+    }, c =>
+    {
+        ArrangeTopicLists(c);
+        c.Topics.Cities = ["NEW YORK", "WIEN"];
+    });
+
+    [TestMethod]
+    public Task UserEntersAMultiWordCityInSettingsWithAnyKindOfSpace() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.CitiesSubTab);
+        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "City names"), "FRANKFURT   AM_MAIN\nDEN HAAG");
+        await ApplySettings(app, settings);
+
+        CollectionAssert.AreEqual(new[] { "DEN HAAG", "FRANKFURT AM MAIN" }, app.Configuration.Current.Topics.Cities,
+            "Saved with ordinary single spaces.");
+        SelectTopic(app, PracticeTopic.Cities);
+        await app.Practice("@sent");
+        var items = PracticeItems.SplitItems(app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
+        Assert.IsTrue(items.All(i => i is "DEN_HAAG" or "FRANKFURT_AM_MAIN"), string.Join('|', items));
+        var result = await app.Result();
+        Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
+        await app.CloseResult(result);
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserCopiesCustomTextWordByWord() => Run(async app =>
+    {
+        await app.Practice("QSL VIA BURO");
+        var result = await app.Result();
+        var vm = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.HasCount(3, vm.Rows, "The custom text stays word by word.");
+        Assert.AreEqual("0", vm.ErrorsText);
+        await app.CloseResult(result);
+    }, c => c.Practice.CustomText = "QSL VIA BURO");
 }

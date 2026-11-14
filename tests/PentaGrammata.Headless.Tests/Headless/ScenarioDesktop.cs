@@ -194,7 +194,8 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
         await Until(() => Audio.Started || !ViewModel.Practice.IsPracticeOperationActive, "start audio playback");
         Assert.IsTrue(Audio.Started, $"The real Morse renderer must reach the audio device. {trace.Report()}");
         if (received is not null) Text(Main, Main.FindControl<TextBox>("ReceivedTextBox")!,
-            received == "@sent" ? Services.GetRequiredService<IPracticeController>().LastGeneratedText : received);
+            // "@sent" types the sent text as a person would: with ordinary spaces only.
+            received == "@sent" ? PentaGrammata.Services.PracticeItems.ToPlain(Services.GetRequiredService<IPracticeController>().LastGeneratedText) : received);
         if (stop) Click(Main, "Stop"); else Audio.Complete();
         await Until(() => !ViewModel.Practice.IsPracticeOperationActive, "finish practice");
     }

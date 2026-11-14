@@ -40,4 +40,10 @@ public sealed class TopicListTextTests
         Assert.AreEqual("A" + Environment.NewLine + "B C", text);
         CollectionAssert.AreEqual(new[] { "A", "B C" }, TopicListText.Parse(text));
     }
+
+    [TestMethod]
+    public void Parse_TurnsAnyWhitespaceInsideAnEntryIntoOneSpace()
+    {
+        CollectionAssert.AreEqual(new[] { "FRANKFURT AM MAIN", "NEW YORK" }, TopicListText.Parse("NEW_YORK\nFRANKFURT   AM\tMAIN\nnew york"));
+    }
 }

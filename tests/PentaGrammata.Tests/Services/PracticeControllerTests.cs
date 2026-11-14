@@ -179,6 +179,27 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
+    public async Task StartAsync_PlaysMultiWordItemsWithOrdinaryWordGaps()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.Cities;
+        config.Practice.DefaultDurationMins = 1;
+        config.Practice.AverageWpm = 1;
+        config.Topics.Cities = ["NEW YORK"];
+        configService.Current.Returns(config);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
+            Substitute.For<IPracticeSettingsValidator>(), Substitute.For<IPracticeResultEvaluator>(), configService,
+            CreateAdjuster(), Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+
+        Assert.AreEqual("NEW_YORK", sut.LastGeneratedText);
+        await morsePlayer.Received(1).PlayMorseCodeAsync("vvv = NEW YORK <ar>", Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
     public void SelectedTopic_IsReadFromAndWrittenToTheConfiguration()
     {
         var configService = Substitute.For<IConfigurationService>();
