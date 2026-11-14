@@ -385,9 +385,12 @@ public sealed partial class UserJourneyScenarios
 
         Assert.AreEqual("1", vm.ErrorsText);
         Assert.HasCount(items.Count, vm.Rows, "One row per city, not per word.");
-        Assert.AreEqual("CAPE_TOWM", vm.Rows[0].ReceivedGroup);
-        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == "CAPE_TOWN"));
-        Assert.IsTrue(vm.Rows.Skip(1).All(r => r.ReceivedGroup == "CAPE_TOWN"));
+        // Shown with a space that does not break the city across lines, never with "_".
+        Assert.AreEqual("CAPE\u00A0TOWM", vm.Rows[0].ReceivedGroup);
+        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == "CAPE\u00A0TOWN"));
+        Assert.IsTrue(vm.Rows.Skip(1).All(r => r.ReceivedGroup == "CAPE\u00A0TOWN"));
+        Assert.IsTrue(ScenarioDesktop.Controls<TextBlock>(result).Any(t => t.Text == "CAPE\u00A0TOWN"), "The city is on screen in one piece.");
+        Assert.IsFalse(ScenarioDesktop.Controls<TextBlock>(result).Any(t => t.Text?.Contains('_') == true), "No underscore is ever shown.");
         Assert.AreEqual(((PracticeResultWindowViewModel)result.DataContext!).Rows.Count, items.Count);
         await app.SaveResult(result);
         await app.CloseResult(result);
@@ -414,7 +417,8 @@ public sealed partial class UserJourneyScenarios
         var result = await app.Result();
         var vm = (PracticeResultWindowViewModel)result.DataContext!;
         Assert.AreEqual("0", vm.ErrorsText);
-        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == entry.Replace(' ', '_')));
+        Assert.IsTrue(vm.Rows.All(r => r.SentGroup == entry.Replace(' ', '\u00A0')));
+        Assert.IsFalse(ScenarioDesktop.Controls<TextBlock>(result).Any(t => t.Text?.Contains('_') == true), "No underscore is ever shown.");
         await app.CloseResult(result);
     }, c =>
     {

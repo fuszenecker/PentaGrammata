@@ -2,9 +2,13 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.2.2
+
+- **The result window shows spaces in multi-word items:** a city, name or abbreviation of several words (`CAPE TOWN`, `LITTLE JOHN`, `QSL VIA BURO`) is shown with ordinary-looking spaces that keep it on one line, instead of the underscores 2.2.1 showed.
+
 ## 2.2.1
 
-- **Multi-word cities, names and abbreviations stay together:** an entry such as `NEW YORK`, `FRANKFURT AM MAIN`, `LITTLE JOHN` or `QSL VIA BURO` is one item. You type it with ordinary spaces as before; the result window now shows it in one row, its words joined by `_`, and still scores it word by word. An underscore you type counts as a space. Your custom text stays word by word.
+- **Multi-word cities, names and abbreviations stay together:** an entry such as `NEW YORK`, `FRANKFURT AM MAIN`, `LITTLE JOHN` or `QSL VIA BURO` is one item. You type it with ordinary spaces as before; the result window now shows it in one row and still scores it word by word. An underscore you type counts as a space. Your custom text stays word by word.
 
 ## 2.2.0
 

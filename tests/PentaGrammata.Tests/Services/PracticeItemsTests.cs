@@ -47,4 +47,10 @@ public sealed class PracticeItemsTests
         CollectionAssert.AreEqual(new[] { "LITTLE", "JOHN" }, PracticeItems.Words(item));
         Assert.AreEqual("LITTLE JOHN WIEN", PracticeItems.ToPlain(item + " WIEN"));
     }
+
+    [TestMethod]
+    public void ToDisplay_ShowsTheJoinerAsANoBreakSpace()
+    {
+        Assert.AreEqual("FRANKFURT\u00A0AM\u00A0MAIN", PracticeItems.ToDisplay("FRANKFURT_AM_MAIN"));
+    }
 }
