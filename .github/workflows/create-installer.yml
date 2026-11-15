@@ -7,7 +7,7 @@ name: Create Installer
 #
 #   check          -> the tag is the version of version.txt, and RELEASE_NOTES.md has its notes
 #   test           -> the tests of the tagged code
-#   build-linux    -> .deb (Ubuntu 26.04) + .rpm (Rocky 10), built in Podman containers of those distributions
+#   build-linux    -> .deb + .rpm, built directly on an Ubuntu runner (dpkg-deb, rpmbuild)
 #   build-windows  -> .exe (NSIS) on a Windows runner
 #   build-macos    -> .dmg (Apple Silicon) on a macOS runner
 #   release        -> a stable release, always marked latest, with the notes and all the installers
@@ -90,7 +90,7 @@ jobs:
         run: dotnet test PentaGrammata.slnx --configuration Release
 
   build-linux:
-    name: Build .deb and .rpm (Podman)
+    name: Build .deb and .rpm
     needs: check
     runs-on: ubuntu-latest
     env:
@@ -100,8 +100,22 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
-      - name: Build the .deb and .rpm installers
-        run: ./scripts/Build-Installer.Podman.sh --format all --version "${VERSION}"
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      # dpkg-deb comes with the runner; rpmbuild is in Ubuntu's rpm package
+      - name: Install rpmbuild
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm
+
+      # The self-contained publish is made once, by the .deb build, and reused by the .rpm build
+      - name: Build the .deb installer
+        run: ./scripts/Build-Deb-Installer.sh --version "${VERSION}"
+
+      - name: Build the .rpm installer
+        run: ./scripts/Build-Rpm-Installer.sh --version "${VERSION}" --skip-publish
 
       - name: Verify the installers
         run: |

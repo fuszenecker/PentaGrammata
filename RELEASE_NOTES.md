@@ -5,6 +5,8 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.2.2
 
 - **The result window shows spaces in multi-word items:** a city, name or abbreviation of several words (`CAPE TOWN`, `LITTLE JOHN`, `QSL VIA BURO`) is shown with ordinary-looking spaces that keep it on one line, instead of the underscores 2.2.1 showed.
+- **The Linux installers state their license:** the .deb and .rpm now carry AppStream metadata, so the software center shows PentaGrammata by name with its MIT license instead of warning that the license is unknown.
+- **The Windows installer lets you choose the components:** besides the application, which is always installed, you can choose whether to create the Start Menu shortcuts and the Desktop shortcut.
 
 ## 2.2.1
 

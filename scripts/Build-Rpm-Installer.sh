@@ -107,8 +107,10 @@ fi
 PACKAGE_NAME="pentagrammata"
 DISPLAY_NAME="PentaGrammata"
 SUMMARY="Morse code practice desktop application"
-HOMEPAGE="https://github.com/rfuszenecker/PentaGrammata"
+HOMEPAGE="https://github.com/fuszenecker/PentaGrammata"
 LICENSE="MIT"
+METAINFO_ID="io.github.fuszenecker.PentaGrammata"
+METAINFO_SOURCE="${SCRIPT_DIR}/linux/${METAINFO_ID}.metainfo.xml"
 
 PUBLISH_DIR="${REPO_ROOT}/publish/${RUNTIME}"
 OUTPUT_DIR="${REPO_ROOT}/installer/rpm"
@@ -159,10 +161,14 @@ mkdir -p \
   "${SOURCE_ROOT}/opt/${PACKAGE_NAME}" \
   "${SOURCE_ROOT}/usr/bin" \
   "${SOURCE_ROOT}/usr/share/applications" \
-  "${SOURCE_ROOT}/usr/share/icons/hicolor/256x256/apps"
+  "${SOURCE_ROOT}/usr/share/icons/hicolor/256x256/apps" \
+  "${SOURCE_ROOT}/usr/share/metainfo"
 
 cp -a "${PUBLISH_DIR}/." "${SOURCE_ROOT}/opt/${PACKAGE_NAME}/"
 cp "${ICON_SOURCE}" "${SOURCE_ROOT}/usr/share/icons/hicolor/256x256/apps/${PACKAGE_NAME}.png"
+# AppStream metadata: software centers read the license (and the name) of a local .rpm from it.
+install -m 0644 "${METAINFO_SOURCE}" "${SOURCE_ROOT}/usr/share/metainfo/${METAINFO_ID}.metainfo.xml"
+install -m 0644 "${REPO_ROOT}/LICENSE" "${SOURCE_ROOT}/LICENSE"
 
 cat > "${SOURCE_ROOT}/usr/bin/${PACKAGE_NAME}" <<EOF
 #!/usr/bin/env bash
@@ -218,10 +224,12 @@ cp -a opt %{buildroot}/
 cp -a usr %{buildroot}/
 
 %files
+%license LICENSE
 /opt/${PACKAGE_NAME}
 /usr/bin/${PACKAGE_NAME}
 /usr/share/applications/${PACKAGE_NAME}.desktop
 /usr/share/icons/hicolor/256x256/apps/${PACKAGE_NAME}.png
+/usr/share/metainfo/${METAINFO_ID}.metainfo.xml
 
 %changelog
 * $(LC_ALL=C date "+%a %b %d %Y") ${DISPLAY_NAME} Packaging <noreply@localhost> - ${VERSION}-${RELEASE}

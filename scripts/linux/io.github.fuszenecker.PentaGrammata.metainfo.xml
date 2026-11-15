@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: software centers (Ubuntu App Center, GNOME Software, KDE Discover) read the name,
+     the summary and the license of a locally opened .deb/.rpm from here. Installed to /usr/share/metainfo. -->
+<component type="desktop-application">
+  <id>io.github.fuszenecker.PentaGrammata</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>PentaGrammata</name>
+  <summary>Morse code copying practice</summary>
+  <developer id="io.github.fuszenecker">
+    <name>Róbert Fuszenecker</name>
+  </developer>
+  <description>
+    <p>
+      PentaGrammata plays random five-character groups, callsigns, cities, names, abbreviations or your own text
+      as Morse code with Farnsworth timing, and checks what you copied.
+    </p>
+    <p>
+      Every session is scored and saved, and the trends and correlation charts show how your speed and accuracy
+      develop. The speed can adjust itself to your error rate.
+    </p>
+  </description>
+  <launchable type="desktop-id">pentagrammata.desktop</launchable>
+  <icon type="stock">pentagrammata</icon>
+  <url type="homepage">https://github.com/fuszenecker/PentaGrammata</url>
+  <url type="bugtracker">https://github.com/fuszenecker/PentaGrammata/issues</url>
+  <categories>
+    <category>Utility</category>
+    <category>HamRadio</category>
+  </categories>
+  <provides>
+    <binary>pentagrammata</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>
