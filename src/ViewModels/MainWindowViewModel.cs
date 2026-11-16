@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -6,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 using PentaGrammata.Presentation;
 using PentaGrammata.Exceptions;
 
@@ -55,6 +57,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string selectedCharacterSet = "Default";
+
+    public IReadOnlyList<PracticeTopicOption> Topics { get; } = PracticeTopicOption.All;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSelectCharacterSet), nameof(CanChangeDuration))]
+    private PracticeTopicOption selectedTopic = PracticeTopicOption.All[0];
+
+    /// <summary>The character set matters only to topics that send 5-character groups.</summary>
+    public bool CanSelectCharacterSet =>
+        PracticeTopicOption.UsesCharacterSet(SelectedTopic.Topic) && !Practice.IsPracticeOperationActive;
+
+    /// <summary>The custom text is sent whole, so the duration matters to every other topic.</summary>
+    public bool CanChangeDuration =>
+        PracticeTopicOption.UsesDuration(SelectedTopic.Topic) && !Practice.IsPracticeOperationActive;
 
     [ObservableProperty]
     private string receivedTextFontFamily = string.Empty;
@@ -116,8 +132,36 @@ public partial class MainWindowViewModel : ViewModelBase
             if (args.PropertyName == nameof(PracticeViewModel.IsPracticeOperationActive))
             {
                 NotifyConfigurationCommandStates();
+                OnPropertyChanged(nameof(CanSelectCharacterSet));
+                OnPropertyChanged(nameof(CanChangeDuration));
             }
         };
+    }
+
+    /// <summary>
+    /// Called once when the main window opens: tells the user when their settings file
+    /// belonged to another major version and was set aside for the defaults.
+    /// </summary>
+    public async Task ShowStartupNoticesAsync()
+    {
+        var backupPath = _configurationService.SetAsideSettingsBackupPath;
+        if (string.IsNullOrEmpty(backupPath))
+        {
+            return;
+        }
+
+        try
+        {
+            await _infoDialogService.ShowInfoAsync(
+                "Settings reset",
+                "Your settings were saved by another major version of PentaGrammata, so this version starts from its default settings. The old settings file was kept:\n" + backupPath,
+                detailHeading: "Old settings file");
+        }
+        catch (System.Exception ex)
+        {
+            // Called from the window's Opened handler: a failure must not take the app down.
+            _logger.LogError(ex, "Could not show the settings reset notice");
+        }
     }
 
     public async Task OpenSettingsDialogAsync()
@@ -329,6 +373,8 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     private void RefreshCharacterSets()
     {
+        RefreshSelectedTopic();
+
         var selected = _practiceController.SelectedCharacterSet;
 
         suppressSelectedCharacterSetPush = true;
@@ -342,6 +388,37 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedCharacterSet = selected;
+    }
+
+    private bool suppressSelectedTopicPush;
+
+    private void RefreshSelectedTopic()
+    {
+        suppressSelectedTopicPush = true;
+        try
+        {
+            SelectedTopic = PracticeTopicOption.All.FirstOrDefault(o => o.Topic == _practiceController.SelectedTopic)
+                ?? PracticeTopicOption.All[0];
+        }
+        finally
+        {
+            suppressSelectedTopicPush = false;
+        }
+    }
+
+    partial void OnSelectedTopicChanged(PracticeTopicOption value)
+    {
+        // A ComboBox may push null while its items are swapped; keep the last real topic.
+        if (value is null)
+        {
+            RefreshSelectedTopic();
+            return;
+        }
+
+        if (!suppressSelectedTopicPush)
+        {
+            _practiceController.SelectedTopic = value.Topic;
+        }
     }
 
     partial void OnSelectedCharacterSetChanged(string value)

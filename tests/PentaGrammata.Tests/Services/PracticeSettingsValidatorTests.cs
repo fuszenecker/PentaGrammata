@@ -297,6 +297,142 @@ public sealed class PracticeSettingsValidatorTests
         Assert.AreEqual(string.Empty, error);
     }
 
+    [TestMethod]
+    public void TryValidate_CustomTextTopicWithoutText_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.CustomText;
+        settings.Practice.CustomText = "  ";
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual("The custom text topic needs a custom text.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_BlankCustomTextWithAnotherTopic_ReturnsTrue()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.Groups;
+        settings.Practice.CustomText = string.Empty;
+
+        Assert.IsTrue(_validator.TryValidate(settings, out _));
+    }
+
+    [TestMethod]
+    [DataRow(PracticeTopic.CallsignsEmea, "EMEA callsign patterns")]
+    [DataRow(PracticeTopic.CallsignsGlobal, "global callsign patterns")]
+    [DataRow(PracticeTopic.Cities, "cities")]
+    [DataRow(PracticeTopic.Names, "names")]
+    [DataRow(PracticeTopic.Abbreviations, "abbreviations")]
+    public void TryValidate_SelectedTopicWithEmptyList_ReturnsFalse(PracticeTopic topic, string listName)
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = topic;
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual($"The selected topic needs at least one entry in the list of {listName}.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_EmptyListsOfOtherTopics_AreAllowed()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.Mixed;
+
+        Assert.IsTrue(_validator.TryValidate(settings, out _));
+    }
+
+    [TestMethod]
+    [DataRow("HA#xyz")]
+    [DataRow("DL/HA#x")]
+    [DataRow("9A1ABC")]
+    public void TryValidate_SendableCallsignPatterns_ReturnTrue(string pattern)
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.CallsignsEmea;
+        settings.Topics.CallsignPatternsEmea = [pattern];
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    public void TryValidate_CallsignPatternWithUnsendableCharacter_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Topics.CallsignPatternsGlobal = ["W#x$"];
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual("Global callsign pattern \"W#x$\" contains something that cannot be sent as Morse code: \"$\".", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_CallsignPatternWithSpace_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Topics.CallsignPatternsEmea = ["HA# xyz"];
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual("EMEA callsign pattern \"HA# xyz\" must not contain spaces.", error);
+    }
+
+    [TestMethod]
+    [DataRow("City", "MÜNCHEN", "Ü")]
+    [DataRow("Name", "JOSÉ", "É")]
+    [DataRow("Abbreviation", "QRZ?!", "!")]
+    public void TryValidate_UnsendableWord_ReturnsFalse(string label, string word, string token)
+    {
+        var settings = CreateValidSettings();
+        switch (label)
+        {
+            case "City": settings.Topics.Cities = ["WIEN", word]; break;
+            case "Name": settings.Topics.Names = [word]; break;
+            default: settings.Topics.Abbreviations = [word]; break;
+        }
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual($"{label} \"{word}\" contains something that cannot be sent as Morse code: \"{token}\".", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_MultiWordEntries_AreAllowed()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.Cities;
+        settings.Topics.Cities = ["Cape Town", "Tel Aviv"];
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    public void TryValidate_UndefinedTopic_ReturnsFalse()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = (PracticeTopic)99;
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual("Unknown practice topic.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_UnderscoreInAListEntry_IsASpace()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.Topic = PracticeTopic.Cities;
+        settings.Topics.Cities = ["NEW_YORK"];
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    public void TryValidate_UnderscoreInCustomText_CannotBeSent()
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.CustomText = "QSL_VIA";
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        StringAssert.Contains(error, "\"_\"");
+    }
+
     private static AppConfig CreateValidSettings()
     {
         return new AppConfig

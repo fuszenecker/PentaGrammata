@@ -16,7 +16,7 @@ public class PracticeController : IPracticeController
     private const double LengthCorrector = 0.695;
 
     private readonly IMorsePlayer _morsePlayer;
-    private readonly IMorseGenerator _morseGenerator;
+    private readonly IPracticeTextGeneratorFactory _textGeneratorFactory;
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IPracticeResultEvaluator _resultEvaluator;
     private readonly IConfigurationService _configurationService;
@@ -82,11 +82,17 @@ public class PracticeController : IPracticeController
         set => _configurationService.SetSelectedCharacterSet(value);
     }
 
+    public PracticeTopic SelectedTopic
+    {
+        get => _configurationService.Current.Practice.Topic;
+        set => _configurationService.SetSelectedTopic(value);
+    }
+
     public bool IsPracticing { get; private set; }
 
     public PracticeController(
         IMorsePlayer morsePlayer,
-        IMorseGenerator morseGenerator,
+        IPracticeTextGeneratorFactory textGeneratorFactory,
         IPracticeSettingsValidator settingsValidator,
         IPracticeResultEvaluator resultEvaluator,
         IConfigurationService configurationService,
@@ -94,7 +100,7 @@ public class PracticeController : IPracticeController
         ILogger<PracticeController> logger)
     {
         _morsePlayer = morsePlayer;
-        _morseGenerator = morseGenerator;
+        _textGeneratorFactory = textGeneratorFactory;
         _settingsValidator = settingsValidator;
         _resultEvaluator = resultEvaluator;
         _configurationService = configurationService;
@@ -121,37 +127,20 @@ public class PracticeController : IPracticeController
 
         try
         {
-            // A configured custom text overrides generation entirely: the user hears exactly
-            // that text (duration and character set no longer apply).
-            var customText = CustomTextNormalizer.Normalize(_configurationService.Current.Practice.CustomText);
-            string morseCode;
-
-            if (customText.Length > 0)
-            {
-                _logger.LogDebug("Using configured custom text");
-                morseCode = customText;
-            }
-            else
-            {
-                string characterSetCharacters = _configurationService.Current.CharacterSets.TryGetValue(SelectedCharacterSet, out var selectedCharacters)
-                    && !string.IsNullOrWhiteSpace(selectedCharacters)
-                        ? selectedCharacters
-                        : CharacterSets.FirstOrDefault().Value;
-
-                if (string.IsNullOrWhiteSpace(characterSetCharacters))
-                    characterSetCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+?=<bk><sk>";
-
-                int numberOfGroups = (int)Math.Round(PracticeDurationMins * CurrentAverageWpm * LengthCorrector);
-                _logger.LogDebug("Generating {GroupCount} morse groups", numberOfGroups);
-
-                morseCode = _morseGenerator.GenerateGroupsOf5(characterSetCharacters, numberOfGroups);
-            }
+            // The topic decides what is sent; its generator is built from the live configuration.
+            var config = _configurationService.Current;
+            int numberOfGroups = (int)Math.Round(PracticeDurationMins * CurrentAverageWpm * LengthCorrector);
+            _logger.LogDebug("Generating {Topic} text worth {GroupCount} groups", config.Practice.Topic, numberOfGroups);
+            string morseCode = _textGeneratorFactory
+                .Create(config.Practice.Topic, config)
+                .Generate(numberOfGroups);
 
             LastGeneratedText = morseCode;
 
             try
             {
-                string morseCodeToPlay = "vvv = " + morseCode + " <ar>";
+                // The underscore joining the words of a multi-word item is an ordinary word gap.
+                string morseCodeToPlay = "vvv = " + PracticeItems.ToPlain(morseCode) + " <ar>";
                 var audio = _configurationService.Current.Audio;
                 var playbackSettings = MorsePlaybackSettings.From(audio, _lastUsedCharacterWpm, _lastUsedAverageWpm);
 

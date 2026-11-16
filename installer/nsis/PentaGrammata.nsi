@@ -43,6 +43,7 @@ BrandingText  "${APP_NAME} ${APP_VERSION}"
 ; MUI Settings
 
 !define MUI_ABORTWARNING
+!define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_WELCOMEFINISHPAGE_BITMAP_NOSTRETCH
 !define MUI_FINISHPAGE_RUN          "$INSTDIR\${APP_EXE}"
 !define MUI_FINISHPAGE_RUN_TEXT     "Launch ${APP_NAME}"
@@ -51,6 +52,7 @@ BrandingText  "${APP_NAME} ${APP_VERSION}"
 ; Pages
 
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -67,8 +69,12 @@ BrandingText  "${APP_NAME} ${APP_VERSION}"
 ;--------------------------------
 ; Installer sections
 
-Section "Main Application" SecMain
+Section "${APP_NAME} (required)" SecMain
     SectionIn RO  ; required section
+
+    ; Shortcuts of an earlier installation go; the selected components below create them again
+    RMDir /r "$SMPROGRAMS\${APP_NAME}"
+    Delete   "$DESKTOP\${APP_NAME}.lnk"
 
     SetOutPath "$INSTDIR"
     File /r "${PUBLISH_DIR}\*.*"
@@ -87,7 +93,7 @@ Section "Main Application" SecMain
     WriteRegStr   HKLM "${REG_UNINSTALL}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
     WriteRegDWORD HKLM "${REG_UNINSTALL}" "NoModify"        1
     WriteRegDWORD HKLM "${REG_UNINSTALL}" "NoRepair"        1
-    WriteRegStr   HKLM "${REG_UNINSTALL}" "URLInfoAbout"    "https://github.com/rfuszenecker/PentaGrammata"
+    WriteRegStr   HKLM "${REG_UNINSTALL}" "URLInfoAbout"    "https://github.com/fuszenecker/PentaGrammata"
 
     ; Estimate install size (in KB)
     ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
@@ -97,7 +103,12 @@ Section "Main Application" SecMain
     ; Write uninstaller executable
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
-    ; Start Menu shortcut
+SectionEnd
+
+;--------------------------------
+; Optional: Start Menu shortcuts
+
+Section "Start Menu shortcuts" SecStartMenu
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
     CreateShortcut  "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" \
                     "$INSTDIR\${APP_EXE}" "" \
@@ -105,13 +116,12 @@ Section "Main Application" SecMain
 
     CreateShortcut  "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk" \
                     "$INSTDIR\uninstall.exe"
-
 SectionEnd
 
 ;--------------------------------
 ; Optional: Desktop shortcut
 
-Section "Desktop Shortcut" SecDesktop
+Section "Desktop shortcut" SecDesktop
     CreateShortcut "$DESKTOP\${APP_NAME}.lnk" \
                    "$INSTDIR\${APP_EXE}" "" \
                    "$INSTDIR\${APP_EXE}" 0
@@ -120,12 +130,14 @@ SectionEnd
 ;--------------------------------
 ; Section descriptions
 
-LangString DESC_SecMain    ${LANG_ENGLISH} "Installs ${APP_NAME} and all required files."
-LangString DESC_SecDesktop ${LANG_ENGLISH} "Creates a shortcut on the Desktop."
+LangString DESC_SecMain      ${LANG_ENGLISH} "The application and all the files it needs. Always installed."
+LangString DESC_SecStartMenu ${LANG_ENGLISH} "A ${APP_NAME} folder in the Start Menu with the application and its uninstaller."
+LangString DESC_SecDesktop   ${LANG_ENGLISH} "A shortcut to ${APP_NAME} on the Desktop."
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-    !insertmacro MUI_DESCRIPTION_TEXT ${SecMain}    $(DESC_SecMain)
-    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} $(DESC_SecDesktop)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecMain}      $(DESC_SecMain)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} $(DESC_SecStartMenu)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop}   $(DESC_SecDesktop)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------

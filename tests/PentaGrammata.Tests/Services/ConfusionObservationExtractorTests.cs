@@ -46,4 +46,34 @@ public sealed class ConfusionObservationExtractorTests
         Assert.AreEqual("X", observations[0].ActualSymbol);
         Assert.AreEqual(2, observations[0].Count);
     }
+
+    [TestMethod]
+    public void Extract_MultiWordItem_IsComparedWordByWord()
+    {
+        var rows = new[]
+        {
+            new PracticeResultRow { SentGroup = "NEW_YORK", ReceivedGroup = "NEW_YORX", Difference = "ignored" },
+        };
+
+        var observations = new ConfusionObservationExtractor().Extract(rows, DateTimeOffset.UtcNow);
+
+        Assert.HasCount(1, observations);
+        Assert.AreEqual("K", observations[0].ExpectedSymbol);
+        Assert.AreEqual("X", observations[0].ActualSymbol);
+    }
+
+    [TestMethod]
+    public void Extract_MultiWordItemWithAMissingWord_CountsTheWordAsGaps()
+    {
+        var rows = new[]
+        {
+            new PracticeResultRow { SentGroup = "NEW_YORK", ReceivedGroup = "NEW", Difference = "ignored" },
+        };
+
+        var observations = new ConfusionObservationExtractor().Extract(rows, DateTimeOffset.UtcNow);
+
+        Assert.IsTrue(observations.All(o => o.ActualSymbol == "_"));
+        Assert.AreEqual(4, observations.Sum(o => o.Count));
+        Assert.IsFalse(observations.Any(o => o.ExpectedSymbol == "_"));
+    }
 }

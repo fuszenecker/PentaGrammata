@@ -2,6 +2,23 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.2.2
+
+- **The result window shows spaces in multi-word items:** a city, name or abbreviation of several words (`CAPE TOWN`, `LITTLE JOHN`, `QSL VIA BURO`) is shown with ordinary-looking spaces that keep it on one line, instead of the underscores 2.2.1 showed.
+- **The Linux installers state their license:** the .deb and .rpm now carry AppStream metadata, so the software center shows PentaGrammata by name with its MIT license instead of warning that the license is unknown.
+- **The Windows installer lets you choose the components:** besides the application, which is always installed, you can choose whether to create the Start Menu shortcuts and the Desktop shortcut.
+
+## 2.2.1
+
+- **Multi-word cities, names and abbreviations stay together:** an entry such as `NEW YORK`, `FRANKFURT AM MAIN`, `LITTLE JOHN` or `QSL VIA BURO` is one item. You type it with ordinary spaces as before; the result window now shows it in one row and still scores it word by word. An underscore you type counts as a space. Your custom text stays word by word.
+
+## 2.2.0
+
+- **Practice topics:** a new Topic dropdown on the main window chooses what a session sends: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed. The character set applies to groups (and the groups of the mixed topic) only, and the duration to every topic but your own text.
+- **Topics tab in Settings:** edit the callsign patterns (`#` is a random digit, a lowercase letter a random letter, so `HA#xyz` gives e.g. `HA5ABC`), the cities, names and abbreviations, one per line, kept in alphabetical order. The custom text moved here from the Practice tab, with a new option to shuffle its words. The Character sets tab now follows Topics, before Audio.
+- **Settings remember their major version:** `settings.prmt` now records the major version of PentaGrammata that saved it. If a future major version cannot use your settings, it keeps your old file in the `backups` folder, starts from its defaults and tells you where the old file is. Your current settings are kept as they are. A backup made by another major version cannot be imported, and you are told why before anything is replaced.
+- **Your custom text is now a topic:** if you used a custom text before, choose "Custom text" in the Topic dropdown to hear it again; until then sessions send random groups.
+
 ## 2.1.5
 
 - **Check result scores your corrected copy:** if you fix a mistake in the received text after checking the result, checking again now compares the corrected text instead of showing the first comparison. A result you already saved stays as it was saved.

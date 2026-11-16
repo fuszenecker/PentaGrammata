@@ -194,6 +194,23 @@ public sealed class PracticeResultWindowViewModelTests
         Assert.IsFalse(sut.SaveResultsCommand.CanExecute(null));
     }
 
+    [TestMethod]
+    public void Rows_ShowMultiWordItemsWithSpacesThatDoNotBreak_NeverUnderscores()
+    {
+        var result = new PracticeResult
+        {
+            CharacterCount = 7,
+            Rows = [new PracticeResultRow { SentGroup = "new_york", ReceivedGroup = "new_yorx", Difference = "... ...[!K]" }],
+        };
+
+        var sut = new PracticeResultWindowViewModel(result, 20, 15, Guid.NewGuid(), false, 10.0, new NoiseSettings(),
+            Substitute.For<IConfusionObservationExtractor>(), Substitute.For<IPracticeResultStatisticsService>(), Substitute.For<IInfoDialogService>());
+
+        Assert.AreEqual("NEW\u00A0YORK", sut.Rows[0].SentGroup);
+        Assert.AreEqual("NEW\u00A0YORX", sut.Rows[0].ReceivedGroup);
+        Assert.DoesNotContain("_", sut.Rows[0].SentGroup + sut.Rows[0].ReceivedGroup);
+    }
+
     private static PracticeResultWindowViewModel BuildViewModelForDifference(string difference)
     {
         var result = new PracticeResult

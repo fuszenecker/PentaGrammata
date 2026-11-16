@@ -114,6 +114,7 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_UI settings");
         var ui = await app.Dialog<UiSettingsDialog>();
         ScenarioDesktop.Controls<NumericUpDown>(ui).Single().Value = 32;
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);

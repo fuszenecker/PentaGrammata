@@ -13,15 +13,24 @@ public sealed class Practice
 	public int AverageWpm { get; set; } = 15;
 	[PromptuariumComment("The name of the character set the groups are drawn from (see CharacterSets)")]
 	public string DefaultCharacterSet { get; set; } = "Default";
+	[PromptuariumComment("What a session sends: Groups, CallsignsEmea, CallsignsGlobal, Cities, Names, Abbreviations, CustomText or Mixed")]
+	public PracticeTopic Topic { get; set; } = PracticeTopic.Groups;
 	[PromptuariumComment("The highest error rate, in percent, at which a session counts as successful")]
 	public double ErrorThreshold { get; set; } = 10.0;
 
 	/// <summary>
-	/// User-supplied text to send instead of randomly generated 5-character groups. When
-	/// blank (the default) groups are generated from the selected character set as usual.
+	/// The user's own text, sent when <see cref="Topic"/> is <see cref="PracticeTopic.CustomText"/>
+	/// (and mixed in word by word by <see cref="PracticeTopic.Mixed"/>).
 	/// </summary>
-	[PromptuariumComment("A text to send verbatim instead of random groups; blank sends groups")]
+	[PromptuariumComment("The text the CustomText topic sends (and the Mixed topic mixes in, word by word)")]
 	public string CustomText { get; set; } = string.Empty;
+
+	/// <summary>
+	/// When true, the CustomText topic sends the words of <see cref="CustomText"/> in a random
+	/// order instead of as written.
+	/// </summary>
+	[PromptuariumComment("Whether the CustomText topic shuffles the words instead of sending them in order")]
+	public bool ShuffleCustomText { get; set; }
 
 	/// <summary>
 	/// When true, the practice WPM is adjusted in memory after each scored session: it slows
@@ -45,8 +54,10 @@ public sealed class Practice
 		CharacterWpm = CharacterWpm,
 		AverageWpm = AverageWpm,
 		DefaultCharacterSet = DefaultCharacterSet,
+		Topic = Topic,
 		ErrorThreshold = ErrorThreshold,
 		CustomText = CustomText,
+		ShuffleCustomText = ShuffleCustomText,
 		AutoAdjustWpm = AutoAdjustWpm,
 		AutoAdjustWindowSize = AutoAdjustWindowSize,
 	};

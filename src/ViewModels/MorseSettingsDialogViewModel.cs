@@ -12,6 +12,7 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;
+using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
@@ -45,6 +46,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
 
     private readonly int _defaultDurationMins;
     private readonly string _defaultCharacterSet;
+    private readonly PracticeTopic _topic;
     private readonly IPracticeSettingsValidator _settingsValidator;
     private readonly IAudioHeadroomAnalyzer _headroomAnalyzer;
     private readonly ICharacterSetTextCodec _characterSetTextCodec;
@@ -159,6 +161,26 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string customText = string.Empty;
 
+    /// <summary>Whether the custom text topic sends the words in a random order.</summary>
+    [ObservableProperty]
+    private bool shuffleCustomText;
+
+    // The topic word lists, one entry per line (see TopicListText).
+    [ObservableProperty]
+    private string callsignPatternsEmeaText = string.Empty;
+
+    [ObservableProperty]
+    private string callsignPatternsGlobalText = string.Empty;
+
+    [ObservableProperty]
+    private string citiesText = string.Empty;
+
+    [ObservableProperty]
+    private string namesText = string.Empty;
+
+    [ObservableProperty]
+    private string abbreviationsText = string.Empty;
+
     [ObservableProperty]
     private string characterSetsText = string.Empty;
 
@@ -191,6 +213,7 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         _synchronizationContext = SynchronizationContext.Current;
         _defaultDurationMins = config.Practice.DefaultDurationMins;
         _defaultCharacterSet = config.Practice.DefaultCharacterSet;
+        _topic = config.Practice.Topic;
 
         CharacterWpm = config.Practice.CharacterWpm;
         AverageWpm = config.Practice.AverageWpm;
@@ -215,6 +238,13 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         AutoAdjustWpm = config.Practice.AutoAdjustWpm;
         AutoAdjustWindowSize = config.Practice.AutoAdjustWindowSize;
         CustomText = config.Practice.CustomText ?? string.Empty;
+        ShuffleCustomText = config.Practice.ShuffleCustomText;
+        var topics = config.Topics ?? new Topics();
+        CallsignPatternsEmeaText = TopicListText.Format(topics.CallsignPatternsEmea);
+        CallsignPatternsGlobalText = TopicListText.Format(topics.CallsignPatternsGlobal);
+        CitiesText = TopicListText.Format(topics.Cities);
+        NamesText = TopicListText.Format(topics.Names);
+        AbbreviationsText = TopicListText.Format(topics.Abbreviations);
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
         {
@@ -427,13 +457,23 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 CharacterWpm = CharacterWpm,
                 AverageWpm = AverageWpm,
                 DefaultCharacterSet = defaultSet,
+                Topic = _topic,
                 ErrorThreshold = ErrorThreshold,
                 CustomText = (CustomText ?? string.Empty).Trim(),
+                ShuffleCustomText = ShuffleCustomText,
                 AutoAdjustWpm = AutoAdjustWpm,
                 AutoAdjustWindowSize = AutoAdjustWindowSize,
             },
             Audio = BuildAudio(),
             CharacterSets = characterSets,
+            Topics = new Topics
+            {
+                CallsignPatternsEmea = TopicListText.Parse(CallsignPatternsEmeaText),
+                CallsignPatternsGlobal = TopicListText.Parse(CallsignPatternsGlobalText),
+                Cities = TopicListText.Parse(CitiesText),
+                Names = TopicListText.Parse(NamesText),
+                Abbreviations = TopicListText.Parse(AbbreviationsText),
+            },
         };
     }
 

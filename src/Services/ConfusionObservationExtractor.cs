@@ -22,7 +22,16 @@ public sealed class ConfusionObservationExtractor : IConfusionObservationExtract
 
         foreach (var row in rows)
         {
-            AddFromPair(row.SentGroup, row.ReceivedGroup, counts);
+            // A multi-word item is compared word by word, as the evaluator scores it.
+            var sentWords = PracticeItems.Words(row.SentGroup);
+            var receivedWords = PracticeItems.Words(row.ReceivedGroup);
+            for (var i = 0; i < Math.Max(sentWords.Length, receivedWords.Length); i++)
+            {
+                AddFromPair(
+                    i < sentWords.Length ? sentWords[i] : string.Empty,
+                    i < receivedWords.Length ? receivedWords[i] : string.Empty,
+                    counts);
+            }
         }
 
         return counts

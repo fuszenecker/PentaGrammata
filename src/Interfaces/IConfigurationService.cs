@@ -18,6 +18,12 @@ public interface IConfigurationService
     AppConfig Current { get; }
 
     /// <summary>
+    /// Where the settings file of another major version was moved when the configuration was
+    /// loaded at startup (the defaults are used instead), or null when nothing was set aside.
+    /// </summary>
+    string? SetAsideSettingsBackupPath { get; }
+
+    /// <summary>
     /// Persists the current configuration. Saves are serialized so concurrent or
     /// rapid calls run in order and never interleave writes to the backing file.
     /// </summary>
@@ -58,6 +64,11 @@ public interface IConfigurationService
     void SetSelectedCharacterSet(string name);
 
     /// <summary>
+    /// Selects the practice topic (what the next session sends) and schedules a save.
+    /// </summary>
+    void SetSelectedTopic(PracticeTopic topic);
+
+    /// <summary>
     /// Applies a validated wholesale settings snapshot (practice, audio, noise, and
     /// character sets) to the live configuration and persists. Used after the settings
     /// dialog returns a new <see cref="AppConfig"/>.
@@ -80,7 +91,8 @@ public interface IConfigurationService
     void SetCorrelationWindowDays(double days);
 
     /// <summary>
-    /// Inserts or replaces a named character set and selects it, awaiting persistence.
+    /// Inserts or replaces a named character set and selects it (switching the topic to
+    /// 5-character groups, the only topic that uses a character set), awaiting persistence.
     /// Used by "Practice confusions" to publish the generated set.
     /// </summary>
     Task UpsertCharacterSetAndSelectAsync(string name, string characters);

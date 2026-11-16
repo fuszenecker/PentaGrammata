@@ -156,4 +156,25 @@ public sealed class AppConfigurationCloneTests
             },
         };
     }
+
+    [TestMethod]
+    public void Clone_CopiesTopicSettingsIntoIndependentLists()
+    {
+        var original = new AppConfiguration
+        {
+            Practice = new Practice { Topic = PracticeTopic.Mixed, ShuffleCustomText = true },
+            Topics = new Topics { CallsignPatternsEmea = ["HA#xyz"], CallsignPatternsGlobal = ["W#xy"], Cities = ["WIEN"], Names = ["LACI"], Abbreviations = ["QRZ"] },
+        };
+
+        var clone = original.Clone();
+        clone.Topics.Cities.Add("ROMA");
+
+        Assert.AreEqual(PracticeTopic.Mixed, clone.Practice.Topic);
+        Assert.IsTrue(clone.Practice.ShuffleCustomText);
+        CollectionAssert.AreEqual(new[] { "HA#xyz" }, clone.Topics.CallsignPatternsEmea);
+        CollectionAssert.AreEqual(new[] { "W#xy" }, clone.Topics.CallsignPatternsGlobal);
+        CollectionAssert.AreEqual(new[] { "LACI" }, clone.Topics.Names);
+        CollectionAssert.AreEqual(new[] { "QRZ" }, clone.Topics.Abbreviations);
+        CollectionAssert.AreEqual(new[] { "WIEN" }, original.Topics.Cities);
+    }
 }

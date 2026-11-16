@@ -83,7 +83,7 @@ esac
 PACKAGE_NAME="pentagrammata"
 DISPLAY_NAME="PentaGrammata"
 MAINTAINER="PentaGrammata"
-HOMEPAGE="https://github.com/rfuszenecker/PentaGrammata"
+HOMEPAGE="https://github.com/fuszenecker/PentaGrammata"
 DESCRIPTION="Morse code practice desktop application"
 
 PUBLISH_DIR="${REPO_ROOT}/publish/${RUNTIME}"
@@ -96,6 +96,11 @@ BIN_DIR="${PKG_DIR}/usr/bin"
 DESKTOP_DIR="${PKG_DIR}/usr/share/applications"
 ICON_DIR="${PKG_DIR}/usr/share/icons/hicolor/256x256/apps"
 ICON_SOURCE="${REPO_ROOT}/src/Assets/pentagrammata-icon.png"
+METAINFO_ID="io.github.fuszenecker.PentaGrammata"
+METAINFO_SOURCE="${SCRIPT_DIR}/linux/${METAINFO_ID}.metainfo.xml"
+METAINFO_DIR="${PKG_DIR}/usr/share/metainfo"
+DOC_DIR="${PKG_DIR}/usr/share/doc/${PACKAGE_NAME}"
+LICENSE_SOURCE="${REPO_ROOT}/LICENSE"
 OUTPUT_DEB="${OUTPUT_DIR}/${PACKAGE_NAME}_${VERSION}_${DEB_ARCH}.deb"
 
 echo "==> Version: ${VERSION}"
@@ -127,7 +132,7 @@ fi
 
 echo "==> Preparing package structure"
 rm -rf "${PKG_DIR}"
-mkdir -p "${DEBIAN_DIR}" "${APP_DIR}" "${BIN_DIR}" "${DESKTOP_DIR}" "${ICON_DIR}"
+mkdir -p "${DEBIAN_DIR}" "${APP_DIR}" "${BIN_DIR}" "${DESKTOP_DIR}" "${ICON_DIR}" "${METAINFO_DIR}" "${DOC_DIR}"
 
 cp -a "${PUBLISH_DIR}/." "${APP_DIR}/"
 
@@ -154,6 +159,27 @@ Categories=Utility;HamRadio;
 EOF
 
 chmod 0644 "${DESKTOP_DIR}/${PACKAGE_NAME}.desktop"
+
+# AppStream metadata: software centers read the license (and the name) of a local .deb from it.
+install -m 0644 "${METAINFO_SOURCE}" "${METAINFO_DIR}/${METAINFO_ID}.metainfo.xml"
+
+# Debian copyright file (machine-readable format) with the full license text.
+{
+  cat <<EOF
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: ${DISPLAY_NAME}
+Source: ${HOMEPAGE}
+
+Files: *
+Copyright: 2026 Róbert Fuszenecker
+License: MIT
+
+License: MIT
+EOF
+  # The license text of the stanza: every line indented by one space, empty lines as " .".
+  tail -n +3 "${LICENSE_SOURCE}" | sed -e 's/^$/./' -e 's/^/ /'
+} > "${DOC_DIR}/copyright"
+chmod 0644 "${DOC_DIR}/copyright"
 
 if [[ -f "${APP_DIR}/PentaGrammata" ]]; then
   chmod 0755 "${APP_DIR}/PentaGrammata"

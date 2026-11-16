@@ -87,7 +87,7 @@ public sealed partial class UserJourneyScenarios
     [TestMethod]
     public Task UserSelectsACharacterSetDurationAndCopiesRandomFiveCharacterGroups() => Run(async app =>
     {
-        ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem = "Digits";
+        app.CharacterSetBox.SelectedItem = "Digits";
         ScenarioDesktop.Controls<NumericUpDown>(app.Main).Single().Value = 2;
         await app.Practice("@sent");
         var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
@@ -99,7 +99,7 @@ public sealed partial class UserJourneyScenarios
         await app.CloseResult(result);
         Assert.AreEqual("Digits", app.Configuration.Current.Practice.DefaultCharacterSet);
         Assert.AreEqual(2, app.Configuration.Current.Practice.DefaultDurationMins);
-    }, c => c.Practice.CustomText = "");
+    }, c => c.Practice.Topic = PracticeTopic.Groups);
 
     [TestMethod]
     public Task UserStopsEarlyAndCanScoreThenStartAnotherSession() => Run(async app =>
@@ -123,7 +123,7 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => app.Audio.Started, "start playback");
         Assert.IsFalse(ScenarioDesktop.Button(app.Main, "Practice").IsEffectivelyEnabled);
         Assert.IsFalse(ScenarioDesktop.Button(app.Main, "Check result").IsEffectivelyEnabled);
-        Assert.IsFalse(ScenarioDesktop.Controls<ComboBox>(app.Main).Single().IsEffectivelyEnabled);
+        Assert.IsFalse(app.CharacterSetBox.IsEffectivelyEnabled);
         foreach (var caption in new[] { "_Morse settings", "_UI settings", "_Import", "_Restore", "_Confusions" })
             Assert.IsFalse(ScenarioDesktop.Controls<MenuItem>(app.Main).Single(m => Equals(m.Header, caption)).Command!.CanExecute(null));
         ScenarioDesktop.Text(app.Main, app.Main.FindControl<TextBox>("ReceivedTextBox")!, "TEST");
@@ -171,7 +171,7 @@ public sealed partial class UserJourneyScenarios
     {
         var settings = await Settings(app);
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Speed at which").Value = 35;
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "CHANGED");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "CHANGED");
         ScenarioDesktop.Click(settings, "Cancel");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "cancel Morse settings");
         app.Menu("_UI settings");
@@ -193,8 +193,16 @@ public sealed partial class UserJourneyScenarios
     public Task UserCorrectsRejectedCustomTextOrCharacterSets(string invalid, bool characterSets) => Run(async app =>
     {
         var settings = await Settings(app);
-        if (characterSets) ScenarioDesktop.Tab(settings, 3);
-        var box = ScenarioDesktop.Tip<TextBox>(settings, characterSets ? "Format: name" : "Leave empty");
+        TextBox box;
+        if (characterSets)
+        {
+            ScenarioDesktop.Tab(settings, ScenarioDesktop.CharacterSetsTab);
+            box = ScenarioDesktop.Tip<TextBox>(settings, "Format: name");
+        }
+        else
+        {
+            box = ScenarioDesktop.CustomText(settings);
+        }
         ScenarioDesktop.Text(settings, box, invalid);
         ScenarioDesktop.Click(settings, "Save");
         Assert.IsTrue(settings.IsVisible);
@@ -238,12 +246,12 @@ public sealed partial class UserJourneyScenarios
     public Task UserChangesAudioAndReceiverSettingsThenPractices(NoiseType noise, int rate) => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 1);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.AudioTab);
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Pitch of the CW").Value = 700;
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Signal level in dB").Value = -18;
         ScenarioDesktop.Tip<ComboBox>(settings, "Audio sample rate").SelectedItem = rate;
         ScenarioDesktop.Tip<NumericUpDown>(settings, "Envelope ramp").Value = 8;
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added").SelectedItem = noise;
         var noisy = noise != NoiseType.None;
         Assert.AreEqual(noisy, ScenarioDesktop.Tip<NumericUpDown>(settings, "How much louder").IsEffectivelyEnabled);
@@ -375,10 +383,10 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Controls<NumericUpDown>(confusions).Single().Value = 15;
         ScenarioDesktop.Click(confusions, "Practice confusions");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenConfusionsCommand.IsRunning, "select confusion practice set");
-        Assert.AreEqual("Practice confusions", ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem);
+        Assert.AreEqual("Practice confusions", app.CharacterSetBox.SelectedItem);
         Assert.IsNotEmpty(app.Configuration.Current.CharacterSets["Practice confusions"]);
         settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), " ");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), " ");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "@sent");
     });
@@ -413,7 +421,7 @@ public sealed partial class UserJourneyScenarios
             CollectionAssert.AreEquivalent(new[] { "settings.prmt", "practice-results.db" }, entries.Keys.ToArray());
         }
         var settings = await Settings(app);
-        ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "Leave empty"), "NEW");
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "NEW");
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "NEW");
         app.OpenChoices.Enqueue(archivePath);

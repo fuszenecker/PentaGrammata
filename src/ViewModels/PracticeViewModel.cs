@@ -10,6 +10,7 @@ using PentaGrammata.Interfaces;
 using PentaGrammata.Configuration;
 using PentaGrammata.Models;
 using PentaGrammata.Presentation;
+using PentaGrammata.Services;
 
 namespace PentaGrammata.ViewModels;
 
@@ -124,7 +125,7 @@ public partial class PracticeViewModel : ViewModelBase
             if (_configurationService.Current.UiPreferences.RevealSentTextAfterPractice
                 && string.IsNullOrEmpty(ReceivedText))
             {
-                var revealedText = _practiceController.LastGeneratedText;
+                var revealedText = PracticeItems.ToPlain(_practiceController.LastGeneratedText);
                 ReceivedText = _configurationService.Current.UiPreferences.RevealSentTextInLowercase
                     ? revealedText.ToLowerInvariant()
                     : revealedText;

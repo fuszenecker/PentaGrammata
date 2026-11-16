@@ -9,6 +9,7 @@ using PentaGrammata.Configuration;
 using PentaGrammata.Exceptions;
 using PentaGrammata.Interfaces;
 using PentaGrammata.Models;
+using PentaGrammata.Services;
 using PentaGrammata.Presentation;
 
 namespace PentaGrammata.ViewModels;
@@ -72,8 +73,10 @@ public sealed class PracticeResultWindowViewModel : ViewModelBase
         Rows = new ObservableCollection<PracticeResultRowViewModel>(
             result.Rows.Select(row => new PracticeResultRowViewModel
             {
-                SentGroup = row.SentGroup.ToUpperInvariant(),
-                ReceivedGroup = row.ReceivedGroup.ToUpperInvariant(),
+                // A multi-word item is shown with spaces that do not break: never the "_"
+                // that joins its words in the sent text.
+                SentGroup = PracticeItems.ToDisplay(row.SentGroup.ToUpperInvariant()),
+                ReceivedGroup = PracticeItems.ToDisplay(row.ReceivedGroup.ToUpperInvariant()),
                 DifferenceSegments = ParseDifferenceSegments(row.Difference)
             }));
 

@@ -215,6 +215,205 @@ public sealed class ConfigurationFormatTests
     }
 
     [TestMethod]
+    public void ConfigurationStore_BundledDefaultsHaveValidTopicLists()
+    {
+        var paths = Substitute.For<IAppPaths>();
+        paths.UserConfigPaths.Returns(new List<string>());
+        var configuration = new ConfigurationStore(paths, Substitute.For<ILogger<ConfigurationStore>>()).Load();
+
+        Assert.AreEqual(PracticeTopic.Groups, configuration.Practice.Topic);
+        Assert.IsFalse(configuration.Practice.ShuffleCustomText);
+        Assert.IsGreaterThan(100, configuration.Topics.CallsignPatternsEmea.Count);
+        Assert.IsGreaterThan(configuration.Topics.CallsignPatternsEmea.Count, configuration.Topics.CallsignPatternsGlobal.Count);
+        Assert.Contains("HA#xyz", configuration.Topics.CallsignPatternsEmea);
+        Assert.Contains("BUDAPEST", configuration.Topics.Cities);
+        Assert.Contains("TOKYO", configuration.Topics.Cities);
+        Assert.Contains("LACI", configuration.Topics.Names);
+        Assert.Contains("QRZ", configuration.Topics.Abbreviations);
+        foreach (var list in new[] { configuration.Topics.CallsignPatternsEmea, configuration.Topics.CallsignPatternsGlobal, configuration.Topics.Cities, configuration.Topics.Names, configuration.Topics.Abbreviations })
+        {
+            CollectionAssert.AreEqual(PentaGrammata.Services.TopicListText.Sorted(list), list, "The bundled lists are in alphabetical order, without repeats.");
+        }
+
+        // Every topic must be playable with the defaults, and the defaults must pass the
+        // same validation the settings dialog applies.
+        var validator = new PentaGrammata.Services.PracticeSettingsValidator();
+        foreach (var topic in Enum.GetValues<PracticeTopic>().Where(t => t != PracticeTopic.CustomText))
+        {
+            configuration.Practice.Topic = topic;
+            Assert.IsTrue(validator.TryValidate(configuration, out var error), $"{topic}: {error}");
+        }
+    }
+
+    [TestMethod]
+    public void ConfigurationStore_LoadsAPreTopicsUserFile()
+    {
+        // A settings.prmt written before the topics existed: no Practice.Topic, no
+        // Practice.ShuffleCustomText, no Topics section, and a custom text in use.
+        var directory = Path.Combine(Path.GetTempPath(), $"pentagrammata-old-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var configPath = Path.Combine(directory, "settings.prmt");
+            var old = new Dictionary<string, object?>
+            {
+                ["Practice"] = new Dictionary<string, object?>
+                {
+                    ["DefaultDurationMins"] = 3.0,
+                    ["CharacterWpm"] = 22.0,
+                    ["AverageWpm"] = 16.0,
+                    ["DefaultCharacterSet"] = "Letters",
+                    ["ErrorThreshold"] = 7.0,
+                    ["CustomText"] = "CQ CQ DE HA5XYZ",
+                    ["AutoAdjustWpm"] = true,
+                    ["AutoAdjustWindowSize"] = 3.0,
+                },
+                ["CharacterSets"] = new Dictionary<string, object?> { ["Mine"] = "KMRS" },
+            };
+            File.WriteAllBytes(configPath, PromptuariumSerializer.Serialize(old, ConfigurationFormat.Options));
+            var paths = Substitute.For<IAppPaths>();
+            paths.UserConfigPaths.Returns(new List<string> { configPath });
+            paths.PreferredUserConfigPath.Returns(configPath);
+
+            var configuration = new ConfigurationStore(paths, Substitute.For<ILogger<ConfigurationStore>>()).Load();
+
+            Assert.AreEqual(22, configuration.Practice.CharacterWpm);
+            Assert.AreEqual("Letters", configuration.Practice.DefaultCharacterSet);
+            Assert.AreEqual("CQ CQ DE HA5XYZ", configuration.Practice.CustomText, "The old custom text is kept.");
+            Assert.AreEqual(PracticeTopic.Groups, configuration.Practice.Topic, "Old profiles start on random groups.");
+            Assert.IsFalse(configuration.Practice.ShuffleCustomText);
+            Assert.Contains("HA#xyz", configuration.Topics.CallsignPatternsEmea, "The bundled topic lists fill in.");
+            Assert.Contains("BUDAPEST", configuration.Topics.Cities);
+            Assert.AreEqual("KMRS", configuration.CharacterSets["Mine"]);
+            Assert.IsTrue(new PentaGrammata.Services.PracticeSettingsValidator().TryValidate(configuration, out var error), error);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private sealed class Profile : IDisposable
+    {
+        public string Directory { get; } = Path.Combine(Path.GetTempPath(), $"pentagrammata-major-{Guid.NewGuid():N}");
+        public string ConfigPath => Path.Combine(Directory, "settings.prmt");
+        public string BackupDirectory => Path.Combine(Directory, "backups");
+        public IAppPaths Paths { get; }
+
+        public Profile()
+        {
+            System.IO.Directory.CreateDirectory(Directory);
+            Paths = Substitute.For<IAppPaths>();
+            Paths.UserConfigPaths.Returns(new List<string> { ConfigPath });
+            Paths.PreferredUserConfigPath.Returns(ConfigPath);
+            Paths.AppDataDirectory.Returns(Directory);
+        }
+
+        public ConfigurationStore Store(int major) => new(Paths, Substitute.For<ILogger<ConfigurationStore>>(), major);
+
+        public void Write(Dictionary<string, object?> root) =>
+            File.WriteAllBytes(ConfigPath, PromptuariumSerializer.Serialize(root, ConfigurationFormat.Options));
+
+        public void Dispose() => System.IO.Directory.Delete(Directory, recursive: true);
+    }
+
+    private static Dictionary<string, object?> UserFile(double? major) 
+    {
+        var root = new Dictionary<string, object?>
+        {
+            ["Practice"] = new Dictionary<string, object?> { ["CharacterWpm"] = 33.0 },
+        };
+        if (major is { } value) root["AppMajorVersion"] = value;
+        return root;
+    }
+
+    [TestMethod]
+    public void CurrentMajorVersion_ComesFromVersionTxt()
+    {
+        var versionTxt = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "version.txt")).Trim();
+        Assert.AreEqual(int.Parse(versionTxt.Split('.')[0], System.Globalization.CultureInfo.InvariantCulture), ConfigurationFormat.CurrentMajorVersion);
+    }
+
+    [TestMethod]
+    [DataRow(null, 2)]
+    [DataRow(2.0, 2)]
+    [DataRow(3.0, 3)]
+    public void ReadMajorVersion_ReadsTheFieldOrAssumesLegacy(double? major, int expected)
+    {
+        Assert.AreEqual(expected, ConfigurationFormat.ReadMajorVersion(PromptuariumSerializer.Serialize(UserFile(major), ConfigurationFormat.Options)));
+    }
+
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow(2.0)]
+    public void Load_SameMajorVersion_AppliesTheUserFile(double? major)
+    {
+        using var profile = new Profile();
+        profile.Write(UserFile(major));
+        var store = profile.Store(2);
+
+        var configuration = store.Load();
+
+        Assert.AreEqual(33, configuration.Practice.CharacterWpm);
+        Assert.AreEqual(2, configuration.AppMajorVersion);
+        Assert.IsNull(store.LastSetAsideBackupPath);
+        Assert.IsTrue(File.Exists(profile.ConfigPath));
+        Assert.IsFalse(Directory.Exists(profile.BackupDirectory));
+    }
+
+    [TestMethod]
+    [DataRow(null, 3, 2)]
+    [DataRow(2.0, 3, 2)]
+    [DataRow(4.0, 3, 4)]
+    public void Load_OtherMajorVersion_SetsTheFileAsideAndUsesTheDefaults(double? fileMajor, int currentMajor, int expectedInName)
+    {
+        using var profile = new Profile();
+        profile.Write(UserFile(fileMajor));
+        var original = File.ReadAllBytes(profile.ConfigPath);
+        var store = profile.Store(currentMajor);
+
+        var configuration = store.Load();
+
+        Assert.AreEqual(18, configuration.Practice.CharacterWpm, "The bundled default, not the old file.");
+        Assert.AreEqual(currentMajor, configuration.AppMajorVersion);
+        Assert.IsFalse(File.Exists(profile.ConfigPath), "The old file is moved away, so the next start does not set it aside again.");
+        var backup = store.LastSetAsideBackupPath;
+        Assert.IsNotNull(backup);
+        Assert.AreEqual(Path.GetFullPath(profile.BackupDirectory), Path.GetDirectoryName(Path.GetFullPath(backup)));
+        StringAssert.StartsWith(Path.GetFileName(backup), $"pentagrammata-settings-v{expectedInName}-");
+        CollectionAssert.AreEqual(original, File.ReadAllBytes(backup), "The backup is the old file, byte for byte.");
+
+        var again = profile.Store(currentMajor);
+        again.Load();
+        Assert.IsNull(again.LastSetAsideBackupPath);
+        Assert.HasCount(1, Directory.GetFiles(profile.BackupDirectory));
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_StampsTheCurrentMajorVersion_AndTheNextLoadAppliesIt()
+    {
+        using var profile = new Profile();
+        var store = profile.Store(3);
+        var configuration = store.Load();
+        configuration.Practice.CharacterWpm = 40;
+        configuration.AppMajorVersion = 0;
+
+        await store.SaveAsync(configuration);
+
+        Assert.AreEqual(3, ConfigurationFormat.ReadMajorVersion(File.ReadAllBytes(profile.ConfigPath)));
+        Assert.AreEqual(40, profile.Store(3).Load().Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    public void BundledSettings_CommentTheTopicLists()
+    {
+        var root = Element.FromBytes(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)));
+        var topics = Child(root, "Topics");
+
+        Assert.IsTrue(topics.Children.Any(c => c.MetaData.Span.SequenceEqual(new byte[] { 0x00 }) && c.Data.AsUtf8String() == "CallsignPatternsEmea"));
+    }
+
+    [TestMethod]
     public async Task ConfigurationStore_SaveThenLoad_RoundTripsUserSettings()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"pentagrammata-serializer-{Guid.NewGuid():N}");
@@ -230,12 +429,20 @@ public sealed class ConfigurationFormatTests
             configuration.Practice.CharacterWpm = 27;
             configuration.Audio.Frequency = 650.5;
             configuration.Audio.Noise.Type = NoiseType.Gaussian;
+            configuration.Practice.Topic = PracticeTopic.CallsignsEmea;
+            configuration.Practice.ShuffleCustomText = true;
+            configuration.Topics.Cities = ["WIEN"];
             await store.SaveAsync(configuration);
 
             var reloaded = store.Load();
             Assert.AreEqual(27, reloaded.Practice.CharacterWpm);
             Assert.AreEqual(650.5, reloaded.Audio.Frequency);
             Assert.AreEqual(NoiseType.Gaussian, reloaded.Audio.Noise.Type);
+            Assert.AreEqual(PracticeTopic.CallsignsEmea, reloaded.Practice.Topic);
+            Assert.IsTrue(reloaded.Practice.ShuffleCustomText);
+            // A saved list replaces the bundled one as a whole; the others keep their defaults.
+            CollectionAssert.AreEqual(new[] { "WIEN" }, reloaded.Topics.Cities);
+            Assert.Contains("HA#xyz", reloaded.Topics.CallsignPatternsEmea);
             Assert.IsTrue(File.ReadAllBytes(configPath).AsSpan(1, 12).SequenceEqual("PRMT:CFG1-LE"u8));
         }
         finally

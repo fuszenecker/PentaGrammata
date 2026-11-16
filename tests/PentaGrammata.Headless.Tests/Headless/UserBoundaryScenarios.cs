@@ -26,7 +26,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserPracticesWithEachReceiverToggleCombination(NoiseType noise, bool agc, bool apf, bool qsb) => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         var noiseChoice = ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added");
         // Configure the receiver before turning noise off: values must survive disabled controls.
         noiseChoice.SelectedItem = NoiseType.Gaussian;
@@ -50,7 +50,7 @@ public sealed partial class UserJourneyScenarios
         Assert.AreEqual(apf, record.ApfEnabled);
         Assert.AreEqual(qsb, record.QsbEnabled);
         settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         checks = ScenarioDesktop.Controls<CheckBox>(settings).ToArray();
         Assert.AreEqual(agc, checks.Single(c => Equals(c.Content, "AGC enabled")).IsChecked);
         Assert.AreEqual(apf, checks.Single(c => Equals(c.Content, "APF enabled")).IsChecked);
@@ -66,6 +66,9 @@ public sealed partial class UserJourneyScenarios
         app.Menu(confusions ? "_Confusions" : "C_orrelation");
         Window dialog = confusions ? await app.Dialog<ConfusionsDialog>() : await app.Dialog<CorrelationDialog>();
         ScenarioDesktop.Controls<NumericUpDown>(dialog).Single().Value = 31;
+        // Changing the value starts a background save; let it land before the settings file is
+        // swapped for a directory, or it can recreate the file in between (seen on CI).
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);
@@ -100,6 +103,7 @@ public sealed partial class UserJourneyScenarios
         app.Menu("_Confusions");
         var dialog = await app.Dialog<ConfusionsDialog>();
         var vm = (ConfusionsDialogViewModel)dialog.DataContext!;
+        await app.Configuration.FlushAsync();
         var path = Path.Combine(app.DirectoryPath, "settings.prmt");
         var original = File.ReadAllBytes(path);
         File.Delete(path);
@@ -118,7 +122,7 @@ public sealed partial class UserJourneyScenarios
         }
         ScenarioDesktop.Click(dialog, "Practice confusions");
         await ScenarioDesktop.Until(() => !app.ViewModel.OpenConfusionsCommand.IsRunning, "retry creating confusion palette");
-        Assert.AreEqual("Practice confusions", ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem);
+        Assert.AreEqual("Practice confusions", app.CharacterSetBox.SelectedItem);
         var persisted = PromptuariumSerializer.Deserialize<AppConfiguration>(File.ReadAllBytes(path), ConfigurationFormat.Options)!;
         Assert.AreEqual("Practice confusions", persisted.Practice.DefaultCharacterSet);
         Assert.IsNotEmpty(persisted.CharacterSets["Practice confusions"]);
@@ -141,7 +145,7 @@ public sealed partial class UserJourneyScenarios
         else
         {
             var dialog = await Settings(app);
-            ScenarioDesktop.Text(dialog, ScenarioDesktop.Tip<TextBox>(dialog, "Leave empty"), "CHANGED");
+            ScenarioDesktop.Text(dialog, ScenarioDesktop.CustomText(dialog), "CHANGED");
             dialog.Close();
             await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "cancel Morse edits via title bar");
             Assert.AreEqual("TEST", app.Configuration.Current.Practice.CustomText);
@@ -178,7 +182,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserSeesCharacterSetParserErrorsAndCanRepairTheirEdits(string invalid) => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 3);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.CharacterSetsTab);
         var editor = ScenarioDesktop.Tip<TextBox>(settings, "Format: name");
         ScenarioDesktop.Text(settings, editor, invalid);
         ScenarioDesktop.Click(settings, "Save");
@@ -189,7 +193,7 @@ public sealed partial class UserJourneyScenarios
         Assert.IsFalse(app.Configuration.Current.CharacterSets.ContainsKey("Broken"));
         ScenarioDesktop.Text(settings, editor, "# my alphabet\n\nRepaired = KM<ar>\n");
         await ApplySettings(app, settings);
-        Assert.AreEqual("Repaired", ScenarioDesktop.Controls<ComboBox>(app.Main).Single().SelectedItem);
+        Assert.AreEqual("Repaired", app.CharacterSetBox.SelectedItem);
         Assert.AreEqual("KM<ar>", app.Configuration.Current.CharacterSets["Repaired"]);
     });
 
@@ -234,7 +238,7 @@ public sealed partial class UserJourneyScenarios
     public Task UserSavesAndReopensEveryReceiverNumericControlAtItsLimits(bool maximum) => Run(async app =>
     {
         var settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added").SelectedItem = NoiseType.Pink;
         foreach (var caption in new[] { "QSB enabled", "AGC enabled", "APF enabled" })
             ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, caption)).IsChecked = true;
@@ -251,7 +255,7 @@ public sealed partial class UserJourneyScenarios
         }
         await ApplySettings(app, settings);
         settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, 2);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
         foreach (var prefix in prefixes)
             Assert.AreEqual(expected[prefix], ScenarioDesktop.Tip<NumericUpDown>(settings, prefix).Value, prefix);
         ScenarioDesktop.Click(settings, "Cancel");
