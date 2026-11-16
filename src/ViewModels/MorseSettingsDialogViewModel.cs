@@ -181,6 +181,25 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string abbreviationsText = string.Empty;
 
+    // How many times each item of a topic is sent in a row.
+    [ObservableProperty]
+    private RepetitionViewModel callsignsEmeaRepetition = new(null);
+
+    [ObservableProperty]
+    private RepetitionViewModel callsignsGlobalRepetition = new(null);
+
+    [ObservableProperty]
+    private RepetitionViewModel citiesRepetition = new(null);
+
+    [ObservableProperty]
+    private RepetitionViewModel namesRepetition = new(null);
+
+    [ObservableProperty]
+    private RepetitionViewModel abbreviationsRepetition = new(null);
+
+    [ObservableProperty]
+    private RepetitionViewModel customTextRepetition = new(null);
+
     [ObservableProperty]
     private string characterSetsText = string.Empty;
 
@@ -245,6 +264,13 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         CitiesText = TopicListText.Format(topics.Cities);
         NamesText = TopicListText.Format(topics.Names);
         AbbreviationsText = TopicListText.Format(topics.Abbreviations);
+        var repetitions = topics.Repetitions ?? new TopicRepetitions();
+        CallsignsEmeaRepetition = new RepetitionViewModel(repetitions.CallsignsEmea);
+        CallsignsGlobalRepetition = new RepetitionViewModel(repetitions.CallsignsGlobal);
+        CitiesRepetition = new RepetitionViewModel(repetitions.Cities);
+        NamesRepetition = new RepetitionViewModel(repetitions.Names);
+        AbbreviationsRepetition = new RepetitionViewModel(repetitions.Abbreviations);
+        CustomTextRepetition = new RepetitionViewModel(repetitions.CustomText);
 
         if (!SampleRateOptions.Contains(SelectedSampleRate))
         {
@@ -473,6 +499,15 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 Cities = TopicListText.Parse(CitiesText),
                 Names = TopicListText.Parse(NamesText),
                 Abbreviations = TopicListText.Parse(AbbreviationsText),
+                Repetitions = new TopicRepetitions
+                {
+                    CallsignsEmea = CallsignsEmeaRepetition.ToRepetition(),
+                    CallsignsGlobal = CallsignsGlobalRepetition.ToRepetition(),
+                    Cities = CitiesRepetition.ToRepetition(),
+                    Names = NamesRepetition.ToRepetition(),
+                    Abbreviations = AbbreviationsRepetition.ToRepetition(),
+                    CustomText = CustomTextRepetition.ToRepetition(),
+                },
             },
         };
     }

@@ -140,6 +140,38 @@ public sealed class PracticeResultEvaluatorTests
     }
 
     [TestMethod]
+    public void Evaluate_RepeatedItems_AreSeparateRowsAndEachIsChecked()
+    {
+        var result = _evaluator.Evaluate("LACI LACI WIEN WIEN", "laci laci wien wien", 0);
+
+        Assert.HasCount(4, result.Rows);
+        Assert.AreEqual(16, result.CharacterCount);
+        Assert.AreEqual(0, result.ErrorCount);
+    }
+
+    [TestMethod]
+    public void Evaluate_MissingRepetition_CountsAsErrors()
+    {
+        var result = _evaluator.Evaluate("LACI LACI", "LACI", 0);
+
+        Assert.HasCount(2, result.Rows);
+        Assert.AreEqual(8, result.CharacterCount);
+        Assert.AreEqual(4, result.ErrorCount, "The second LACI was not copied.");
+    }
+
+    [TestMethod]
+    public void Evaluate_RepeatedMultiWordItem_IsOneRowPerRepetition()
+    {
+        var result = _evaluator.Evaluate("NEW" + Joiner + "YORK NEW" + Joiner + "YORK", "new york new york", 0);
+
+        Assert.HasCount(2, result.Rows);
+        Assert.AreEqual("NEW" + Joiner + "YORK", result.Rows[0].SentGroup);
+        Assert.AreEqual("NEW" + Joiner + "YORK", result.Rows[1].SentGroup);
+        Assert.AreEqual(14, result.CharacterCount);
+        Assert.AreEqual(0, result.ErrorCount);
+    }
+
+    [TestMethod]
     public void Evaluate_ReceivedUnderscore_IsTheSameAsASpace()
     {
         var plain = _evaluator.Evaluate("NEW" + Joiner + "YORK", "NEW YORK", 0);

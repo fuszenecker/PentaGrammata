@@ -142,6 +142,17 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
             return false;
         }
 
+        var repetitions = topics.Repetitions ?? new TopicRepetitions();
+        if (!TryValidateRepetition(repetitions.CallsignsEmea, "EMEA callsigns", out error)
+            || !TryValidateRepetition(repetitions.CallsignsGlobal, "global callsigns", out error)
+            || !TryValidateRepetition(repetitions.Cities, "cities", out error)
+            || !TryValidateRepetition(repetitions.Names, "names", out error)
+            || !TryValidateRepetition(repetitions.Abbreviations, "abbreviations", out error)
+            || !TryValidateRepetition(repetitions.CustomText, "custom text", out error))
+        {
+            return false;
+        }
+
         var requiredList = settings.Practice.Topic switch
         {
             PracticeTopic.CallsignsEmea => (topics.CallsignPatternsEmea, "EMEA callsign patterns"),
@@ -192,6 +203,20 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
                 error = $"{label} \"{word}\" contains something that cannot be sent as Morse code: \"{unsendable}\".";
                 return false;
             }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryValidateRepetition(Repetition? repetition, string label, out string error)
+    {
+        int minimum = repetition?.Minimum ?? 1;
+        int maximum = repetition?.Maximum ?? 1;
+        if (minimum < 1 || maximum > Repetition.Limit || minimum > maximum)
+        {
+            error = $"The repetition of the {label} must be between 1 and {Repetition.Limit}, the minimum not above the maximum.";
+            return false;
         }
 
         error = string.Empty;

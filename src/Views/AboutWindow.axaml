@@ -56,11 +56,15 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Practice topics: random groups, EMEA or worldwide callsigns, cities, names, ham abbreviations and Q-codes, your own text (in order or shuffled), or all of them mixed"/>
+                        <TextBlock Grid.Column="1" Text="Practice topics: random groups, EMEA or worldwide callsigns, cities, names, ham abbreviations and Q-codes, your own text (line by line, in order or shuffled), or all of them mixed"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
                         <TextBlock Grid.Column="1" Text="Editable topic lists in Settings: callsign patterns (# a digit, a lowercase letter a random letter), cities, names and abbreviations, kept in alphabetical order. A multi-word entry (NEW YORK, QSL VIA BURO) is typed with spaces and checked as one item"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Repetition as in a real QSO: each topic sends every item a random number of times in a row, between a minimum and a maximum you set. Callsigns, cities and names come twice by default, abbreviations and the lines of your own text once; random groups are never repeated. You copy each item once: it is checked once"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

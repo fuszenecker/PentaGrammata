@@ -1,5 +1,8 @@
+using Avalonia;
+using Avalonia.Headless;
 using Avalonia.Controls;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
@@ -53,8 +56,11 @@ public sealed partial class UserJourneyScenarios
             _ => item is "QRZ" or "73",
         };
         Assert.IsTrue(PracticeItems.SplitItems(sent).All(Matches), sent);
-        // 1 minute at 15 WPM is worth 10 groups of 5 characters.
-        Assert.IsGreaterThanOrEqualTo(50, string.Concat(PracticeItems.SplitWords(sent)).Length, sent);
+        // 1 minute at 15 WPM is worth 10 groups of 5 characters, all played: callsigns, cities
+        // and names twice by default, abbreviations once. Each item is checked once.
+        int repetitions = topic == PracticeTopic.Abbreviations ? 1 : 2;
+        Assert.IsGreaterThanOrEqualTo(50, repetitions * string.Concat(PracticeItems.SplitWords(sent)).Length, sent);
+        Assert.DoesNotContain(PracticeItems.RepeatJoiner.ToString(), sent);
 
         var result = await app.Result();
         Assert.AreEqual("0", ((PracticeResultWindowViewModel)result.DataContext!).ErrorsText);
@@ -101,12 +107,13 @@ public sealed partial class UserJourneyScenarios
     });
 
     [TestMethod]
-    public Task UserShufflesTheWordsOfTheCustomText() => Run(async app =>
+    public Task UserShufflesTheLinesOfTheCustomText() => Run(async app =>
     {
         var settings = await Settings(app);
         var box = ScenarioDesktop.CustomText(settings);
-        var shuffle = ScenarioDesktop.Tip<CheckBox>(settings, "Send the words of the custom text in a random order");
-        ScenarioDesktop.Text(settings, box, "ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN");
+        var shuffle = ScenarioDesktop.Tip<CheckBox>(settings, "Send the lines of the custom text in a random order");
+        Assert.AreEqual("Shuffle lines", shuffle.Content);
+        ScenarioDesktop.Text(settings, box, "ONE\nTWO\nTHREE\nFOUR\nFIVE\nSIX\nSEVEN\nEIGHT\nNINE\nNOVI SAD");
         ScenarioDesktop.Click(settings, shuffle);
         Assert.IsTrue(shuffle.IsChecked);
         await ApplySettings(app, settings);
@@ -121,7 +128,8 @@ public sealed partial class UserJourneyScenarios
 
         foreach (var order in orders)
         {
-            CollectionAssert.AreEquivalent("ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN".Split(' '), order.Split(' '));
+            // The lines are shuffled; NOVI SAD stays one item.
+            CollectionAssert.AreEquivalent("ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE NOVI_SAD".Split(' '), order.Split(' '));
         }
 
         Assert.IsGreaterThan(1, orders.Distinct().Count(), "Four shuffled sessions all sent the same order.");
@@ -287,7 +295,7 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.SubTab(settings, ScenarioDesktop.CitiesSubTab);
         ScenarioDesktop.Text(settings, ScenarioDesktop.Tip<TextBox>(settings, "City names"), "ROMA");
         ScenarioDesktop.SubTab(settings, ScenarioDesktop.CustomTextSubTab);
-        ScenarioDesktop.Click(settings, ScenarioDesktop.Tip<CheckBox>(settings, "Send the words of the custom text in a random order"));
+        ScenarioDesktop.Click(settings, ScenarioDesktop.Tip<CheckBox>(settings, "Send the lines of the custom text in a random order"));
         await ApplySettings(app, settings);
         SelectTopic(app, PracticeTopic.Names);
         CollectionAssert.AreEqual(new[] { "ROMA" }, app.Configuration.Current.Topics.Cities);
@@ -356,14 +364,14 @@ public sealed partial class UserJourneyScenarios
     {
         var settings = await Settings(app);
         var box = ScenarioDesktop.CustomText(settings);
-        Assert.IsFalse(ScenarioDesktop.Tip<CheckBox>(settings, "Send the words of the custom text in a random order").IsChecked);
-        ScenarioDesktop.Text(settings, box, "ONE TWO THREE FOUR FIVE SIX");
+        Assert.IsFalse(ScenarioDesktop.Tip<CheckBox>(settings, "Send the lines of the custom text in a random order").IsChecked);
+        ScenarioDesktop.Text(settings, box, "ONE\nTWO\nTHREE FOUR\nFIVE\nSIX");
         await ApplySettings(app, settings);
 
         for (int i = 0; i < 3; i++)
         {
             await app.Practice(null, stop: true);
-            Assert.AreEqual("ONE TWO THREE FOUR FIVE SIX", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
+            Assert.AreEqual("ONE TWO THREE_FOUR FIVE SIX", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
         }
     });
 
@@ -468,13 +476,272 @@ public sealed partial class UserJourneyScenarios
     }, ArrangeTopicLists);
 
     [TestMethod]
-    public Task UserCopiesCustomTextWordByWord() => Run(async app =>
+    public Task UserCopiesALineOfTheCustomTextAsOneRow_ScoredWordByWord() => Run(async app =>
     {
-        await app.Practice("QSL VIA BURO");
+        await app.Practice("QSL VIA BURX");
         var result = await app.Result();
         var vm = (PracticeResultWindowViewModel)result.DataContext!;
-        Assert.HasCount(3, vm.Rows, "The custom text stays word by word.");
-        Assert.AreEqual("0", vm.ErrorsText);
+        Assert.HasCount(1, vm.Rows, "One line of the custom text is one row, like a multi-word city.");
+        Assert.AreEqual("QSL\u00A0VIA\u00A0BURO", vm.Rows[0].SentGroup);
+        Assert.AreEqual("QSL\u00A0VIA\u00A0BURX", vm.Rows[0].ReceivedGroup);
+        Assert.AreEqual("1", vm.ErrorsText, "Scored word by word: one wrong letter.");
+        Assert.AreEqual("10", vm.CharacterCountText, "The spaces are not characters.");
+        result.UpdateLayout();
+        foreach (var block in ScenarioDesktop.Controls<TextBlock>(result))
+            Assert.DoesNotContain("_", block.Text ?? string.Empty, block.Text);
         await app.CloseResult(result);
     }, c => c.Practice.CustomText = "QSL VIA BURO");
+
+    [TestMethod]
+    public Task UserRepeatsEachNameAsInAQso() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.AbbreviationsSubTab);
+        var (abbreviationsMinimum, abbreviationsMaximum) = ScenarioDesktop.RepeatRange(settings);
+        Assert.AreEqual(1m, abbreviationsMinimum.Value, "Abbreviations are sent once by default.");
+        Assert.AreEqual(1m, abbreviationsMaximum.Value);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.NamesSubTab);
+        var (minimum, maximum) = ScenarioDesktop.RepeatRange(settings);
+        Assert.AreEqual(2m, minimum.Value, "Names are sent twice by default.");
+        Assert.AreEqual(2m, maximum.Value);
+        minimum.Value = 3;
+        Assert.AreEqual(3m, maximum.Value, "Raising the minimum raises the maximum.");
+        await ApplySettings(app, settings);
+        Assert.AreEqual(3, app.Configuration.Current.Topics.Repetitions.Names.Minimum);
+        Assert.AreEqual(3, app.Configuration.Current.Topics.Repetitions.Names.Maximum);
+
+        SelectTopic(app, PracticeTopic.Names);
+        await app.Practice("@sent");
+        var items = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText.Split(' ');
+        Assert.IsTrue(items.All(i => i == "LACI"), string.Join(' ', items));
+        var result = await app.Result();
+        var view = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", view.ErrorsText, "Each name copied once is a perfect copy.");
+        Assert.HasCount(items.Length, view.Rows, "Each name is one row, not three.");
+        await app.CloseResult(result);
+
+        await app.Configuration.FlushAsync();
+        var reloaded = app.Services.GetRequiredService<IConfigurationStore>().Load();
+        Assert.AreEqual(3, reloaded.Topics.Repetitions.Names.Minimum);
+        Assert.AreEqual(2, reloaded.Topics.Repetitions.Cities.Maximum, "The other topics keep their defaults.");
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserHearsEachCityTwice_ButSeesAndCopiesItOnce() => Run(async app =>
+    {
+        SelectTopic(app, PracticeTopic.Cities);
+        await app.Practice("@sent");
+        var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
+        Assert.DoesNotContain(PracticeItems.RepeatJoiner.ToString(), sent);
+        var items = PracticeItems.SplitItems(sent);
+        Assert.IsTrue(items.All(i => i is "WIEN" or "CAPE_TOWN"), sent);
+
+        var result = await app.Result();
+        var view = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", view.ErrorsText);
+        Assert.HasCount(items.Count, view.Rows, "One row per city, its repetition is not checked.");
+        result.UpdateLayout();
+        foreach (var block in ScenarioDesktop.Controls<TextBlock>(result))
+        {
+            Assert.DoesNotContain("_", block.Text ?? string.Empty, block.Text);
+            Assert.DoesNotContain("|", block.Text ?? string.Empty, block.Text);
+        }
+
+        await app.CloseResult(result);
+        foreach (var block in ScenarioDesktop.Controls<TextBlock>(app.Main))
+            Assert.DoesNotContain("|", block.Text ?? string.Empty, block.Text);
+        foreach (var box in ScenarioDesktop.Controls<TextBox>(app.Main))
+            Assert.DoesNotContain("|", box.Text ?? string.Empty, "The revealed and copied text shows each city once.");
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    [DataRow(ScenarioDesktop.EmeaCallsignsSubTab, 2)]
+    [DataRow(ScenarioDesktop.GlobalCallsignsSubTab, 2)]
+    [DataRow(ScenarioDesktop.CitiesSubTab, 2)]
+    [DataRow(ScenarioDesktop.NamesSubTab, 2)]
+    [DataRow(ScenarioDesktop.AbbreviationsSubTab, 1)]
+    [DataRow(ScenarioDesktop.CustomTextSubTab, 1)]
+    public Task UserSeesTheRepeatRangeAboveEveryTopicList(int subTab, int expected) => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, subTab);
+        var (minimum, maximum) = ScenarioDesktop.RepeatRange(settings);
+
+        Assert.AreEqual((decimal)expected, minimum.Value);
+        Assert.AreEqual((decimal)expected, maximum.Value);
+        Assert.IsTrue(minimum.IsEffectivelyVisible && minimum.IsEffectivelyEnabled);
+        Assert.IsTrue(maximum.IsEffectivelyVisible && maximum.IsEffectivelyEnabled);
+        Assert.AreEqual(1m, minimum.Minimum);
+        Assert.AreEqual((decimal)Repetition.Limit, minimum.Maximum);
+        Assert.AreEqual((decimal)Repetition.Limit, maximum.Maximum);
+        var labels = ScenarioDesktop.Controls<TextBlock>(settings)
+            .Where(t => ReferenceEquals(t.FindLogicalAncestorOfType<ContentControl>(), minimum.FindLogicalAncestorOfType<ContentControl>()))
+            .Select(t => t.Text).ToArray();
+        CollectionAssert.IsSubsetOf(new[] { "Repeat", "to", "times" }, labels);
+        ScenarioDesktop.Click(settings, "Cancel");
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserLowersTheMaximumBelowTheMinimum_AndTheMinimumFollows() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.CitiesSubTab);
+        var (minimum, maximum) = ScenarioDesktop.RepeatRange(settings);
+        maximum.Value = 1;
+        Assert.AreEqual(1m, minimum.Value);
+
+        maximum.Value = 4;
+        minimum.Value = 2;
+        Assert.AreEqual(4m, maximum.Value, "A minimum below the maximum leaves the maximum alone.");
+        await ApplySettings(app, settings);
+
+        Assert.AreEqual(2, app.Configuration.Current.Topics.Repetitions.Cities.Minimum);
+        Assert.AreEqual(4, app.Configuration.Current.Topics.Repetitions.Cities.Maximum);
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserCancelsARepetitionChange_AndNothingChanges() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.NamesSubTab);
+        ScenarioDesktop.RepeatRange(settings).Maximum.Value = 5;
+        ScenarioDesktop.Click(settings, "Cancel");
+        await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "close the settings dialog");
+
+        Assert.AreEqual(2, app.Configuration.Current.Topics.Repetitions.Names.Maximum);
+        settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, ScenarioDesktop.NamesSubTab);
+        Assert.AreEqual(2m, ScenarioDesktop.RepeatRange(settings).Maximum.Value, "Reopened, the dialog shows the saved range.");
+        ScenarioDesktop.Click(settings, "Cancel");
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserRepeatsEachLineOfTheCustomTextAsAWhole() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Text(settings, ScenarioDesktop.CustomText(settings), "NOVI SAD\nCQ DE HA5XYZ");
+        await ApplySettings(app, settings);
+        SelectTopic(app, PracticeTopic.CustomText);
+        await app.Practice("@sent");
+        int once = app.Audio.Samples.Length;
+        var first = await app.Result();
+        await app.CloseResult(first);
+
+        settings = await Settings(app);
+        ScenarioDesktop.CustomText(settings);
+        ScenarioDesktop.RepeatRange(settings).Minimum.Value = 3;
+        await ApplySettings(app, settings);
+        Assert.AreEqual(3, app.Configuration.Current.Topics.Repetitions.CustomText.Maximum);
+
+        await app.Practice("@sent");
+        Assert.AreEqual("NOVI_SAD CQ_DE_HA5XYZ", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText, "Each line checked once.");
+        // vvv = and <ar> are played once either way; the two lines three times each.
+        Assert.IsGreaterThan(once * 2, app.Audio.Samples.Length, "Every repetition is played.");
+        foreach (var box in ScenarioDesktop.Controls<TextBox>(app.Main))
+        {
+            Assert.DoesNotContain("_", box.Text ?? string.Empty);
+            Assert.DoesNotContain("|", box.Text ?? string.Empty);
+        }
+
+        var result = await app.Result();
+        var view = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", view.ErrorsText);
+        Assert.HasCount(2, view.Rows, "One row per line.");
+        Assert.AreEqual("NOVI\u00A0SAD", view.Rows[0].SentGroup);
+        Assert.AreEqual("CQ\u00A0DE\u00A0HA5XYZ", view.Rows[1].SentGroup);
+        await app.CloseResult(result);
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserCopiesARepeatedNameOnce_AndThatIsAPerfectCopy() => Run(async app =>
+    {
+        SelectTopic(app, PracticeTopic.Names);
+        await app.Practice("@sent");
+
+        var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
+        Assert.IsTrue(sent.Split(' ').All(i => i == "LACI"), sent);
+        var result = await app.Result();
+        var view = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", view.ErrorsText, "Heard twice, copied once: no error.");
+        Assert.AreEqual(sent.Split(' ').Length * 4, int.Parse(view.CharacterCountText, System.Globalization.CultureInfo.InvariantCulture),
+            "Only one copy of each name is counted.");
+        await app.CloseResult(result);
+    }, ArrangeTopicLists);
+
+    [TestMethod]
+    public Task UserMixesTopics_AndEachItemIsRepeatedByItsOwnTopic() => Run(async app =>
+    {
+        SelectTopic(app, PracticeTopic.Mixed);
+        await app.Practice("@sent");
+
+        var sent = app.Services.GetRequiredService<IPracticeController>().LastGeneratedText;
+        Assert.DoesNotContain(PracticeItems.RepeatJoiner.ToString(), sent);
+        var items = sent.Split(' ');
+        Assert.Contains("LACI", items);
+        var result = await app.Result();
+        var view = (PracticeResultWindowViewModel)result.DataContext!;
+        Assert.AreEqual("0", view.ErrorsText);
+        Assert.HasCount(items.Length, view.Rows);
+        await app.CloseResult(result);
+    }, c =>
+    {
+        ArrangeTopicLists(c);
+        c.Topics.CallsignPatternsEmea = [];
+        c.Topics.CallsignPatternsGlobal = [];
+        c.Topics.Cities = [];
+        c.Topics.Abbreviations = [];
+        c.Practice.CustomText = string.Empty;
+        c.Topics.Repetitions.Names = new Repetition(3, 3);
+        c.Practice.DefaultDurationMins = 3;
+    });
+
+    [TestMethod]
+    [DataRow(ScenarioDesktop.EmeaCallsignsSubTab)]
+    [DataRow(ScenarioDesktop.GlobalCallsignsSubTab)]
+    [DataRow(ScenarioDesktop.CitiesSubTab)]
+    [DataRow(ScenarioDesktop.NamesSubTab)]
+    [DataRow(ScenarioDesktop.AbbreviationsSubTab)]
+    [DataRow(ScenarioDesktop.CustomTextSubTab)]
+    public Task UserFindsTheRepeatRangeBelowTheListAndAsWideAsIt(int subTab) => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.TopicsTab);
+        ScenarioDesktop.SubTab(settings, subTab);
+        var (minimum, maximum) = ScenarioDesktop.RepeatRange(settings);
+        var selected = minimum.FindLogicalAncestorOfType<TabItem>()!;
+        var box = ScenarioDesktop.Controls<TextBox>(settings).Single(t => ReferenceEquals(t.FindLogicalAncestorOfType<TabItem>(), selected) && t.IsEffectivelyVisible
+            && !t.GetVisualAncestors().OfType<NumericUpDown>().Any());
+        var row = (Control)minimum.FindLogicalAncestorOfType<ContentControl>()!;
+        Rect Bounds(Control c) => new(c.TranslatePoint(new Point(0, 0), settings)!.Value, c.Bounds.Size);
+        var boxBounds = Bounds(box);
+        var rowBounds = Bounds(row);
+        var endBounds = rowBounds;
+        var minimumBounds = Bounds(minimum);
+        var maximumBounds = Bounds(maximum);
+
+        Assert.IsGreaterThanOrEqualTo(boxBounds.Bottom, rowBounds.Top, "The repeat range sits below the list.");
+        Assert.IsLessThanOrEqualTo(12d, rowBounds.Top - boxBounds.Bottom, "...right below it.");
+        Assert.AreEqual(boxBounds.Left, rowBounds.Left, 0.5, "The row starts where the list starts.");
+        Assert.AreEqual(boxBounds.Right, endBounds.Right, 1.0, "The row ends where the list ends.");
+        Assert.AreEqual(minimumBounds.Width, maximumBounds.Width, 0.5, "The two counters are the same width.");
+        Assert.AreEqual(minimumBounds.Center.Y, maximumBounds.Center.Y, 0.5, "The two counters are on one line.");
+        Assert.IsGreaterThanOrEqualTo(80d, minimumBounds.Width, "The counters fill the row instead of shrinking.");
+        Assert.IsLessThanOrEqualTo(settings.Bounds.Height, endBounds.Bottom, "The row is inside the dialog.");
+        if (subTab == ScenarioDesktop.CustomTextSubTab)
+        {
+            // The shuffle checkbox has a line of its own below the repeat range, aligned with the text.
+            var shuffle = Bounds(ScenarioDesktop.Tip<CheckBox>(settings, "Send the lines of the custom text"));
+            Assert.IsGreaterThanOrEqualTo(rowBounds.Bottom, shuffle.Top);
+            Assert.AreEqual(boxBounds.Left, shuffle.Left, 0.5);
+            Assert.IsLessThanOrEqualTo(settings.Bounds.Height, shuffle.Bottom, "The checkbox is inside the dialog.");
+        }
+
+        using (var frame = settings.CaptureRenderedFrame()) Assert.IsNotNull(frame);
+        ScenarioDesktop.Click(settings, "Cancel");
+    }, ArrangeTopicLists);
 }

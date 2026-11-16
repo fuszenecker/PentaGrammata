@@ -26,6 +26,9 @@ public sealed class Topics
     [PromptuariumComment("Radio amateur abbreviations and Q-codes")]
     public List<string> Abbreviations { get; set; } = [];
 
+    [PromptuariumComment("How many times each item of a topic is sent in a row")]
+    public TopicRepetitions Repetitions { get; set; } = new();
+
     public Topics Clone() => new()
     {
         CallsignPatternsEmea = [.. CallsignPatternsEmea ?? []],
@@ -33,5 +36,6 @@ public sealed class Topics
         Cities = [.. Cities ?? []],
         Names = [.. Names ?? []],
         Abbreviations = [.. Abbreviations ?? []],
+        Repetitions = (Repetitions ?? new TopicRepetitions()).Clone(),
     };
 }

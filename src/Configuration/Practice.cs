@@ -22,14 +22,14 @@ public sealed class Practice
 	/// The user's own text, sent when <see cref="Topic"/> is <see cref="PracticeTopic.CustomText"/>
 	/// (and mixed in word by word by <see cref="PracticeTopic.Mixed"/>).
 	/// </summary>
-	[PromptuariumComment("The text the CustomText topic sends (and the Mixed topic mixes in, word by word)")]
+	[PromptuariumComment("The text the CustomText topic sends, each line one item (the Mixed topic mixes its lines in too)")]
 	public string CustomText { get; set; } = string.Empty;
 
 	/// <summary>
-	/// When true, the CustomText topic sends the words of <see cref="CustomText"/> in a random
+	/// When true, the CustomText topic sends the lines of <see cref="CustomText"/> in a random
 	/// order instead of as written.
 	/// </summary>
-	[PromptuariumComment("Whether the CustomText topic shuffles the words instead of sending them in order")]
+	[PromptuariumComment("Whether the CustomText topic shuffles its lines instead of sending them in order")]
 	public bool ShuffleCustomText { get; set; }
 
 	/// <summary>

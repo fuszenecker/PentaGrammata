@@ -212,6 +212,23 @@ public sealed class ConfigurationFormatTests
         Assert.AreEqual(1, configuration.Practice.AutoAdjustWindowSize);
         Assert.AreEqual("Default", configuration.Practice.DefaultCharacterSet);
         Assert.AreEqual(39, configuration.CharacterSets.Keys.Count(name => name.StartsWith("Koch-LCWO-", StringComparison.Ordinal)));
+        var repetitions = configuration.Topics.Repetitions;
+        Assert.AreEqual((2, 2), (repetitions.Names.Minimum, repetitions.Names.Maximum));
+        Assert.AreEqual((2, 2), (repetitions.Cities.Minimum, repetitions.Cities.Maximum));
+        Assert.AreEqual((2, 2), (repetitions.CallsignsEmea.Minimum, repetitions.CallsignsEmea.Maximum));
+        Assert.AreEqual((2, 2), (repetitions.CallsignsGlobal.Minimum, repetitions.CallsignsGlobal.Maximum));
+        Assert.AreEqual((1, 1), (repetitions.Abbreviations.Minimum, repetitions.Abbreviations.Maximum));
+        Assert.AreEqual((1, 1), (repetitions.CustomText.Minimum, repetitions.CustomText.Maximum));
+    }
+
+    [TestMethod]
+    public void BundledSettings_CommentTheRepetitions()
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName));
+        var configuration = PromptuariumSerializer.Deserialize<Dictionary<string, object?>>(bytes, ConfigurationFormat.Options);
+        var topics = (Dictionary<string, object?>)configuration["Topics"]!;
+
+        Assert.IsTrue(topics.ContainsKey("Repetitions"), "The bundled file carries the repetitions, not only the code.");
     }
 
     [TestMethod]
@@ -284,6 +301,7 @@ public sealed class ConfigurationFormatTests
             Assert.IsFalse(configuration.Practice.ShuffleCustomText);
             Assert.Contains("HA#xyz", configuration.Topics.CallsignPatternsEmea, "The bundled topic lists fill in.");
             Assert.Contains("BUDAPEST", configuration.Topics.Cities);
+            Assert.AreEqual(2, configuration.Topics.Repetitions.Names.Maximum, "The bundled repetitions fill in.");
             Assert.AreEqual("KMRS", configuration.CharacterSets["Mine"]);
             Assert.IsTrue(new PentaGrammata.Services.PracticeSettingsValidator().TryValidate(configuration, out var error), error);
         }
@@ -402,6 +420,74 @@ public sealed class ConfigurationFormatTests
 
         Assert.AreEqual(3, ConfigurationFormat.ReadMajorVersion(File.ReadAllBytes(profile.ConfigPath)));
         Assert.AreEqual(40, profile.Store(3).Load().Practice.CharacterWpm);
+    }
+
+    [TestMethod]
+    public void Load_UserFileWithPartOfTheRepetitions_KeepsTheRestFromTheBundle()
+    {
+        using var profile = new Profile();
+        profile.Write(new Dictionary<string, object?>
+        {
+            ["AppMajorVersion"] = 2.0,
+            ["Topics"] = new Dictionary<string, object?>
+            {
+                ["Repetitions"] = new Dictionary<string, object?>
+                {
+                    ["Names"] = new Dictionary<string, object?> { ["Maximum"] = 4.0 },
+                },
+            },
+        });
+
+        var repetitions = profile.Store(2).Load().Topics.Repetitions;
+
+        Assert.AreEqual(2, repetitions.Names.Minimum, "The bundled minimum stays under the saved maximum.");
+        Assert.AreEqual(4, repetitions.Names.Maximum);
+        Assert.AreEqual(2, repetitions.Cities.Maximum);
+        Assert.AreEqual(1, repetitions.Abbreviations.Maximum);
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_RoundTripsTheRepetitions()
+    {
+        using var profile = new Profile();
+        var store = profile.Store(ConfigurationFormat.CurrentMajorVersion);
+        var configuration = store.Load();
+        configuration.Topics.Repetitions.CallsignsGlobal = new Repetition(1, 3);
+        configuration.Topics.Repetitions.CustomText = new Repetition(2, 2);
+
+        await store.SaveAsync(configuration);
+        var reloaded = profile.Store(ConfigurationFormat.CurrentMajorVersion).Load().Topics.Repetitions;
+
+        Assert.AreEqual((1, 3), (reloaded.CallsignsGlobal.Minimum, reloaded.CallsignsGlobal.Maximum));
+        Assert.AreEqual((2, 2), (reloaded.CustomText.Minimum, reloaded.CustomText.Maximum));
+        Assert.AreEqual((2, 2), (reloaded.Names.Minimum, reloaded.Names.Maximum));
+    }
+
+    [TestMethod]
+    public void Serialize_Repetitions_WritesComments()
+    {
+        var bytes = PromptuariumSerializer.Serialize(new AppConfiguration(), ConfigurationFormat.Options);
+        var repetitions = Child(Child(Element.FromBytes(bytes), "Topics"), "Repetitions");
+        var names = Child(repetitions, "Names");
+
+        Assert.IsTrue(repetitions.Children.Any(c => c.Data.AsUtf8String().StartsWith("How many times", StringComparison.Ordinal)));
+        Assert.IsTrue(Child(names, "Minimum").Children.Any(c => c.Data.AsUtf8String().StartsWith("The fewest times", StringComparison.Ordinal)));
+        Assert.IsTrue(Child(names, "Maximum").Children.Any(c => c.Data.AsUtf8String().StartsWith("The most times", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
+    public void Clone_CopiesTheRepetitionsIndependently()
+    {
+        var original = new AppConfiguration();
+        original.Topics.Repetitions.Names = new Repetition(3, 4);
+
+        var copy = original.Clone();
+        copy.Topics.Repetitions.Names.Maximum = 9;
+        copy.Topics.Repetitions.Cities.Minimum = 1;
+
+        Assert.AreEqual(4, original.Topics.Repetitions.Names.Maximum);
+        Assert.AreEqual(2, original.Topics.Repetitions.Cities.Minimum);
+        Assert.AreEqual(3, copy.Topics.Repetitions.Names.Minimum);
     }
 
     [TestMethod]

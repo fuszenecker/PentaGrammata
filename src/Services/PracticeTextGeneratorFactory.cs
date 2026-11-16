@@ -26,16 +26,17 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
     public IPracticeTextGenerator Create(PracticeTopic topic, AppConfiguration configuration)
     {
         var topics = configuration.Topics ?? new Topics();
+        var repetitions = topics.Repetitions ?? new TopicRepetitions();
         return topic switch
         {
             PracticeTopic.Groups => new GroupsGenerator(_morseGenerator, SelectedCharacters(configuration)),
-            PracticeTopic.CallsignsEmea => new ItemsGenerator(CallsignSource(topics.CallsignPatternsEmea)),
-            PracticeTopic.CallsignsGlobal => new ItemsGenerator(CallsignSource(topics.CallsignPatternsGlobal)),
-            PracticeTopic.Cities => new ItemsGenerator(WordSource(topics.Cities)),
-            PracticeTopic.Names => new ItemsGenerator(WordSource(topics.Names)),
-            PracticeTopic.Abbreviations => new ItemsGenerator(WordSource(topics.Abbreviations)),
-            PracticeTopic.CustomText => new CustomTextGenerator(configuration.Practice.CustomText, configuration.Practice.ShuffleCustomText),
-            PracticeTopic.Mixed => new ItemsGenerator(MixedSource(configuration, topics)),
+            PracticeTopic.CallsignsEmea => new ItemsGenerator(Repeated(CallsignSource(topics.CallsignPatternsEmea), repetitions.CallsignsEmea)),
+            PracticeTopic.CallsignsGlobal => new ItemsGenerator(Repeated(CallsignSource(topics.CallsignPatternsGlobal), repetitions.CallsignsGlobal)),
+            PracticeTopic.Cities => new ItemsGenerator(Repeated(WordSource(topics.Cities), repetitions.Cities)),
+            PracticeTopic.Names => new ItemsGenerator(Repeated(WordSource(topics.Names), repetitions.Names)),
+            PracticeTopic.Abbreviations => new ItemsGenerator(Repeated(WordSource(topics.Abbreviations), repetitions.Abbreviations)),
+            PracticeTopic.CustomText => new CustomTextGenerator(configuration.Practice.CustomText, configuration.Practice.ShuffleCustomText, repetitions.CustomText),
+            PracticeTopic.Mixed => new ItemsGenerator(MixedSource(configuration, topics, repetitions)),
             _ => throw new ArgumentOutOfRangeException(nameof(topic), topic, "Unknown practice topic."),
         };
     }
@@ -60,6 +61,13 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
         // A multi-word entry stays one item: its words are joined by an underscore.
         var list = Usable(words).Select(w => PracticeItems.Join(w.ToUpperInvariant())).ToList();
         return list.Count == 0 ? null : () => list[Random.Shared.Next(list.Count)];
+    }
+
+    /// <summary>The lines of the custom text, each one item (its words joined by <see cref="PracticeItems.WordJoiner"/>).</summary>
+    private static Func<string>? LineSource(string? text)
+    {
+        var lines = PracticeItems.CustomTextLines(text);
+        return lines.Count == 0 ? null : () => lines[Random.Shared.Next(lines.Count)];
     }
 
     private static Func<string>? CallsignSource(IEnumerable<string>? patterns)
@@ -88,18 +96,36 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
         return result.ToString();
     }
 
-    private Func<string> MixedSource(AppConfiguration configuration, Topics topics)
+    /// <summary>A random repetition count of <paramref name="repetition"/>, kept within 1 and <see cref="Repetition.Limit"/>.</summary>
+    internal static int RepeatCount(Repetition? repetition)
+    {
+        int minimum = Math.Clamp(repetition?.Minimum ?? 1, 1, Repetition.Limit);
+        int maximum = Math.Clamp(repetition?.Maximum ?? minimum, minimum, Repetition.Limit);
+        return Random.Shared.Next(minimum, maximum + 1);
+    }
+
+    /// <summary>
+    /// The item sent as many times in a row as the repetition says. The repetitions are joined
+    /// by <see cref="PracticeItems.RepeatJoiner"/>: all of them are played, the item is checked once.
+    /// </summary>
+    internal static string Repeat(string item, Repetition? repetition) =>
+        PracticeItems.Repeat(item, RepeatCount(repetition));
+
+    private static Func<string>? Repeated(Func<string>? source, Repetition? repetition) =>
+        source is null ? null : () => Repeat(source(), repetition);
+
+    private Func<string> MixedSource(AppConfiguration configuration, Topics topics, TopicRepetitions repetitions)
     {
         var characters = SelectedCharacters(configuration);
         var sources = new List<Func<string>?>
         {
             () => _morseGenerator.GenerateGroupsOf5(characters, 1),
-            CallsignSource(topics.CallsignPatternsEmea),
-            CallsignSource(topics.CallsignPatternsGlobal),
-            WordSource(topics.Cities),
-            WordSource(topics.Names),
-            WordSource(topics.Abbreviations),
-            WordSource(CustomTextNormalizer.Normalize(configuration.Practice.CustomText).Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+            Repeated(CallsignSource(topics.CallsignPatternsEmea), repetitions.CallsignsEmea),
+            Repeated(CallsignSource(topics.CallsignPatternsGlobal), repetitions.CallsignsGlobal),
+            Repeated(WordSource(topics.Cities), repetitions.Cities),
+            Repeated(WordSource(topics.Names), repetitions.Names),
+            Repeated(WordSource(topics.Abbreviations), repetitions.Abbreviations),
+            Repeated(LineSource(configuration.Practice.CustomText), repetitions.CustomText),
         }.OfType<Func<string>>().ToList();
 
         return () => sources[Random.Shared.Next(sources.Count)]();
@@ -125,25 +151,29 @@ public sealed class PracticeTextGeneratorFactory : IPracticeTextGeneratorFactory
             {
                 var item = next();
                 items.Add(item);
-                // Letters only: neither the spaces nor the underscores joining a multi-word item count.
-                sent += MorseAlphabet.Tokenize(item).Count(t => !string.IsNullOrWhiteSpace(t) && t != "_");
+                // Letters only, every repetition included (they all take time to send): neither the
+                // spaces nor the joiners of words and repetitions count.
+                sent += MorseAlphabet.Tokenize(PracticeItems.ToPlayback(item)).Count(t => !string.IsNullOrWhiteSpace(t) && t != "_");
             }
 
             return string.Join(' ', items);
         }
     }
 
-    private sealed class CustomTextGenerator(string? text, bool shuffle) : IPracticeTextGenerator
+    /// <summary>
+    /// The custom text line by line, in order or with its lines shuffled, each line repeated as
+    /// a whole as its repetition says; like a multi-word list entry, a line is one row of the
+    /// result and its words are scored one by one.
+    /// </summary>
+    private sealed class CustomTextGenerator(string? text, bool shuffle, Repetition? repetition) : IPracticeTextGenerator
     {
         public string Generate(int groupCount)
         {
-            var normalized = CustomTextNormalizer.Normalize(text);
-            if (!shuffle)
-                return normalized;
+            var lines = PracticeItems.CustomTextLines(text).ToArray();
+            if (shuffle)
+                Random.Shared.Shuffle(lines);
 
-            var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            Random.Shared.Shuffle(words);
-            return string.Join(' ', words);
+            return string.Join(' ', lines.Select(line => Repeat(line, repetition)));
         }
     }
 }

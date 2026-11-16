@@ -481,6 +481,40 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
+    public void ApplyPracticeSettings_CopiesTheRepetitionsAsAnIndependentCopy()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        store.SaveAsync(Arg.Any<AppConfig>()).Returns(Task.CompletedTask);
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        var settings = sut.Current.Clone();
+        settings.Topics.Repetitions.Names = new Repetition(3, 5);
+
+        sut.ApplyPracticeSettings(settings);
+        settings.Topics.Repetitions.Names.Maximum = 9;
+
+        Assert.AreEqual(3, sut.Current.Topics.Repetitions.Names.Minimum);
+        Assert.AreEqual(5, sut.Current.Topics.Repetitions.Names.Maximum);
+        Assert.AreNotSame(settings.Topics.Repetitions, sut.Current.Topics.Repetitions);
+    }
+
+    [TestMethod]
+    public void ApplyImported_ReplacesTheRepetitions()
+    {
+        var store = Substitute.For<IConfigurationStore>();
+        store.Load().Returns(CreateConfig());
+        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
+        var imported = CreateConfig();
+        imported.Topics.Repetitions.Cities = new Repetition(1, 4);
+
+        sut.ApplyImported(imported);
+
+        Assert.AreEqual(1, sut.Current.Topics.Repetitions.Cities.Minimum);
+        Assert.AreEqual(4, sut.Current.Topics.Repetitions.Cities.Maximum);
+        Assert.AreNotSame(imported.Topics.Repetitions.Cities, sut.Current.Topics.Repetitions.Cities);
+    }
+
+    [TestMethod]
     public void ApplyPracticeSettings_WhenPassedTheLiveCurrentItself_KeepsCharacterSets()
     {
         // The backup-import path re-applies the live config through the same wholesale

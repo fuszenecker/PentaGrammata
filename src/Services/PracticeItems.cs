@@ -19,6 +19,39 @@ public static class PracticeItems
     public const char WordJoiner = '_';
 
     /// <summary>
+    /// The bar that joins the repetitions of one item in the generator's output
+    /// (<c>LACI|LACI</c>): they are all played, but the item is checked once. It cannot be sent
+    /// as Morse code, and it never leaves <see cref="PracticeController"/>, which splits the
+    /// generated text into <see cref="ToPlayback"/> and <see cref="ToChecked"/>.
+    /// </summary>
+    public const char RepeatJoiner = '|';
+
+    /// <summary>
+    /// The lines of the custom text as items: each non-empty line is one item, its words
+    /// joined by <see cref="WordJoiner"/> like a multi-word list entry.
+    /// </summary>
+    public static List<string> CustomTextLines(string? text) =>
+        (text ?? string.Empty)
+            .Split('\n')
+            .Select(line => Join(line))
+            .Where(line => line.Length > 0)
+            .ToList();
+
+    /// <summary>The item sent <paramref name="count"/> times in a row, the repetitions joined by <see cref="RepeatJoiner"/>.</summary>
+    public static string Repeat(string item, int count) =>
+        string.Join(RepeatJoiner, Enumerable.Repeat(item, Math.Max(1, count)));
+
+    /// <summary>The generated text as it is checked, revealed and saved: each item once, without its repetitions.</summary>
+    public static string ToChecked(string? text) =>
+        string.Join(' ', (text ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Select(item => item.Split(RepeatJoiner)[0]));
+
+    /// <summary>The generated text as it is played: every repetition, every word gap an ordinary space.</summary>
+    public static string ToPlayback(string? text) =>
+        ToPlain((text ?? string.Empty).Replace(RepeatJoiner, ' '));
+
+    /// <summary>
     /// The item form of a list entry: whitespace (and underscores) collapsed, words joined by
     /// <see cref="WordJoiner"/>.
     /// </summary>

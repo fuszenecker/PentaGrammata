@@ -9,7 +9,8 @@ PentaGrammata plays random five-character groups (or callsigns, cities, names, a
 - Generates random 5-character groups from configurable character sets (letters, digits, punctuation, prosigns)
 - Practice topics, chosen from a dropdown on the main window: random 5-character groups, callsigns (EMEA or worldwide), cities, names, ham abbreviations and Q-codes, your own text, or all of them mixed
 - Topic lists editable on the Topics tab of Settings, kept in alphabetical order: callsign patterns (`#` is a random digit, a lowercase letter a random letter, uppercase letters, digits and `/` are sent as written, so `HA#xyz` gives e.g. `HA5ABC`), cities, names and abbreviations
-- Custom text topic: your own text sent whole, in order or with its words shuffled
+- Custom text topic: your own text sent whole, line by line in order or with its lines shuffled; each line is one item, repeated and checked as a whole like a multi-word city
+- Repetition as in a real QSO: each topic sends every item a random number of times in a row, between a minimum and a maximum set on its Topics tab (callsigns, cities and names twice by default, abbreviations and the lines of the custom text once; random groups are never repeated). Every repetition is played, but you copy each item once, and it is checked, revealed and shown in the result once
 - Multi-word entries (`NEW YORK`, `LITTLE JOHN`, `QSL VIA BURO`) are one item: you type them with ordinary spaces, and the result window shows each one in a single row, with spaces that keep it on one line, scored word by word
 - Plays groups as synthesized Morse code audio using the Farnsworth timing method (separate character WPM and average WPM)
 - Receiver simulation: noise, band-pass filter, AGC and audio peak filter
@@ -79,8 +80,8 @@ The installers are built only by the `Create Installer` workflow (`.github/workf
 | `Practice` | `DefaultCharacterSet` | `Default` | Character set used on startup |
 | `Practice` | `ErrorThreshold` | `5.0` | Maximum error rate (%) to pass |
 | `Practice` | `Topic` | `Groups` | What a session sends: `Groups`, `CallsignsEmea`, `CallsignsGlobal`, `Cities`, `Names`, `Abbreviations`, `CustomText` or `Mixed` |
-| `Practice` | `CustomText` | _(empty)_ | The text the `CustomText` topic sends whole (the duration and character set do not apply); `Mixed` mixes its words in too |
-| `Practice` | `ShuffleCustomText` | `false` | Send the words of the custom text in a random order |
+| `Practice` | `CustomText` | _(empty)_ | The text the `CustomText` topic sends whole (the duration and character set do not apply); each line is one item; `Mixed` mixes its lines in too |
+| `Practice` | `ShuffleCustomText` | `false` | Send the lines of the custom text in a random order |
 | `Practice` | `AutoAdjustWpm` | `false` | Dynamically adjust the practice WPM in memory after each scored session (slow down when the recent average error rate — or the session just finished — is above `ErrorThreshold`, speed up otherwise); the dynamic WPM is not persisted and restarts from the configured WPM on each app start |
 | `Practice` | `AutoAdjustWindowSize` | `1` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm` |
 | `Topics` | `CallsignPatternsEmea` | ~180 patterns | Callsign patterns of the EMEA region (`#` digit, lowercase letter = random letter) |
@@ -88,6 +89,7 @@ The installers are built only by the `Create Installer` workflow (`.github/workf
 | `Topics` | `Cities` | ~280 cities | Larger cities of the EMEA region and the capitals of the world |
 | `Topics` | `Names` | ~180 names | First names popular in Europe and ham nicknames |
 | `Topics` | `Abbreviations` | ~100 entries | Ham abbreviations and Q-codes |
+| `Topics` | `Repetitions` | 2–2, 1–1 | How many times each item is sent in a row (`Minimum`–`Maximum`, 1 to 9) per topic: `CallsignsEmea`, `CallsignsGlobal`, `Cities` and `Names` 2–2, `Abbreviations` and `CustomText` (each word) 1–1 |
 | `UiPreferences` | `ReceivedTextFontFamily` | `Cascadia Mono` | Font family for the received-text box |
 | `UiPreferences` | `ReceivedTextFontSize` | `20.0` | Font size for the received-text box (pt) |
 | `UiPreferences` | `RevealSentTextAfterPractice` | `true` | Show the sent text automatically when the session ends |

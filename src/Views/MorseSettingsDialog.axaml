@@ -9,6 +9,25 @@
         WindowStartupLocation="CenterOwner"
         Title="Morse Practice and Audio Settings">
 
+    <Window.DataTemplates>
+        <!-- The repetition range of a topic, shown below its list on the Topics tab. -->
+        <DataTemplate DataType="vm:RepetitionViewModel">
+            <!-- Spans the width of the list above it: the two counters share what the labels leave. -->
+            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto"
+                  ToolTip.Tip="How many times each item is sent in a row, as in a real QSO: a random count between the two values, both included. Set both to 1 to send every item once.">
+                <TextBlock Grid.Column="0" Text="Repeat" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <NumericUpDown Grid.Column="1" Minimum="1" Maximum="{Binding Limit}" Increment="1" FormatString="0"
+                               HorizontalAlignment="Stretch"
+                               Value="{Binding Minimum}" ToolTip.Tip="The fewest times an item is sent in a row."/>
+                <TextBlock Grid.Column="2" Text="to" VerticalAlignment="Center" Margin="8,0"/>
+                <NumericUpDown Grid.Column="3" Minimum="1" Maximum="{Binding Limit}" Increment="1" FormatString="0"
+                               HorizontalAlignment="Stretch"
+                               Value="{Binding Maximum}" ToolTip.Tip="The most times an item is sent in a row."/>
+                <TextBlock Grid.Column="4" Text="times" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+        </DataTemplate>
+    </Window.DataTemplates>
+
     <Grid RowDefinitions="*,Auto">
 
         <TabControl Grid.Row="0" Background="#101010">
@@ -56,45 +75,58 @@
                 <!-- Padding 0: the outer edges then sit 6 px from the window, as on the other tabs. -->
                 <TabControl Margin="6" Padding="0" TabStripPlacement="Left">
                     <TabItem Header="Callsigns (EMEA)">
-                        <TextBox Margin="8,0,0,0" Text="{Binding CallsignPatternsEmeaText}"
-                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
-                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip.Tip="EMEA callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                        <Grid RowDefinitions="*,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0" Text="{Binding CallsignPatternsEmeaText}"
+                                     FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip.Tip="EMEA callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding CallsignsEmeaRepetition}"/>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Callsigns (global)">
-                        <TextBox Margin="8,0,0,0" Text="{Binding CallsignPatternsGlobalText}"
-                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
-                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip.Tip="Worldwide callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                        <Grid RowDefinitions="*,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0" Text="{Binding CallsignPatternsGlobalText}"
+                                     FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip.Tip="Worldwide callsign patterns. One pattern per line. # is a random digit, a lowercase letter is a random letter; uppercase letters, digits and / are sent as written (HA#xyz gives e.g. HA5ABC)."/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding CallsignsGlobalRepetition}"/>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Cities">
-                        <TextBox Margin="8,0,0,0" Text="{Binding CitiesText}"
-                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
-                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip.Tip="City names, one per line: the larger cities of the EMEA region and the capitals of the world."/>
+                        <Grid RowDefinitions="*,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0" Text="{Binding CitiesText}"
+                                     FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip.Tip="City names, one per line: the larger cities of the EMEA region and the capitals of the world."/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding CitiesRepetition}"/>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Names">
-                        <TextBox Margin="8,0,0,0" Text="{Binding NamesText}"
-                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
-                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip.Tip="Names, one per line: first names popular in Europe and the nicknames radio amateurs use."/>
+                        <Grid RowDefinitions="*,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0" Text="{Binding NamesText}"
+                                     FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip.Tip="Names, one per line: first names popular in Europe and the nicknames radio amateurs use."/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding NamesRepetition}"/>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Abbreviations">
-                        <TextBox Margin="8,0,0,0" Text="{Binding AbbreviationsText}"
-                                 FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
-                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip.Tip="Radio amateur abbreviations and Q-codes, one per line."/>
+                        <Grid RowDefinitions="*,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0" Text="{Binding AbbreviationsText}"
+                                     FontFamily="{StaticResource MonospaceFont}" AcceptsReturn="True" Padding="8,6"
+                                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip.Tip="Radio amateur abbreviations and Q-codes, one per line."/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding AbbreviationsRepetition}"/>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Custom text">
-                        <Grid RowDefinitions="Auto,*" Margin="8,0,0,0">
-                            <CheckBox Grid.Row="0" Content="Shuffle words" IsChecked="{Binding ShuffleCustomText}"
-                                      ToolTip.Tip="Send the words of the custom text in a random order instead of as written."/>
-                            <TextBox Grid.Row="1" Margin="0,8,0,0"
+                        <Grid RowDefinitions="*,Auto,Auto" Margin="8,0,0,0">
+                            <TextBox Grid.Row="0"
                                      Text="{Binding CustomText}"
                                      TextWrapping="Wrap"
                                      FontFamily="{StaticResource MonospaceFont}"
@@ -103,8 +135,12 @@
                                      MinHeight="60"
                                      VerticalAlignment="Stretch"
                                      HorizontalAlignment="Stretch"
-                                     ToolTip.Tip="The text the Custom text topic sends, whole, regardless of the practice duration and the character set. The Mixed topic mixes its words in too."
+                                     ToolTip.Tip="The text the Custom text topic sends, whole, regardless of the practice duration and the character set. Each line is one item: it is repeated, shuffled and checked as a whole, like a multi-word city. The Mixed topic mixes its lines in too."
                                      ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                            <ContentControl Grid.Row="1" Margin="0,8,0,0" HorizontalContentAlignment="Stretch" Content="{Binding CustomTextRepetition}"/>
+                            <CheckBox Grid.Row="2" Margin="0,8,0,0"
+                                      Content="Shuffle lines" IsChecked="{Binding ShuffleCustomText}"
+                                      ToolTip.Tip="Send the lines of the custom text in a random order instead of as written."/>
                         </Grid>
                     </TabItem>
                 </TabControl>

@@ -135,12 +135,14 @@ public class PracticeController : IPracticeController
                 .Create(config.Practice.Topic, config)
                 .Generate(numberOfGroups);
 
-            LastGeneratedText = morseCode;
+            // Each item is checked, revealed and saved once; its repetitions are only played.
+            LastGeneratedText = PracticeItems.ToChecked(morseCode);
 
             try
             {
-                // The underscore joining the words of a multi-word item is an ordinary word gap.
-                string morseCodeToPlay = "vvv = " + PracticeItems.ToPlain(morseCode) + " <ar>";
+                // Every repetition is played; the underscore joining the words of a multi-word
+                // item and the bar joining the repetitions are ordinary word gaps.
+                string morseCodeToPlay = "vvv = " + PracticeItems.ToPlayback(morseCode) + " <ar>";
                 var audio = _configurationService.Current.Audio;
                 var playbackSettings = MorsePlaybackSettings.From(audio, _lastUsedCharacterWpm, _lastUsedAverageWpm);
 

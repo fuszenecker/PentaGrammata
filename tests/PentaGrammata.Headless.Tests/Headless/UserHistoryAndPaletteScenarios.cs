@@ -63,7 +63,8 @@ public sealed partial class UserJourneyScenarios
         app.CharacterSetBox.SelectedItem = "Digits";
         ScenarioDesktop.Controls<NumericUpDown>(app.Main).Single().Value = 999;
         await ScoreAndSave(app, "CQ TEST <ar>");
-        Assert.AreEqual("CQ TEST <ar>", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
+        // Two lines, two items: whitespace inside a line is one word gap.
+        Assert.AreEqual("CQ TEST_<ar>", app.Services.GetRequiredService<IPracticeController>().LastGeneratedText);
         Assert.IsLessThan(app.Audio.SampleRate * 60, app.Audio.Samples.Length);
     });
 

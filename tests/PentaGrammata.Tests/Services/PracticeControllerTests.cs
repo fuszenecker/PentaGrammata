@@ -94,7 +94,8 @@ public sealed class PracticeControllerTests
 
         await sut.StartAsync();
 
-        Assert.AreEqual("CQ CQ DE HA5XYZ", sut.LastGeneratedText);
+        // One line is one item, its words joined like a multi-word city.
+        Assert.AreEqual("CQ_CQ_DE_HA5XYZ", sut.LastGeneratedText);
         morseGenerator.DidNotReceiveWithAnyArgs().GenerateGroupsOf5(default!, default);
         await morsePlayer.Received(1).PlayMorseCodeAsync(
             "vvv = CQ CQ DE HA5XYZ <ar>",
@@ -121,7 +122,8 @@ public sealed class PracticeControllerTests
 
         await sut.StartAsync();
 
-        Assert.AreEqual("CQ CQ DE HA5XYZ", sut.LastGeneratedText);
+        // Each line is one item; whitespace inside a line collapses to one word gap.
+        Assert.AreEqual("CQ_CQ DE_HA5XYZ", sut.LastGeneratedText);
     }
 
     [TestMethod]
@@ -173,8 +175,9 @@ public sealed class PracticeControllerTests
 
         var words = sut.LastGeneratedText.Split(' ');
         Assert.IsTrue(words.All(w => w is "BUDAPEST" or "WIEN"), sut.LastGeneratedText);
-        // 1 min at 10 WPM is worth 7 groups, i.e. 35 characters.
-        Assert.IsGreaterThanOrEqualTo(35, words.Sum(w => w.Length));
+        // 1 min at 10 WPM is worth 7 groups, i.e. 35 characters, every repetition played included.
+        var played = (string)morsePlayer.ReceivedCalls().Single().GetArguments()[0]!;
+        Assert.IsGreaterThanOrEqualTo(35, played["vvv = ".Length..^" <ar>".Length].Replace(" ", string.Empty).Length, played);
         morseGenerator.DidNotReceiveWithAnyArgs().GenerateGroupsOf5(default!, default);
     }
 
@@ -195,8 +198,33 @@ public sealed class PracticeControllerTests
 
         await sut.StartAsync();
 
+        // A city is played twice in a row by default, but checked once.
         Assert.AreEqual("NEW_YORK", sut.LastGeneratedText);
-        await morsePlayer.Received(1).PlayMorseCodeAsync("vvv = NEW YORK <ar>", Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>());
+        await morsePlayer.Received(1).PlayMorseCodeAsync("vvv = NEW YORK NEW YORK <ar>", Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task StartAsync_PlaysEveryRepetition_ButChecksEachItemOnce()
+    {
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.Topic = PracticeTopic.CustomText;
+        config.Practice.CustomText = "CQ DE HA5XYZ\nNAME LACI";
+        config.Topics.Repetitions.CustomText = new Repetition(2, 2);
+        configService.Current.Returns(config);
+        var sut = new PracticeController(morsePlayer, new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
+            Substitute.For<IPracticeSettingsValidator>(), evaluator, configService,
+            CreateAdjuster(), Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        await sut.BuildResultAsync("CQ DE HA5XYZ NAME LACI");
+
+        // Each line is repeated as a whole, never word by word.
+        await morsePlayer.Received(1).PlayMorseCodeAsync("vvv = CQ DE HA5XYZ CQ DE HA5XYZ NAME LACI NAME LACI <ar>", Arg.Any<MorsePlaybackSettings>(), Arg.Any<CancellationToken>());
+        Assert.AreEqual("CQ_DE_HA5XYZ NAME_LACI", sut.LastGeneratedText, "Revealed, checked and saved once.");
+        evaluator.Received(1).Evaluate("CQ_DE_HA5XYZ NAME_LACI", "CQ DE HA5XYZ NAME LACI", Arg.Any<double>());
     }
 
     [TestMethod]

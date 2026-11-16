@@ -485,6 +485,79 @@ public sealed class MorseSettingsDialogViewModelTests
     }
 
     [TestMethod]
+    public void TopicRepetitions_AreShownAndSavedBack()
+    {
+        var config = CreateConfig(20, 15, "Default");
+        config.Topics.Repetitions = new TopicRepetitions { Names = new(2, 3), CustomText = new(1, 1) };
+        var validator = Substitute.For<IPracticeSettingsValidator>();
+        validator.TryValidate(Arg.Any<AppConfig>(), out Arg.Any<string>()).Returns(true);
+        var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer(), new CharacterSetTextCodec());
+
+        Assert.AreEqual(2, sut.NamesRepetition.Minimum);
+        Assert.AreEqual(3, sut.NamesRepetition.Maximum);
+        Assert.AreEqual(2, sut.CitiesRepetition.Minimum, "The default of the cities.");
+
+        sut.CustomTextRepetition.Maximum = 4;
+        sut.AbbreviationsRepetition.Minimum = 3;
+
+        Assert.IsTrue(sut.TryBuildSettings(out var settings));
+        Assert.AreEqual(2, settings.Topics.Repetitions.Names.Minimum);
+        Assert.AreEqual(3, settings.Topics.Repetitions.Names.Maximum);
+        Assert.AreEqual(1, settings.Topics.Repetitions.CustomText.Minimum);
+        Assert.AreEqual(4, settings.Topics.Repetitions.CustomText.Maximum);
+        Assert.AreEqual(3, settings.Topics.Repetitions.Abbreviations.Minimum);
+        Assert.AreEqual(3, settings.Topics.Repetitions.Abbreviations.Maximum, "Raising the minimum raises the maximum.");
+        Assert.AreEqual(2, settings.Topics.Repetitions.CallsignsEmea.Maximum);
+    }
+
+    [TestMethod]
+    public void RepetitionEditor_KeepsTheMinimumNotAboveTheMaximum()
+    {
+        var sut = new RepetitionViewModel(new Repetition(2, 2));
+
+        sut.Maximum = 1;
+        Assert.AreEqual(1, sut.Minimum);
+
+        sut.Minimum = 5;
+        Assert.AreEqual(5, sut.Maximum);
+    }
+
+    [TestMethod]
+    public void RepetitionEditor_OffersOneToNine_AndStartsFromOnceWithoutASetting()
+    {
+        var sut = new RepetitionViewModel(null);
+
+        Assert.AreEqual(Repetition.Limit, sut.Limit);
+        Assert.AreEqual(9, sut.Limit);
+        Assert.AreEqual(1, sut.Minimum);
+        Assert.AreEqual(1, sut.Maximum);
+        Assert.AreEqual(1, sut.ToRepetition().Maximum);
+    }
+
+    [TestMethod]
+    public void RepetitionEditor_RaisesPropertyChangedForTheFollowingBound()
+    {
+        var sut = new RepetitionViewModel(new Repetition(2, 2));
+        var changed = new System.Collections.Generic.List<string?>();
+        sut.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        sut.Minimum = 4;
+
+        CollectionAssert.AreEquivalent(new[] { nameof(RepetitionViewModel.Minimum), nameof(RepetitionViewModel.Maximum) }, changed);
+    }
+
+    [TestMethod]
+    public void TopicRepetitions_EditsBeforeCancelDoNotTouchTheConfiguration()
+    {
+        var config = CreateConfig(20, 15, "Default");
+        var sut = new MorseSettingsDialogViewModel(config, Substitute.For<IPracticeSettingsValidator>(), Analyzer(), new CharacterSetTextCodec());
+
+        sut.NamesRepetition.Maximum = 7;
+
+        Assert.AreEqual(2, config.Topics.Repetitions.Names.Maximum);
+    }
+
+    [TestMethod]
     public void TryBuildSettings_ReportsTopicValidationErrors()
     {
         var config = CreateConfig(20, 15, "Default");

@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.3.0
+
+- **Items repeated as in a real QSO:** every topic now sends each item a random number of times in a row, between a minimum and a maximum you set below its list on the Topics tab of Settings. By default callsigns, cities and names come twice (`LACI LACI`, `NOVI SAD NOVI SAD`), abbreviations and the lines of your own text once. Random groups are never repeated; the mixed topic repeats each item as its own topic would. You copy each item once: the repetitions are there to help you hear it, and the check, the revealed text and the result window show it once.
+- **Your own text goes line by line:** each line of the custom text is one item, repeated as a whole (`CQ DE HA5XYZ CQ DE HA5XYZ`), and "Shuffle lines" (formerly "Shuffle words") mixes the lines, not the words. Write one word per line to shuffle words as before. Like a multi-word city, a line is one row in the result window.
+
 ## 2.2.2
 
 - **The result window shows spaces in multi-word items:** a city, name or abbreviation of several words (`CAPE TOWN`, `LITTLE JOHN`, `QSL VIA BURO`) is shown with ordinary-looking spaces that keep it on one line, instead of the underscores 2.2.1 showed.

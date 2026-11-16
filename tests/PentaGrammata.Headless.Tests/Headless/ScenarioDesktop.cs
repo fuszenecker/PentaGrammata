@@ -165,6 +165,20 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
     // Topic sub-tabs: Callsigns (EMEA), Callsigns (global), Cities, Names, Abbreviations, Custom text.
     public const int EmeaCallsignsSubTab = 0, GlobalCallsignsSubTab = 1, CitiesSubTab = 2, NamesSubTab = 3, AbbreviationsSubTab = 4, CustomTextSubTab = 5;
 
+    /// <summary>
+    /// The repetition editors ("Repeat N to M times") of the selected Topics sub-tab. A tab
+    /// visited before keeps its content in the tree, so only the selected tab's editors count.
+    /// </summary>
+    public static (NumericUpDown Minimum, NumericUpDown Maximum) RepeatRange(Window settings)
+    {
+        settings.UpdateLayout();
+        var selected = (TabItem)Controls<TabControl>(settings).Single(t => t.FindLogicalAncestorOfType<TabControl>() is not null).SelectedItem!;
+        NumericUpDown Editor(string prefix) => Controls<NumericUpDown>(settings).Single(c =>
+            ToolTip.GetTip(c)?.ToString()?.StartsWith(prefix, StringComparison.Ordinal) == true
+            && ReferenceEquals(c.FindLogicalAncestorOfType<TabItem>(), selected));
+        return (Editor("The fewest times"), Editor("The most times"));
+    }
+
     /// <summary>Opens Topics / Custom text in the settings dialog and returns the custom text box.</summary>
     public static TextBox CustomText(Window settings)
     {

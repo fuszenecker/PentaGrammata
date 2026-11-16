@@ -433,6 +433,75 @@ public sealed class PracticeSettingsValidatorTests
         StringAssert.Contains(error, "\"_\"");
     }
 
+    [TestMethod]
+    [DataRow(1, 1)]
+    [DataRow(2, 2)]
+    [DataRow(1, 9)]
+    public void TryValidate_RepetitionInRange_IsValid(int minimum, int maximum)
+    {
+        var settings = CreateValidSettings();
+        settings.Topics.Repetitions.Names = new Repetition(minimum, maximum);
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    [DataRow(0, 2)]
+    [DataRow(3, 2)]
+    [DataRow(1, 10)]
+    public void TryValidate_RepetitionOutOfRange_ReturnsFalse(int minimum, int maximum)
+    {
+        var settings = CreateValidSettings();
+        settings.Topics.Repetitions.Cities = new Repetition(minimum, maximum);
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        StringAssert.Contains(error, "repetition of the cities");
+    }
+
+    [TestMethod]
+    [DataRow("CallsignsEmea", "EMEA callsigns")]
+    [DataRow("CallsignsGlobal", "global callsigns")]
+    [DataRow("Cities", "cities")]
+    [DataRow("Names", "names")]
+    [DataRow("Abbreviations", "abbreviations")]
+    [DataRow("CustomText", "custom text")]
+    public void TryValidate_EveryTopicRepetitionIsChecked(string property, string label)
+    {
+        var settings = CreateValidSettings();
+        typeof(TopicRepetitions).GetProperty(property)!.SetValue(settings.Topics.Repetitions, new Repetition(0, 1));
+
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        Assert.AreEqual($"The repetition of the {label} must be between 1 and 9, the minimum not above the maximum.", error);
+    }
+
+    [TestMethod]
+    public void TryValidate_DefaultRepetitions_AreValid()
+    {
+        var settings = CreateValidSettings();
+        settings.Topics.Repetitions = new TopicRepetitions();
+
+        Assert.IsTrue(_validator.TryValidate(settings, out var error), error);
+    }
+
+    [TestMethod]
+    public void TryValidate_TheRepeatJoinerCannotBeTyped()
+    {
+        // The bar joins the repetitions inside the generator's output; typed, it would split an item.
+        var settings = CreateValidSettings();
+        settings.Topics.Names = ["LA|CI"];
+        Assert.IsFalse(_validator.TryValidate(settings, out var error));
+        StringAssert.Contains(error, "\"|\"");
+
+        settings = CreateValidSettings();
+        settings.Practice.CustomText = "CQ|DE";
+        Assert.IsFalse(_validator.TryValidate(settings, out error));
+        StringAssert.Contains(error, "\"|\"");
+
+        settings = CreateValidSettings();
+        settings.Topics.CallsignPatternsEmea = ["HA#|xyz"];
+        Assert.IsFalse(_validator.TryValidate(settings, out error));
+    }
+
     private static AppConfig CreateValidSettings()
     {
         return new AppConfig
