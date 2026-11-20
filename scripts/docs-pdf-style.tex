@@ -25,7 +25,14 @@
 \RedeclareSectionCommand[beforeskip=0pt,afterskip=1.2\baselineskip]{section}
 \RedeclareSectionCommand[beforeskip=1.6\baselineskip,afterskip=.6\baselineskip]{subsection}
 \RedeclareSectionCommand[beforeskip=1.2\baselineskip,afterskip=.4\baselineskip]{subsubsection}
-\usepackage{needspace}
+% \keepwithnext{room}: start a new page here unless `room' is left. Unlike \needspace it
+% breaks with \clearpage at once (flushing the page builder first), so a longtable that follows
+% never sees the break and cannot print its head alone at the top of the next page.
+\makeatletter
+\newcommand{\keepwithnext}[1]{\par\penalty\z@
+  \begingroup\setlength{\dimen@}{#1}\dimen@ii\pagegoal\advance\dimen@ii-\pagetotal
+  \ifdim\dimen@>\dimen@ii\ifdim\pagetotal>\z@\clearpage\fi\fi\endgroup}
+\makeatother
 \usepackage{etoolbox}
 \pretocmd{\section}{\clearpage}{}{}
 

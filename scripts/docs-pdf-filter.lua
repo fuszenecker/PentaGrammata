@@ -60,8 +60,14 @@ function Pandoc(doc)
         goto continue
       end
       if block.level >= 2 then
-        local room = has_image(doc.blocks[i + 1]) and "0.5\\textheight" or "10\\baselineskip"
-        table.insert(blocks, pandoc.RawBlock("latex", "\\needspace{" .. room .. "}"))
+        local nextblock = doc.blocks[i + 1]
+        local room = has_image(nextblock) and "0.5\\textheight"
+          or (nextblock and nextblock.t == "Table") and "0.3\\textheight"
+          or "6\\baselineskip"
+        -- \needspace and then an explicit \clearpage when it decided to break: the break must
+        -- happen here, before a longtable takes over the output routine, or the table head is
+        -- printed alone at the top of the new page.
+        table.insert(blocks, pandoc.RawBlock("latex", "\\keepwithnext{" .. room .. "}"))
       end
     elseif skip_list and block.t == "OrderedList" then
       skip_list = false

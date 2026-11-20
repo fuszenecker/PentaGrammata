@@ -5,7 +5,8 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.4.1
 
 - **Always dark:** the application now uses its dark theme on every system; on a light desktop theme some windows used to show dark text on dark panels.
-- **User guides:** detailed guides with pictures in English and Hungarian, as A4 PDFs, in the `docs` folder of the repository.
+- **User guides:** detailed guides with pictures in English and Hungarian, as A4 PDFs, attached to every release and in the `docs` folder of the repository.
+- **2.4.1.1:** the user guides no longer show an empty table heading above some chapters.
 
 ## 2.4.0
 
