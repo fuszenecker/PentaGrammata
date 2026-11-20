@@ -4,6 +4,10 @@ A cross-platform Morse code copying practice application built with .NET 10 and 
 
 PentaGrammata plays random five-character groups (or callsigns, cities, names, abbreviations and Q-codes, or your own text) as Morse code audio and lets you type what you hear. After each session it scores your accuracy using Levenshtein distance and shows a side-by-side diff of sent vs. received groups.
 
+## Documentation
+
+Detailed user guides with pictures, each ending with a tour of the source code: [English](docs/en/user-guide.md) ([A4 PDF](docs/pdf/PentaGrammata-User-Guide-en.pdf)), [magyar](docs/hu/felhasznaloi-kezikonyv.md) ([A4 PDF](docs/pdf/PentaGrammata-Felhasznaloi-Kezikonyv-hu.pdf)).
+
 ## Features
 
 - Generates random 5-character groups from configurable character sets (letters, digits, punctuation, prosigns)

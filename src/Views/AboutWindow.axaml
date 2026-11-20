@@ -104,6 +104,10 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
+                        <TextBlock Grid.Column="1" Text="Dark theme on every system; detailed A4 PDF user guides with pictures in English and Hungarian in the docs folder of the source repository"/>
+                    </Grid>
+                    <Grid Classes="feature" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Classes="bullet"/>
                         <TextBlock Grid.Column="1" Text="Update check against the latest GitHub release"/>
                     </Grid>
                 </StackPanel>

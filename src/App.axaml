@@ -1,9 +1,8 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PentaGrammata.App"
-             xmlns:converters="using:PentaGrammata.Converters"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             xmlns:converters="using:PentaGrammata.Converters">
+             <!-- The theme is forced to Dark in App.axaml.cs, whatever the system uses. -->
 
     <Application.Resources>
         <converters:StatusLevelToBrushConverter x:Key="StatusLevelToBrush"/>

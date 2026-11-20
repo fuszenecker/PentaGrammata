@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.4.1
+
+- **Always dark:** the application now uses its dark theme on every system; on a light desktop theme some windows used to show dark text on dark panels.
+- **User guides:** detailed guides with pictures in English and Hungarian, as A4 PDFs, in the `docs` folder of the repository.
+
 ## 2.4.0
 
 - **The correlation window has three tabs:** besides speed, your error rate is now also plotted against the signal-to-noise ratio (sessions with noise) and against the QSB fade depth (sessions with QSB), each with its own fitted line and summary. An analysis window of 0 days shows only today's sessions.

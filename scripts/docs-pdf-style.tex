@@ -1,0 +1,64 @@
+% Typography of the A4 PDF user guides (scripts/Build-Docs.sh). Included in the preamble of
+% pandoc's LaTeX template; the document class is KOMA-Script's scrartcl.
+
+% Fonts: a book face for reading, a humanist sans for headings and captions, a monospace that
+% tells 0 from O for code.
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Pagella}[Numbers=OldStyle]
+\newfontfamily\headingfont{Lato}[UprightFont=* Bold, BoldFont=* Black, ItalicFont=* Italic]
+\setsansfont{Lato}
+\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
+\usepackage{microtype}
+
+\usepackage{xcolor}
+\definecolor{accent}{RGB}{29,78,216}
+\definecolor{muted}{RGB}{90,96,110}
+\definecolor{codefg}{RGB}{40,44,52}
+\definecolor{shadecolor}{RGB}{243,244,246}
+
+% Headings: sans, accent coloured, every chapter on a new page. A subsection is kept with what
+% follows it by docs-pdf-filter.lua (\needspace before it).
+\setkomafont{disposition}{\headingfont\color{accent}}
+\setkomafont{section}{\Large}
+\setkomafont{subsection}{\large}
+\setkomafont{subsubsection}{\normalsize}
+\RedeclareSectionCommand[beforeskip=0pt,afterskip=1.2\baselineskip]{section}
+\RedeclareSectionCommand[beforeskip=1.6\baselineskip,afterskip=.6\baselineskip]{subsection}
+\RedeclareSectionCommand[beforeskip=1.2\baselineskip,afterskip=.4\baselineskip]{subsubsection}
+\usepackage{needspace}
+\usepackage{etoolbox}
+\pretocmd{\section}{\clearpage}{}{}
+
+% No widows, no orphans, no hyphenated page ends.
+\widowpenalty=10000
+\clubpenalty=10000
+\brokenpenalty=10000
+
+% Pictures: centred, never wider than the text or taller than ~40 % of the page, kept where
+% they are in the text, captions small sans and muted.
+\usepackage{float}
+\floatplacement{figure}{H}
+\setkeys{Gin}{width=0.9\linewidth,height=0.4\textheight,keepaspectratio}
+\usepackage{caption}
+\captionsetup{font={small,sf},labelfont={bf,color=muted},textfont={color=muted},skip=6pt}
+\setlength{\intextsep}{14pt}
+
+% Tables: small type, airy rows, booktabs rules (pandoc's default).
+\usepackage{booktabs}
+\usepackage{array}
+\setlength{\extrarowheight}{4pt}
+\AtBeginEnvironment{longtable}{\small\setlength{\parskip}{0pt}}
+
+% Code: inline code in a dark grey, blocks on a light grey band, long lines wrapped.
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines,fontsize=\small,formatcom=\color{codefg}}
+\RecustomVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,fontsize=\small}
+
+% Running head and foot.
+\usepackage[headsepline=.4pt]{scrlayer-scrpage}
+\clearpairofpagestyles
+\ihead{\headingfont\color{muted}\footnotesize PentaGrammata}
+\ohead{\headingfont\color{muted}\footnotesize\rightmark}
+\cfoot*{\headingfont\color{muted}\footnotesize\pagemark}
+\automark{section}
+\setkomafont{pageheadfoot}{\normalfont}

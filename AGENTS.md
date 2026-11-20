@@ -75,6 +75,12 @@ Word topics add items until they have sent as many letters as the groups would (
 - `UserBackupService` (`Services/`, behind `IUserBackupService` in `Interfaces/`) owns the archive logic; `BackupDialogService` and `ConfirmDialogService` (`Presentation/`) own the pickers and the confirmation dialog.
 - After archive validation and before replacing any data, import automatically exports the current data to a uniquely named `.prmt` archive in the per-user data directory's `backups` subdirectory. Import stops if this backup cannot be created. The info dialog shows the backup's full path after import, including when replacement fails so the original data can be recovered. Import also captures temporary database/file/live-configuration rollback state and restores it if an apply step fails. Restore applies the most recent `before-import` archive and preserves the currently active data in a separate `before-restore` archive.
 
+## Documentation
+
+`docs/` holds two user guides, `docs/en/user-guide.md` and `docs/hu/felhasznaloi-kezikonyv.md`, with the same chapters in the same order, each ending with a chapter that maps the features to the code. **They must always be in sync with the code**: every user-visible change updates both guides, their pictures and the PDFs **in the same commit** (with the About window, `README.md` and `RELEASE_NOTES.md`), and a release is not cut while they are behind. The A4 PDFs in `docs/pdf/` are built from the Markdown with `scripts/Build-Docs.sh` (pandoc + xelatex) and committed; rebuild them whenever a guide or picture changes. Their pictures in `docs/images/` are rendered by the headless test `DocumentationScreenshots`, which runs as a smoke test every time and writes the PNGs only when `PENTAGRAMMATA_DOCS_IMAGES` names a directory (see `docs/README.md`); regenerate them when a window changes, and add a shot when a window or tab is added.
+
+The application always uses the **dark theme**: `App.Initialize` sets `RequestedThemeVariant = ThemeVariant.Dark`, whatever the system theme (the headless `ScenarioApplication` copies it, so the tests and the pictures run dark too).
+
 ## Architecture
 
 ```

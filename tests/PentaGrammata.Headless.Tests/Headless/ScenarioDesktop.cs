@@ -430,5 +430,6 @@ public sealed class ScenarioApplication : Application
         var styles = app.Styles.ToArray();
         app.Styles.Clear();
         foreach (var style in styles) Styles.Add(style);
+        RequestedThemeVariant = app.RequestedThemeVariant;
     }
 }
