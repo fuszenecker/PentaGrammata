@@ -100,7 +100,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Error rate correlated with speed, signal-to-noise ratio and QSB depth, one tab each, with a linear fit over a rolling window"/>
+                        <TextBlock Grid.Column="1" Text="Error rate correlated with speed, signal-to-noise ratio and QSB depth, one tab each, with a linear fit over a rolling window (0 days: today only)"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

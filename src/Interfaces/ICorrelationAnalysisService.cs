@@ -16,6 +16,7 @@ public interface ICorrelationAnalysisService
     /// <summary>
     /// Builds the scatter of <paramref name="axis"/> against error rate and its linear fit from
     /// the sessions recorded in the <paramref name="windowDays"/> days before <paramref name="now"/>
+    /// (zero or less: only today's, from local midnight)
     /// that carry that quantity (only sessions with noise have a signal-to-noise ratio, only
     /// sessions with QSB a fade depth).
     /// </summary>

@@ -12,7 +12,7 @@ public sealed class Analytics
     /// Length of the correlation dialog's analysis window, in days: sessions older than this
     /// are left out of the speed-versus-error scatter and its fitted line.
     /// </summary>
-    [PromptuariumComment("The analysis window of the speed versus error rate correlation dialog, in days")]
+    [PromptuariumComment("The analysis window of the error rate correlation dialog, in days (0 is today only)")]
     public double CorrelationWindowDays { get; set; } = 10.0;
 
     public Analytics Clone() => new()

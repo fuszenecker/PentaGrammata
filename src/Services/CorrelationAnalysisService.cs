@@ -18,9 +18,9 @@ public sealed class CorrelationAnalysisService : ICorrelationAnalysisService
     {
         ArgumentNullException.ThrowIfNull(records);
 
-        // A non-positive window would select nothing; treat it as the smallest useful window
-        // (the last day) rather than returning a misleading empty scatter.
-        var cutoff = now - TimeSpan.FromDays(Math.Max(1d, windowDays));
+        // A window of zero days means today only: from the start of the local calendar day,
+        // not the last 24 hours, so yesterday evening's sessions are left out.
+        var cutoff = windowDays > 0 ? now - TimeSpan.FromDays(windowDays) : StartOfLocalDay(now);
 
         var points = records
             .Where(r => r.RecordedAt >= cutoff && HasValue(r, axis))
@@ -75,6 +75,14 @@ public sealed class CorrelationAnalysisService : ICorrelationAnalysisService
             Intercept = intercept,
             ResidualStandardDeviation = ResidualStandardDeviation(points, slope, intercept),
         };
+    }
+
+    /// <summary>Local midnight of the calendar day <paramref name="now"/> falls on.</summary>
+    private static DateTimeOffset StartOfLocalDay(DateTimeOffset now)
+    {
+        var local = TimeZoneInfo.ConvertTime(now, TimeZoneInfo.Local);
+        var midnight = local.Date;
+        return new DateTimeOffset(midnight, TimeZoneInfo.Local.GetUtcOffset(midnight));
     }
 
     /// <summary>

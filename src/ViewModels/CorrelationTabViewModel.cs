@@ -59,12 +59,9 @@ public sealed class CorrelationTabViewModel : ViewModelBase
             CorrelationAxis.QsbDepth => " with QSB",
             _ => string.Empty,
         };
-        var window = string.Format(
-            CultureInfo.InvariantCulture,
-            "{0} session(s){1} in the last {2:0} day(s)",
-            sessions,
-            which,
-            windowDays);
+        var window = windowDays > 0
+            ? string.Format(CultureInfo.InvariantCulture, "{0} session(s){1} in the last {2:0} day(s)", sessions, which, windowDays)
+            : string.Format(CultureInfo.InvariantCulture, "{0} session(s){1} today", sessions, which);
 
         if (sessions == 0)
         {

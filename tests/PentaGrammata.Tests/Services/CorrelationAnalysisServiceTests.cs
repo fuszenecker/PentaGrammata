@@ -176,18 +176,22 @@ public sealed class CorrelationAnalysisServiceTests
     }
 
     [TestMethod]
-    public void Analyze_WithNonPositiveWindow_FallsBackToTheLastDay()
+    public void Analyze_WithZeroWindow_KeepsOnlyTodaysSessions()
     {
+        // Built in local time so the calendar day is the one the user sees.
+        var localNoon = new DateTimeOffset(2026, 1, 20, 12, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 1, 20, 12, 0, 0)));
         var records = new[]
         {
-            Record(Now.AddDays(-2), 18, 4),
-            Record(Now.AddHours(-2), 22, 9),
+            Record(localNoon.AddDays(-2), 18, 4),
+            // Yesterday evening: within 24 hours, but not today.
+            Record(localNoon.AddHours(-13), 20, 6),
+            Record(localNoon.AddHours(-11), 21, 7),
+            Record(localNoon.AddHours(-2), 22, 9),
         };
 
-        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 0, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 0, localNoon);
 
-        Assert.HasCount(1, result.Points);
-        Assert.AreEqual(22, result.Points[0].Value);
+        CollectionAssert.AreEqual(new[] { 21d, 22d }, result.Points.Select(p => p.Value).ToArray());
     }
 
     [TestMethod]
