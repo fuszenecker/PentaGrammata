@@ -49,12 +49,12 @@ public sealed class Practice
 	public int AutoAdjustWindowSize { get; set; } = 1;
 
 	/// <summary>
-	/// When true, the signal-to-noise ratio is adjusted after each saved session, by
+	/// When true, the signal-to-noise ratio is adjusted in memory after each saved session, by
 	/// the same decision as <see cref="AutoAdjustWpm"/>: a pass lowers it by
-	/// <see cref="AutoAdjustSnrStepDb"/> (more noise), a failure raises it. Only while noise is on.
-	/// Unlike the dynamic WPM, the new level is written into <see cref="NoiseSettings.LevelDb"/> and saved.
+	/// <see cref="AutoAdjustSnrStepDb"/> (more noise), a failure raises it. Only while noise is on;
+	/// never persisted, restarts from the configured level like the dynamic WPM.
 	/// </summary>
-	[PromptuariumComment("Whether the signal-to-noise ratio adapts after each session while noise is on (the new level is saved in Audio.Noise.LevelDb)")]
+	[PromptuariumComment("Whether the signal-to-noise ratio adapts after each session while noise is on (in memory only, restarts from the configured level)")]
 	public bool AutoAdjustSnr { get; set; }
 
 	/// <summary>How much the signal-to-noise ratio moves per adjustment, in dB.</summary>
@@ -62,12 +62,12 @@ public sealed class Practice
 	public double AutoAdjustSnrStepDb { get; set; } = 1.0;
 
 	/// <summary>
-	/// When true, the QSB fade depth is adjusted after each saved session, by the same
+	/// When true, the QSB fade depth is adjusted in memory after each saved session, by the same
 	/// decision as <see cref="AutoAdjustWpm"/>: a pass deepens it by
-	/// <see cref="AutoAdjustQsbStepDb"/>, a failure makes it shallower. Only while QSB is on.
-	/// Unlike the dynamic WPM, the new depth is written into <see cref="NoiseSettings.QsbDepthDb"/> and saved.
+	/// <see cref="AutoAdjustQsbStepDb"/>, a failure makes it shallower. Only while QSB is on;
+	/// never persisted, restarts from the configured depth like the dynamic WPM.
 	/// </summary>
-	[PromptuariumComment("Whether the QSB fade depth adapts after each session while QSB is on (the new depth is saved in Audio.Noise.QsbDepthDb)")]
+	[PromptuariumComment("Whether the QSB fade depth adapts after each session while QSB is on (in memory only, restarts from the configured depth)")]
 	public bool AutoAdjustQsb { get; set; }
 
 	/// <summary>How much the QSB fade depth moves per adjustment, in dB.</summary>

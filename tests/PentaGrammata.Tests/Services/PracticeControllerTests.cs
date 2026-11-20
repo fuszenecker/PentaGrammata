@@ -461,8 +461,9 @@ public sealed class PracticeControllerTests
             Arg.Is<MorsePlaybackSettings>(m => m.NoiseLevelDb == -13 && m.QsbDepthDb == 13),
             Arg.Any<CancellationToken>());
 
-        // Unlike the WPM, the adjusted levels are written into the settings and saved.
-        configService.Received(1).SetNoiseLevels(-13, 13);
+        // Like the WPM, the adjusted levels live in memory only: the configuration is untouched.
+        Assert.AreEqual(-15, config.Audio.Noise.LevelDb);
+        Assert.AreEqual(10, config.Audio.Noise.QsbDepthDb);
     }
 
     [TestMethod]

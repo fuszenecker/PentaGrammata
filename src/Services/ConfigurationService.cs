@@ -217,28 +217,6 @@ public sealed class ConfigurationService : IConfigurationService
         RequestSave();
     }
 
-    public void SetNoiseLevels(double? levelDb, double? qsbDepthDb)
-    {
-        var noise = Current.Audio.Noise;
-        var changed = false;
-        if (levelDb is { } level && noise.LevelDb != level)
-        {
-            noise.LevelDb = level;
-            changed = true;
-        }
-
-        if (qsbDepthDb is { } depth && noise.QsbDepthDb != depth)
-        {
-            noise.QsbDepthDb = depth;
-            changed = true;
-        }
-
-        if (changed)
-        {
-            RequestSave();
-        }
-    }
-
     public Task UpsertCharacterSetAndSelectAsync(string name, string characters)
     {
         Current.CharacterSets[name] = characters;

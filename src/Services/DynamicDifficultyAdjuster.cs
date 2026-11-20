@@ -10,7 +10,7 @@ namespace PentaGrammata.Services;
 /// <summary>
 /// Holds the in-memory dynamic difficulty and the auto-adjust math. The speed, the signal-to-noise
 /// ratio and the QSB depth restart from the configured values on every app start (and whenever
-/// settings are applied); the controller saves the adjusted levels into the settings, the WPM not.
+/// settings are applied). Never persisted: only the toggles, steps and window size are saved.
 /// </summary>
 public class DynamicDifficultyAdjuster : IDynamicDifficultyAdjuster
 {

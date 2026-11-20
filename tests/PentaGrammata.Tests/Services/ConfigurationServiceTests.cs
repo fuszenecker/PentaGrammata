@@ -26,25 +26,6 @@ public sealed class ConfigurationServiceTests
     }
 
     [TestMethod]
-    public void SetNoiseLevels_WritesTheGivenLevelsAndLeavesNullsAlone()
-    {
-        var store = Substitute.For<IConfigurationStore>();
-        var config = CreateConfig();
-        config.Audio.Noise.LevelDb = -15;
-        config.Audio.Noise.QsbDepthDb = 10;
-        store.Load().Returns(config);
-        var sut = new ConfigurationService(store, Substitute.For<ILogger<ConfigurationService>>());
-
-        sut.SetNoiseLevels(-12, null);
-        Assert.AreEqual(-12, sut.Current.Audio.Noise.LevelDb);
-        Assert.AreEqual(10, sut.Current.Audio.Noise.QsbDepthDb);
-
-        sut.SetNoiseLevels(null, 14);
-        Assert.AreEqual(-12, sut.Current.Audio.Noise.LevelDb);
-        Assert.AreEqual(14, sut.Current.Audio.Noise.QsbDepthDb);
-    }
-
-    [TestMethod]
     public async Task SaveAsync_PersistsAnIsolatedSnapshot_NotTheLiveInstance()
     {
         var store = Substitute.For<IConfigurationStore>();

@@ -263,15 +263,6 @@ public class PracticeController : IPracticeController
         {
             _sessionResultRecorded = true;
             _difficulty.Adjust(result.ErrorRatePercent, practice.ErrorThreshold, practice.AutoAdjustWindowSize, targets);
-
-            // Unlike the WPM, the adjusted levels are written into the settings (and saved), so
-            // the next start, the settings dialog and the Noise tab carry on from them.
-            if (targets.Snr || targets.Qsb)
-            {
-                _configurationService.SetNoiseLevels(
-                    targets.Snr ? -_difficulty.DynamicSnrDb : null,
-                    targets.Qsb ? _difficulty.DynamicQsbDepthDb : null);
-            }
         }
     }
 

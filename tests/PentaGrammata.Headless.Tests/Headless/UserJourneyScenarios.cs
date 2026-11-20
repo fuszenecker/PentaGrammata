@@ -373,23 +373,17 @@ public sealed partial class UserJourneyScenarios
         await ApplySettings(app, settings);
         Assert.AreEqual(" / SNR 20 dB / QSB 10 dB", app.ViewModel.Practice.NextLevelsText);
 
-        // A clean copy makes the next session harder, and the settings keep the new levels.
+        // A clean copy makes the next session harder; like the WPM, only in memory.
         await ScoreAndSave(app, "TEST");
         Assert.AreEqual(" / SNR 17 dB / QSB 12 dB", app.ViewModel.Practice.NextLevelsText);
-        Assert.AreEqual(-17d, app.Configuration.Current.Audio.Noise.LevelDb);
-        Assert.AreEqual(12d, app.Configuration.Current.Audio.Noise.QsbDepthDb);
-        settings = await Settings(app);
-        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
-        Assert.AreEqual(17m, ScenarioDesktop.Tip<NumericUpDown>(settings, "How much louder").Value);
-        Assert.AreEqual(12m, ScenarioDesktop.Tip<NumericUpDown>(settings, "Deepest fade").Value);
-        ScenarioDesktop.Click(settings, "Cancel");
-        await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "close settings");
+        Assert.AreEqual(-20d, app.Configuration.Current.Audio.Noise.LevelDb);
+        Assert.AreEqual(10d, app.Configuration.Current.Audio.Noise.QsbDepthDb);
 
         // A failed copy takes it back the same way.
         await ScoreAndSave(app, "TEXT");
         Assert.AreEqual(" / SNR 20 dB / QSB 10 dB", app.ViewModel.Practice.NextLevelsText);
 
-        // Each saved session records the levels it was actually played with.
+        // Each saved session records the levels it was actually played with; the settings stay put.
         var saved = (await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync())
             .OrderBy(r => r.RecordedAt).ToArray();
         CollectionAssert.AreEqual(new[] { -20d, -17d }, saved.Select(r => r.NoiseLevelDb).ToArray());
