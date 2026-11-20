@@ -29,4 +29,4 @@ The Markdown files are the sources; the A4 PDFs in `pdf/` are built from them wi
 scripts/Build-Docs.sh
 ```
 
-Rebuild and commit the PDFs whenever a guide or a picture changes.
+Rebuild and commit the PDFs whenever a guide or a picture changes. Every release attaches them; the release workflow refuses a tag whose PDFs were not built for its version.

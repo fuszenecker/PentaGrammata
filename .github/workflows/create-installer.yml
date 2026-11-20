@@ -62,6 +62,25 @@ jobs:
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
+      # The A4 PDF user guides are committed; they go out with the release only if they were rebuilt
+      # for this version (scripts/Build-Docs.sh stamps MAJOR.MINOR.PATCH on the title page).
+      - name: Check the user guides
+        run: |
+          set -eu
+          command -v pdftotext > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils; }
+          release="$(cut -d. -f1-3 <<< "${TAG}")"
+          for guide in docs/pdf/PentaGrammata-User-Guide-en.pdf:Version docs/pdf/PentaGrammata-Felhasznaloi-Kezikonyv-hu.pdf:Verzió; do
+            file="${guide%%:*}" word="${guide##*:}"
+            if [ ! -f "${file}" ]; then
+              echo "::error::${file} is missing: build the guides with scripts/Build-Docs.sh."
+              exit 1
+            fi
+            if ! pdftotext -l 1 "${file}" - | grep -q "${word} ${release}\b"; then
+              echo "::error::${file} is not built for ${release}: rebuild it with scripts/Build-Docs.sh."
+              exit 1
+            fi
+          done
+
       - name: Extract the notes of the version
         run: |
           ./scripts/Release-Notes.sh "${TAG}" > release-notes.md
@@ -212,7 +231,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Collect the installers
+      - name: Collect the installers and the user guides
         run: |
           set -eu
           find artifacts -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' \) | sort > installers.txt
@@ -221,6 +240,9 @@ jobs:
             echo "::error::Expected 4 installers (deb, rpm, exe, dmg)."
             exit 1
           fi
+          # The user guides, checked against the version by the check job
+          ls docs/pdf/PentaGrammata-User-Guide-en.pdf docs/pdf/PentaGrammata-Felhasznaloi-Kezikonyv-hu.pdf >> installers.txt
+          cat installers.txt
 
       # The notes of the version, then the downloads (with how to install them)
       - name: Compose the release notes
@@ -237,6 +259,11 @@ jobs:
             echo "- **macOS** (Apple Silicon): \`PentaGrammata-${VERSION}-osx-arm64.dmg\`. The image is not signed: open the app the first time with right-click → Open (or run \`xattr -dr com.apple.quarantine /Applications/PentaGrammata.app\`)."
             echo
             echo "No .NET is needed: every installer is self-contained."
+            echo
+            echo "### User guides"
+            echo
+            echo "- **English:** \`PentaGrammata-User-Guide-en.pdf\` (A4)"
+            echo "- **Magyar:** \`PentaGrammata-Felhasznaloi-Kezikonyv-hu.pdf\` (A4)"
           } > release-notes-full.md
           cat release-notes-full.md
 
