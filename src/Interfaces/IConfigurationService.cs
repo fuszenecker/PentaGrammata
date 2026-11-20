@@ -91,6 +91,13 @@ public interface IConfigurationService
     void SetCorrelationWindowDays(double days);
 
     /// <summary>
+    /// Writes the auto-adjusted receiver levels into the settings and persists if one changed:
+    /// the noise level (dB, the negated signal-to-noise ratio) and the QSB fade depth (dB); a
+    /// null leaves that value alone.
+    /// </summary>
+    void SetNoiseLevels(double? levelDb, double? qsbDepthDb);
+
+    /// <summary>
     /// Inserts or replaces a named character set and selects it (switching the topic to
     /// 5-character groups, the only topic that uses a character set), awaiting persistence.
     /// Used by "Practice confusions" to publish the generated set.

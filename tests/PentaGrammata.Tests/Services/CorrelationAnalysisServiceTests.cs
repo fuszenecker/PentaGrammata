@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+using PentaGrammata.Configuration;
 using PentaGrammata.Models;
 using PentaGrammata.Services;
 
@@ -16,7 +17,7 @@ public sealed class CorrelationAnalysisServiceTests
     [TestMethod]
     public void Analyze_WithNoRecords_ReturnsEmptyScatterWithoutFit()
     {
-        var result = _sut.Analyze([], 10, Now);
+        var result = _sut.Analyze([], CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.IsEmpty(result.Points);
         Assert.IsFalse(result.HasFit);
@@ -32,11 +33,11 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-1), 22, 8),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         CollectionAssert.AreEqual(
             new[] { 20d, 22d },
-            result.Points.Select(p => p.AverageWpm).ToArray());
+            result.Points.Select(p => p.Value).ToArray());
     }
 
     [TestMethod]
@@ -49,17 +50,17 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-3), 20, 5),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         CollectionAssert.AreEqual(
             new[] { 18d, 20d, 22d },
-            result.Points.Select(p => p.AverageWpm).ToArray());
+            result.Points.Select(p => p.Value).ToArray());
     }
 
     [TestMethod]
     public void Analyze_WithSingleSession_ReturnsThePointButNoFit()
     {
-        var result = _sut.Analyze([Record(Now.AddDays(-1), 20, 5)], 10, Now);
+        var result = _sut.Analyze([Record(Now.AddDays(-1), 20, 5)], CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.HasCount(1, result.Points);
         Assert.IsFalse(result.HasFit);
@@ -76,7 +77,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-2), 20, 9),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.HasCount(2, result.Points);
         Assert.IsFalse(result.HasFit);
@@ -91,7 +92,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-2), 24, 5),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.IsFalse(result.HasFit);
     }
@@ -107,7 +108,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-2), 21, 32),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.IsTrue(result.HasFit);
         Assert.AreEqual(1.0, result.PearsonR, 1e-9);
@@ -127,7 +128,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-2), 22, 9),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.IsTrue(result.HasFit);
         Assert.AreEqual(0.0, result.ResidualStandardDeviation, 1e-9);
@@ -143,7 +144,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-2), 21, 4),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         Assert.IsTrue(result.HasFit);
         Assert.IsLessThan(0, result.PearsonR);
@@ -161,7 +162,7 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddDays(-1), 40, 12),
         };
 
-        var result = _sut.Analyze(records, 10, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 10, Now);
 
         // Hand-computed: mean speed 25, mean error 8, covariance sum 100, speed variance 500,
         // error variance 26, so slope = 0.2, intercept = 3 and r = 100 / sqrt(13000).
@@ -183,10 +184,45 @@ public sealed class CorrelationAnalysisServiceTests
             Record(Now.AddHours(-2), 22, 9),
         };
 
-        var result = _sut.Analyze(records, 0, Now);
+        var result = _sut.Analyze(records, CorrelationAxis.AverageSpeed, 0, Now);
 
         Assert.HasCount(1, result.Points);
-        Assert.AreEqual(22, result.Points[0].AverageWpm);
+        Assert.AreEqual(22, result.Points[0].Value);
+    }
+
+    [TestMethod]
+    public void Analyze_SignalToNoise_UsesNegatedNoiseLevelAndSkipsSessionsWithoutNoise()
+    {
+        var records = new[]
+        {
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-3), AverageWpm = 20, ErrorRatePercent = 2, NoiseType = NoiseType.Gaussian, NoiseLevelDb = -20 },
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-2), AverageWpm = 20, ErrorRatePercent = 9, NoiseType = NoiseType.None, NoiseLevelDb = -5 },
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-1), AverageWpm = 20, ErrorRatePercent = 8, NoiseType = NoiseType.Pink, NoiseLevelDb = -5 },
+        };
+
+        var result = _sut.Analyze(records, CorrelationAxis.SignalToNoise, 10, Now);
+
+        Assert.AreEqual(CorrelationAxis.SignalToNoise, result.Axis);
+        CollectionAssert.AreEqual(new[] { 20d, 5d }, result.Points.Select(p => p.Value).ToArray());
+        Assert.IsTrue(result.HasFit);
+        // Lower SNR, more errors: the slope is negative.
+        Assert.IsLessThan(0, result.Slope);
+    }
+
+    [TestMethod]
+    public void Analyze_QsbDepth_UsesFadeDepthAndSkipsSessionsWithoutQsb()
+    {
+        var records = new[]
+        {
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-3), ErrorRatePercent = 2, QsbEnabled = true, QsbDepthDb = 6 },
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-2), ErrorRatePercent = 9, QsbEnabled = false, QsbDepthDb = 30 },
+            new PracticeResultStatisticsRecord { RecordedAt = Now.AddDays(-1), ErrorRatePercent = 8, QsbEnabled = true, QsbDepthDb = 18 },
+        };
+
+        var result = _sut.Analyze(records, CorrelationAxis.QsbDepth, 10, Now);
+
+        CollectionAssert.AreEqual(new[] { 6d, 18d }, result.Points.Select(p => p.Value).ToArray());
+        Assert.AreEqual(0.5, result.Slope, 1e-9);
     }
 
     private static PracticeResultStatisticsRecord Record(DateTimeOffset recordedAt, int averageWpm, double errorRatePercent)

@@ -263,11 +263,19 @@ public sealed class MorseSettingsDialogViewModelTests
         var config = CreateConfig(20, 15, "Default");
         config.Practice.AutoAdjustWpm = true;
         config.Practice.AutoAdjustWindowSize = 8;
+        config.Practice.AutoAdjustSnr = true;
+        config.Practice.AutoAdjustSnrStepDb = 2.5;
+        config.Practice.AutoAdjustQsb = true;
+        config.Practice.AutoAdjustQsbStepDb = 1.5;
 
         var sut = new MorseSettingsDialogViewModel(config, validator, Analyzer(), new CharacterSetTextCodec());
 
         Assert.IsTrue(sut.AutoAdjustWpm);
         Assert.AreEqual(8, sut.AutoAdjustWindowSize);
+        Assert.IsTrue(sut.AutoAdjustSnr);
+        Assert.AreEqual(2.5, sut.AutoAdjustSnrStepDb);
+        Assert.IsTrue(sut.AutoAdjustQsb);
+        Assert.AreEqual(1.5, sut.AutoAdjustQsbStepDb);
     }
 
     [TestMethod]
@@ -285,6 +293,10 @@ public sealed class MorseSettingsDialogViewModelTests
         {
             AutoAdjustWpm = true,
             AutoAdjustWindowSize = 4,
+            AutoAdjustSnr = true,
+            AutoAdjustSnrStepDb = 3,
+            AutoAdjustQsb = true,
+            AutoAdjustQsbStepDb = 2,
             CharacterSetsText = "Default = ABCDE",
         };
 
@@ -293,6 +305,10 @@ public sealed class MorseSettingsDialogViewModelTests
         Assert.IsTrue(success);
         Assert.IsTrue(settings.Practice.AutoAdjustWpm);
         Assert.AreEqual(4, settings.Practice.AutoAdjustWindowSize);
+        Assert.IsTrue(settings.Practice.AutoAdjustSnr);
+        Assert.AreEqual(3, settings.Practice.AutoAdjustSnrStepDb);
+        Assert.IsTrue(settings.Practice.AutoAdjustQsb);
+        Assert.AreEqual(2, settings.Practice.AutoAdjustQsbStepDb);
     }
 
     [TestMethod]

@@ -97,6 +97,13 @@ internal sealed class ScenarioDesktop : IAsyncDisposable
     public static IEnumerable<T> Controls<T>(Window window) where T : class =>
         window.GetLogicalDescendants().OfType<T>().Concat(window.GetVisualDescendants().OfType<T>()).Distinct();
 
+    /// <summary>
+    /// The one control of the type on screen: only the visual tree, so the content of the
+    /// unselected tabs (logical children that are not shown) does not count.
+    /// </summary>
+    public static T Shown<T>(Window window) where T : class =>
+        window.GetVisualDescendants().OfType<T>().Single();
+
     public static Button Button(Window window, string caption) => Controls<Button>(window).Single(b => Equals(b.Content, caption));
 
     public static T Tip<T>(Window window, string prefix) where T : Control =>

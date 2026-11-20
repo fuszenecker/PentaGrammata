@@ -7,7 +7,7 @@
         Width="820" Height="580"
         MinWidth="620" MinHeight="420"
         WindowStartupLocation="CenterOwner"
-        Title="Speed and Error Correlation">
+        Title="Error Rate Correlation">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="10" RowSpacing="8">
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
@@ -51,15 +51,44 @@
             </StackPanel>
         </StackPanel>
 
-        <controls:CorrelationScatterChart Grid.Row="1"
-                                          Correlation="{Binding Correlation}"
-                                          ErrorThresholdPercent="{Binding ErrorThresholdPercent}"
-                                          HorizontalAlignment="Stretch"
-                                          VerticalAlignment="Stretch"/>
+        <TabControl Grid.Row="1" Padding="0">
+            <TabItem Header="Speed" ToolTip.Tip="Error rate against the average speed, over every session.">
+                <Grid RowDefinitions="*,Auto" RowSpacing="8" Margin="0,8,0,0">
+                    <controls:CorrelationScatterChart Grid.Row="0"
+                                                      Correlation="{Binding Speed.Correlation}"
+                                                      ErrorThresholdPercent="{Binding ErrorThresholdPercent}"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Stretch"/>
+                    <TextBlock Grid.Row="1" Text="{Binding Speed.SummaryText}" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Signal-to-noise" ToolTip.Tip="Error rate against the signal-to-noise ratio, over the sessions that had background noise.">
+                <Grid RowDefinitions="*,Auto" RowSpacing="8" Margin="0,8,0,0">
+                    <controls:CorrelationScatterChart Grid.Row="0"
+                                                      Correlation="{Binding SignalToNoise.Correlation}"
+                                                      ErrorThresholdPercent="{Binding ErrorThresholdPercent}"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Stretch"/>
+                    <TextBlock Grid.Row="1" Text="{Binding SignalToNoise.SummaryText}" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="QSB depth" ToolTip.Tip="Error rate against the deepest QSB fade, over the sessions that had QSB.">
+                <Grid RowDefinitions="*,Auto" RowSpacing="8" Margin="0,8,0,0">
+                    <controls:CorrelationScatterChart Grid.Row="0"
+                                                      Correlation="{Binding QsbDepth.Correlation}"
+                                                      ErrorThresholdPercent="{Binding ErrorThresholdPercent}"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Stretch"/>
+                    <TextBlock Grid.Row="1" Text="{Binding QsbDepth.SummaryText}" TextWrapping="Wrap"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <TextBlock Grid.Column="0"
-                       Text="{Binding SummaryText}"
+                       Text="{Binding StatusText}"
+                       IsVisible="{Binding HasStatus}"
+                       Foreground="#E66767"
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"/>
 

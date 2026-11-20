@@ -13,15 +13,16 @@ using PentaGrammata.Models;
 namespace PentaGrammata.Views.Controls;
 
 /// <summary>
-/// Scatter plot of average speed (horizontal, WPM) against error rate (vertical, percent) for
-/// the sessions inside the analysis window, with the least-squares line drawn through them.
+/// Scatter plot of one quantity (horizontal: average speed in WPM, signal-to-noise ratio or QSB
+/// depth in dB, as <see cref="ErrorCorrelation.Axis"/> says) against error rate (vertical,
+/// percent) for the sessions inside the analysis window, with the least-squares line drawn through them.
 /// One mark per session and one annotation line, so there is no series cycling: the dots carry
 /// the data and the line carries the trend.
 /// </summary>
 public sealed class CorrelationScatterChart : Control
 {
-    public static readonly StyledProperty<SpeedErrorCorrelation?> CorrelationProperty =
-        AvaloniaProperty.Register<CorrelationScatterChart, SpeedErrorCorrelation?>(nameof(Correlation));
+    public static readonly StyledProperty<ErrorCorrelation?> CorrelationProperty =
+        AvaloniaProperty.Register<CorrelationScatterChart, ErrorCorrelation?>(nameof(Correlation));
 
     public static readonly StyledProperty<double> ErrorThresholdPercentProperty =
         AvaloniaProperty.Register<CorrelationScatterChart, double>(nameof(ErrorThresholdPercent));
@@ -33,7 +34,7 @@ public sealed class CorrelationScatterChart : Control
     // chartRect.Top and would otherwise be clipped off the top edge.
     private const double AxisTitleHeight = 18;
     private const double TimeAxisHeight = 22;
-    // Band below the value axis for the "Average speed (WPM)" title.
+    // Band below the value axis for its title ("Average speed (WPM)" and the like).
     private const double BottomTitleHeight = 18;
     private const double BottomPadding = 6;
 
@@ -67,7 +68,7 @@ public sealed class CorrelationScatterChart : Control
     private static readonly Color FitColor = Color.Parse("#C98500");
     private static readonly Color ThresholdColor = Color.Parse("#E66767");
 
-    public SpeedErrorCorrelation? Correlation
+    public ErrorCorrelation? Correlation
     {
         get => GetValue(CorrelationProperty);
         set => SetValue(CorrelationProperty, value);
@@ -103,7 +104,7 @@ public sealed class CorrelationScatterChart : Control
         var points = correlation?.Points;
         if (points is null || points.Count == 0)
         {
-            DrawEmptyMessage(context, bounds);
+            DrawEmptyMessage(context, bounds, correlation?.Axis ?? CorrelationAxis.AverageSpeed);
             return;
         }
 
@@ -117,14 +118,14 @@ public sealed class CorrelationScatterChart : Control
         var speedScale = GetSpeedScale(points);
         var errorMax = GetErrorMax(points, threshold);
 
-        DrawGrid(context, chartRect, speedScale, errorMax);
+        DrawGrid(context, chartRect, speedScale, errorMax, correlation!.Axis);
         DrawThresholdLine(context, chartRect, threshold, errorMax);
         DrawFitLine(context, chartRect, correlation!, speedScale, errorMax);
         DrawMarkers(context, chartRect, points, speedScale, errorMax);
 
         if (_isHovering)
         {
-            DrawHoverOverlay(context, chartRect, points, speedScale, errorMax);
+            DrawHoverOverlay(context, chartRect, points, speedScale, errorMax, correlation.Axis);
         }
     }
 
@@ -155,17 +156,25 @@ public sealed class CorrelationScatterChart : Control
     }
 
     /// <summary>
-    /// Horizontal domain in WPM. Padded by a WPM on each side so marks never sit on the axis
-    /// line, then the span is rounded up to a whole multiple of <see cref="TickCount"/> so
-    /// every tick falls on an integer WPM: speed is set and read as whole words per minute, so
-    /// a 17.8 WPM gridline would be a value the user can never have practised at. The multiple
-    /// is at least <see cref="TickCount"/>, which also spreads a window where every session ran
-    /// within a WPM or two of the others instead of stacking it in one column.
+    /// Horizontal domain, in WPM or dB. Padded by one unit on each side so marks never sit on the
+    /// axis line, then the span is rounded up to a whole multiple of <see cref="TickCount"/> so
+    /// every tick falls on an integer: speed is set and read as whole words per minute and the
+    /// levels are usually set in whole decibels, so a 17.8 WPM gridline would be a value the
+    /// user can never have practised at. The multiple is at least <see cref="TickCount"/>, which
+    /// also spreads a window where every session ran within a unit or two of the others instead
+    /// of stacking it in one column. The domain stops at zero unless a value is negative (a
+    /// signal-to-noise ratio can be).
     /// </summary>
-    private static (double Min, double Max) GetSpeedScale(IReadOnlyList<SpeedErrorPoint> points)
+    private static (double Min, double Max) GetSpeedScale(IReadOnlyList<ErrorCorrelationPoint> points)
     {
-        var min = Math.Max(0, Math.Floor(points.Min(p => p.AverageWpm)) - 1);
-        var max = Math.Ceiling(points.Max(p => p.AverageWpm)) + 1;
+        var lowest = points.Min(p => p.Value);
+        var min = Math.Floor(lowest) - 1;
+        if (lowest >= 0)
+        {
+            min = Math.Max(0, min);
+        }
+
+        var max = Math.Ceiling(points.Max(p => p.Value)) + 1;
 
         var steps = Math.Max(1, Math.Ceiling((max - min) / TickCount));
         return (min, min + steps * TickCount);
@@ -178,7 +187,7 @@ public sealed class CorrelationScatterChart : Control
     /// is part of the domain, so a window where every session stayed well under it still shows
     /// the line instead of hiding it above the top edge.
     /// </summary>
-    private static double GetErrorMax(IReadOnlyList<SpeedErrorPoint> points, double thresholdPercent)
+    private static double GetErrorMax(IReadOnlyList<ErrorCorrelationPoint> points, double thresholdPercent)
     {
         var max = points.Max(p => p.ErrorRatePercent);
         if (double.IsFinite(thresholdPercent))
@@ -189,7 +198,7 @@ public sealed class CorrelationScatterChart : Control
         return Math.Max(5, Math.Ceiling(max / 5.0) * 5.0);
     }
 
-    private static void DrawGrid(DrawingContext context, Rect chartRect, (double Min, double Max) speedScale, double errorMax)
+    private static void DrawGrid(DrawingContext context, Rect chartRect, (double Min, double Max) speedScale, double errorMax, CorrelationAxis axis)
     {
         var axisPen = new Pen(new SolidColorBrush(Color.Parse("#6B7280")), 1);
         var gridPen = new Pen(new SolidColorBrush(Color.Parse("#2A2D3A")), 1);
@@ -217,7 +226,7 @@ public sealed class CorrelationScatterChart : Control
         var errorTitle = CreateText("Error %", 10.5, "#FCA5A5");
         context.DrawText(errorTitle, new Point(Math.Max(0, chartRect.Left - errorTitle.Width - 8), chartRect.Top - errorTitle.Height - 4));
 
-        var speedTitle = CreateText("Average speed (WPM)", 10.5, "#93C5FD");
+        var speedTitle = CreateText(AxisTitle(axis), 10.5, "#93C5FD");
         context.DrawText(
             speedTitle,
             new Point(
@@ -242,7 +251,7 @@ public sealed class CorrelationScatterChart : Control
     private static void DrawMarkers(
         DrawingContext context,
         Rect chartRect,
-        IReadOnlyList<SpeedErrorPoint> points,
+        IReadOnlyList<ErrorCorrelationPoint> points,
         (double Min, double Max) speedScale,
         double errorMax)
     {
@@ -260,7 +269,7 @@ public sealed class CorrelationScatterChart : Control
             // are all drawn as the newest.
             var age = span > 0 ? (point.RecordedAt.UtcTicks - oldest) / span : 1.0;
 
-            var center = Project(chartRect, point.AverageWpm, point.ErrorRatePercent, speedScale, errorMax);
+            var center = Project(chartRect, point.Value, point.ErrorRatePercent, speedScale, errorMax);
             context.DrawEllipse(
                 isToday ? MarkerBrush(TodayMarkerColor, 1) : MarkerBrush(MarkerColor, age),
                 ring,
@@ -336,7 +345,7 @@ public sealed class CorrelationScatterChart : Control
     private static void DrawFitLine(
         DrawingContext context,
         Rect chartRect,
-        SpeedErrorCorrelation correlation,
+        ErrorCorrelation correlation,
         (double Min, double Max) speedScale,
         double errorMax)
     {
@@ -383,17 +392,18 @@ public sealed class CorrelationScatterChart : Control
     private void DrawHoverOverlay(
         DrawingContext context,
         Rect chartRect,
-        IReadOnlyList<SpeedErrorPoint> points,
+        IReadOnlyList<ErrorCorrelationPoint> points,
         (double Min, double Max) speedScale,
-        double errorMax)
+        double errorMax,
+        CorrelationAxis axis)
     {
-        SpeedErrorPoint? nearest = null;
+        ErrorCorrelationPoint? nearest = null;
         var nearestCenter = default(Point);
         var nearestDistance = double.MaxValue;
 
         foreach (var point in points)
         {
-            var center = Project(chartRect, point.AverageWpm, point.ErrorRatePercent, speedScale, errorMax);
+            var center = Project(chartRect, point.Value, point.ErrorRatePercent, speedScale, errorMax);
             var distance = Math.Sqrt(
                 (center.X - _hoverPoint.X) * (center.X - _hoverPoint.X) +
                 (center.Y - _hoverPoint.Y) * (center.Y - _hoverPoint.Y));
@@ -421,7 +431,7 @@ public sealed class CorrelationScatterChart : Control
         var texts = new[]
         {
             nearest.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-            $"Average speed: {nearest.AverageWpm:0.##} WPM",
+            string.Format(CultureInfo.InvariantCulture, "{0}: {1:0.##} {2}", AxisName(axis), nearest.Value, AxisUnit(axis)),
             $"Error rate: {nearest.ErrorRatePercent:0.##}%",
         }.Select(line => CreateText(line, 11, "#F9FAFB")).ToArray();
 
@@ -477,9 +487,27 @@ public sealed class CorrelationScatterChart : Control
             new SolidColorBrush(Color.Parse(colorHex)));
     }
 
-    private static void DrawEmptyMessage(DrawingContext context, Rect bounds)
+    /// <summary>The title under the horizontal axis.</summary>
+    public static string AxisTitle(CorrelationAxis axis) => $"{AxisName(axis)} ({AxisUnit(axis)})";
+
+    private static string AxisName(CorrelationAxis axis) => axis switch
     {
-        var text = CreateText("No sessions in the analysis window.", 13, "#D1D5DB");
+        CorrelationAxis.SignalToNoise => "Signal-to-noise ratio",
+        CorrelationAxis.QsbDepth => "QSB fade depth",
+        _ => "Average speed",
+    };
+
+    private static string AxisUnit(CorrelationAxis axis) => axis == CorrelationAxis.AverageSpeed ? "WPM" : "dB";
+
+    private static void DrawEmptyMessage(DrawingContext context, Rect bounds, CorrelationAxis axis)
+    {
+        var message = axis switch
+        {
+            CorrelationAxis.SignalToNoise => "No sessions with noise in the analysis window.",
+            CorrelationAxis.QsbDepth => "No sessions with QSB in the analysis window.",
+            _ => "No sessions in the analysis window.",
+        };
+        var text = CreateText(message, 13, "#D1D5DB");
         context.DrawText(
             text,
             new Point(

@@ -48,6 +48,32 @@ public sealed class Practice
 	[PromptuariumComment("The number of recent sessions whose error rates drive the automatic speed adjustment")]
 	public int AutoAdjustWindowSize { get; set; } = 1;
 
+	/// <summary>
+	/// When true, the signal-to-noise ratio is adjusted after each saved session, by
+	/// the same decision as <see cref="AutoAdjustWpm"/>: a pass lowers it by
+	/// <see cref="AutoAdjustSnrStepDb"/> (more noise), a failure raises it. Only while noise is on.
+	/// Unlike the dynamic WPM, the new level is written into <see cref="NoiseSettings.LevelDb"/> and saved.
+	/// </summary>
+	[PromptuariumComment("Whether the signal-to-noise ratio adapts after each session while noise is on (the new level is saved in Audio.Noise.LevelDb)")]
+	public bool AutoAdjustSnr { get; set; }
+
+	/// <summary>How much the signal-to-noise ratio moves per adjustment, in dB.</summary>
+	[PromptuariumComment("How much the automatic adjustment lowers the signal-to-noise ratio after a passed session and raises it after a failed one, in dB")]
+	public double AutoAdjustSnrStepDb { get; set; } = 1.0;
+
+	/// <summary>
+	/// When true, the QSB fade depth is adjusted after each saved session, by the same
+	/// decision as <see cref="AutoAdjustWpm"/>: a pass deepens it by
+	/// <see cref="AutoAdjustQsbStepDb"/>, a failure makes it shallower. Only while QSB is on.
+	/// Unlike the dynamic WPM, the new depth is written into <see cref="NoiseSettings.QsbDepthDb"/> and saved.
+	/// </summary>
+	[PromptuariumComment("Whether the QSB fade depth adapts after each session while QSB is on (the new depth is saved in Audio.Noise.QsbDepthDb)")]
+	public bool AutoAdjustQsb { get; set; }
+
+	/// <summary>How much the QSB fade depth moves per adjustment, in dB.</summary>
+	[PromptuariumComment("How much the automatic adjustment deepens the QSB fade after a passed session and makes it shallower after a failed one, in dB")]
+	public double AutoAdjustQsbStepDb { get; set; } = 1.0;
+
 	public Practice Clone() => new()
 	{
 		DefaultDurationMins = DefaultDurationMins,
@@ -60,5 +86,9 @@ public sealed class Practice
 		ShuffleCustomText = ShuffleCustomText,
 		AutoAdjustWpm = AutoAdjustWpm,
 		AutoAdjustWindowSize = AutoAdjustWindowSize,
+		AutoAdjustSnr = AutoAdjustSnr,
+		AutoAdjustSnrStepDb = AutoAdjustSnrStepDb,
+		AutoAdjustQsb = AutoAdjustQsb,
+		AutoAdjustQsbStepDb = AutoAdjustQsbStepDb,
 	};
 }

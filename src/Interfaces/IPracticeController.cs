@@ -1,3 +1,4 @@
+using PentaGrammata.Configuration;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AppConfig = PentaGrammata.Configuration.AppConfiguration;
@@ -41,6 +42,18 @@ public interface IPracticeController
     /// auto-adjust is enabled, otherwise the configured value).
     /// </summary>
     int CurrentAverageWpm { get; }
+
+    /// <summary>
+    /// Receiver settings used by the most recent session: the configured ones with the dynamic
+    /// signal-to-noise ratio and QSB depth in place when they auto-adjust. A copy.
+    /// </summary>
+    NoiseSettings LastUsedNoise { get; }
+
+    /// <summary>Signal-to-noise ratio (dB) the next session will use, or null without noise.</summary>
+    double? CurrentSnrDb { get; }
+
+    /// <summary>Deepest QSB fade (dB) the next session will use, or null without QSB.</summary>
+    double? CurrentQsbDepthDb { get; }
 
     Task StartAsync();
 

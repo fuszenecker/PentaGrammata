@@ -417,6 +417,82 @@ public sealed class PracticeControllerTests
     }
 
     [TestMethod]
+    public async Task RecordSavedResult_WithAutoAdjustSnrAndQsb_MovesLevelsByTheirStepsAndPlaysThem()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustSnr = true;
+        config.Practice.AutoAdjustSnrStepDb = 2;
+        config.Practice.AutoAdjustQsb = true;
+        config.Practice.AutoAdjustQsbStepDb = 3;
+        config.Audio.Noise.Type = NoiseType.Gaussian;
+        config.Audio.Noise.LevelDb = -15;
+        config.Audio.Noise.QsbEnabled = true;
+        config.Audio.Noise.QsbDepthDb = 10;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Passed());
+        var morsePlayer = Substitute.For<IMorsePlayer>();
+        var sut = new PracticeController(
+            morsePlayer,
+            new PracticeTextGeneratorFactory(Substitute.For<IMorseGenerator>()),
+            Substitute.For<IPracticeSettingsValidator>(),
+            evaluator,
+            configService,
+            CreateAdjuster(),
+            Substitute.For<ILogger<PracticeController>>());
+
+        await sut.StartAsync();
+        sut.RecordSavedResult(sut.BuildResult("rx"));
+
+        // A pass makes it harder: SNR 15 -> 13 dB (noise level -15 -> -13), fade 10 -> 13 dB.
+        // The WPM does not auto-adjust, so it stays where it was configured.
+        Assert.AreEqual(13, sut.CurrentSnrDb);
+        Assert.AreEqual(13, sut.CurrentQsbDepthDb);
+        Assert.AreEqual(config.Practice.AverageWpm, sut.CurrentAverageWpm);
+
+        await sut.StartAsync();
+        Assert.AreEqual(-13, sut.LastUsedNoise.LevelDb);
+        Assert.AreEqual(13, sut.LastUsedNoise.QsbDepthDb);
+        await morsePlayer.Received().PlayMorseCodeAsync(
+            Arg.Any<string>(),
+            Arg.Is<MorsePlaybackSettings>(m => m.NoiseLevelDb == -13 && m.QsbDepthDb == 13),
+            Arg.Any<CancellationToken>());
+
+        // Unlike the WPM, the adjusted levels are written into the settings and saved.
+        configService.Received(1).SetNoiseLevels(-13, 13);
+    }
+
+    [TestMethod]
+    public async Task RecordSavedResult_WithAutoAdjustSnrButNoNoise_LeavesTheLevelAlone()
+    {
+        var configService = Substitute.For<IConfigurationService>();
+        var config = CreateDefaultConfiguration();
+        config.Practice.ErrorThreshold = 10;
+        config.Practice.AutoAdjustSnr = true;
+        config.Practice.AutoAdjustQsb = true;
+        config.Audio.Noise.Type = NoiseType.None;
+        config.Audio.Noise.QsbEnabled = false;
+        configService.Current.Returns(config);
+
+        var evaluator = Substitute.For<IPracticeResultEvaluator>();
+        evaluator.Evaluate(Arg.Any<string>(), Arg.Any<string>(), 10).Returns(Failed());
+        var sut = CreateController(configService, evaluator);
+
+        await sut.StartAsync();
+        sut.RecordSavedResult(sut.BuildResult("rx"));
+
+        Assert.IsNull(sut.CurrentSnrDb);
+        Assert.IsNull(sut.CurrentQsbDepthDb);
+
+        // Turning noise on later starts from the configured level, not from a silently drifted one.
+        config.Audio.Noise.Type = NoiseType.Pink;
+        Assert.AreEqual(-config.Audio.Noise.LevelDb, sut.CurrentSnrDb);
+    }
+
+    [TestMethod]
     public async Task RecordSavedResult_WithErrorAboveThreshold_SlowsDownDynamicAverageWpm()
     {
         var configService = Substitute.For<IConfigurationService>();
@@ -735,8 +811,8 @@ public sealed class PracticeControllerTests
         Assert.AreEqual("Letters", configService.Current.Practice.DefaultCharacterSet);
     }
 
-    private static DynamicWpmAdjuster CreateAdjuster()
-        => new(Substitute.For<ILogger<DynamicWpmAdjuster>>());
+    private static DynamicDifficultyAdjuster CreateAdjuster()
+        => new(Substitute.For<ILogger<DynamicDifficultyAdjuster>>());
 
     private static PracticeController CreateController(
         IConfigurationService configService,

@@ -22,6 +22,36 @@ public sealed class PracticeSettingsValidatorTests
     }
 
     [TestMethod]
+    [DataRow(0d, true)]
+    [DataRow(-1d, true)]
+    [DataRow(20.5d, true)]
+    [DataRow(0d, false)]
+    [DataRow(25d, false)]
+    public void TryValidate_AutoAdjustLevelStepOutOfRange_ReturnsFalse(double step, bool snr)
+    {
+        var settings = CreateValidSettings();
+        if (snr) settings.Practice.AutoAdjustSnrStepDb = step;
+        else settings.Practice.AutoAdjustQsbStepDb = step;
+
+        var success = _validator.TryValidate(settings, out var error);
+
+        Assert.IsFalse(success);
+        StringAssert.Contains(error, snr ? "SNR step" : "QSB step");
+    }
+
+    [TestMethod]
+    [DataRow(0.5d)]
+    [DataRow(20d)]
+    public void TryValidate_AutoAdjustLevelStepInRange_ReturnsTrue(double step)
+    {
+        var settings = CreateValidSettings();
+        settings.Practice.AutoAdjustSnrStepDb = step;
+        settings.Practice.AutoAdjustQsbStepDb = step;
+
+        Assert.IsTrue(_validator.TryValidate(settings, out _));
+    }
+
+    [TestMethod]
     public void TryValidate_DefaultDurationBelowOne_ReturnsFalse()
     {
         var settings = CreateValidSettings();

@@ -81,7 +81,7 @@ public sealed partial class UserJourneyScenarios
                 : !((CorrelationDialogViewModel)dialog.DataContext!).CloseCommand.IsRunning, "report analysis save failure");
             Assert.IsTrue(dialog.IsVisible);
             var message = confusions ? ((ConfusionsDialogViewModel)dialog.DataContext!).SummaryText
-                : ((CorrelationDialogViewModel)dialog.DataContext!).SummaryText;
+                : ((CorrelationDialogViewModel)dialog.DataContext!).StatusText;
             StringAssert.StartsWith(message, "Could not save settings:");
             Assert.IsTrue(ScenarioDesktop.Controls<TextBlock>(dialog).Any(t => t.Text == message && t.IsVisible));
         }

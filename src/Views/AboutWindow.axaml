@@ -84,7 +84,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM driven by your last saved session, or the average of your last N"/>
+                        <TextBlock Grid.Column="1" Text="Optional auto-adjusting WPM, signal-to-noise ratio and QSB depth, driven by your last saved session or the average of your last N, with a step in dB for SNR and QSB"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
@@ -100,7 +100,7 @@
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>
-                        <TextBlock Grid.Column="1" Text="Speed versus error correlation with a linear fit over a rolling window"/>
+                        <TextBlock Grid.Column="1" Text="Error rate correlated with speed, signal-to-noise ratio and QSB depth, one tab each, with a linear fit over a rolling window"/>
                     </Grid>
                     <Grid Classes="feature" ColumnDefinitions="Auto,*">
                         <TextBlock Grid.Column="0" Classes="bullet"/>

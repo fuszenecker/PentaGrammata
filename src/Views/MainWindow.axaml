@@ -69,6 +69,7 @@
                     <TextBlock Foreground="#9aa0a6" Text=" WPM / Avg "/>
                     <TextBlock Foreground="#9aa0a6" Text="{Binding Practice.NextAverageWpm}"/>
                     <TextBlock Foreground="#9aa0a6" Text=" WPM"/>
+                    <TextBlock Foreground="#9aa0a6" Text="{Binding Practice.NextLevelsText}"/>
                 </StackPanel>
             </Grid>
         </Border>

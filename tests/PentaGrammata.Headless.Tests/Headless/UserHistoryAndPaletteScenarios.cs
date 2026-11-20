@@ -152,7 +152,7 @@ public sealed partial class UserJourneyScenarios
         }
         app.Menu("C_orrelation");
         var dialog = await app.Dialog<CorrelationDialog>();
-        var chart = ScenarioDesktop.Controls<CorrelationScatterChart>(dialog).Single();
+        var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(dialog);
         Assert.IsNotNull(chart.Correlation);
         Assert.IsFalse(chart.Correlation.HasFit);
         Assert.HasCount(history == "single" ? 1 : 2, chart.Correlation.Points);
@@ -193,12 +193,12 @@ public sealed partial class UserJourneyScenarios
         app.Menu("C_orrelation");
         var correlation = await app.Dialog<CorrelationDialog>();
         var vm = (CorrelationDialogViewModel)correlation.DataContext!;
-        Assert.HasCount(4, vm.Correlation.Points);
+        Assert.HasCount(4, vm.Speed.Correlation.Points);
         ScenarioDesktop.Controls<NumericUpDown>(correlation).Single().Value = 1;
-        await ScenarioDesktop.Until(() => vm.Correlation.Points.Count == 2, "restrict correlation to the recent analysis window");
+        await ScenarioDesktop.Until(() => vm.Speed.Correlation.Points.Count == 2, "restrict correlation to the recent analysis window");
         using (var frame = correlation.CaptureRenderedFrame()) Assert.IsNotNull(frame);
         ScenarioDesktop.Controls<NumericUpDown>(correlation).Single().Value = 30;
-        await ScenarioDesktop.Until(() => vm.Correlation.Points.Count == 5, "include older sessions");
+        await ScenarioDesktop.Until(() => vm.Speed.Correlation.Points.Count == 5, "include older sessions");
         ScenarioDesktop.Click(correlation, "Close");
     });
 }

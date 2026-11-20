@@ -210,6 +210,10 @@ public sealed class ConfigurationFormatTests
 
         Assert.AreEqual(18, configuration.Practice.CharacterWpm);
         Assert.AreEqual(1, configuration.Practice.AutoAdjustWindowSize);
+        Assert.IsFalse(configuration.Practice.AutoAdjustSnr);
+        Assert.AreEqual(1.0, configuration.Practice.AutoAdjustSnrStepDb);
+        Assert.IsFalse(configuration.Practice.AutoAdjustQsb);
+        Assert.AreEqual(1.0, configuration.Practice.AutoAdjustQsbStepDb);
         Assert.AreEqual("Default", configuration.Practice.DefaultCharacterSet);
         Assert.AreEqual(39, configuration.CharacterSets.Keys.Count(name => name.StartsWith("Koch-LCWO-", StringComparison.Ordinal)));
         var repetitions = configuration.Topics.Repetitions;

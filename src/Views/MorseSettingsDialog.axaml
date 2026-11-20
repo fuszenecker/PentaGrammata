@@ -33,6 +33,7 @@
         <TabControl Grid.Row="0" Background="#101010">
 
             <TabItem Header="Practice">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <Grid Margin="6">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Character WPM"/>
@@ -53,22 +54,47 @@
                                 </Panel>
                             </ToggleButton>
                         </Grid>
-                        <TextBlock Text="Error threshold (%)"/>
-                        <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"
-                                       ToolTip.Tip="Maximum error rate (Levenshtein distance / sent Morse symbols) for a session to count as passed. A prosign such as &lt;ar&gt; counts as one symbol. Also the reference auto-adjust compares recent errors against."/>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Spacing="8">
+                                <TextBlock Text="Error threshold (%)"/>
+                                <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0.##" Value="{Binding ErrorThreshold}"
+                                               ToolTip.Tip="Maximum error rate (Levenshtein distance / sent Morse symbols) for a session to count as passed. A prosign such as &lt;ar&gt; counts as one symbol. Also the reference auto-adjust compares recent errors against."/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="8">
+                                <TextBlock Text="Auto-adjust window (last N sessions)"/>
+                                <NumericUpDown Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding AutoAdjustWindowSize}"
+                                               ToolTip.Tip="For every auto-adjustment (WPM, SNR, QSB depth): the average error rate of the last N saved sessions is compared to the error threshold: above it makes practice easier (WPM −1, SNR up, QSB shallower), at or below it harder. The session you just finished also counts on its own — if it is above the threshold practice gets easier even when the average still looks good. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured values are the starting point."/>
+                            </StackPanel>
+                        </Grid>
                         <CheckBox Content="Auto-adjust WPM"
                                   IsChecked="{Binding AutoAdjustWpm}"
                                   Margin="0,4,0,0"
                                   ToolTip.Tip="After each scored session, slow down when recent errors are high or the session you just finished failed, and speed up otherwise. The dynamic WPM is kept in memory only and restarts from the configured WPM on each app start."/>
-                        <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding AutoAdjustWpm}" Margin="0,0,0,0">
-                            <StackPanel Grid.Column="0" Spacing="8">
-                                <TextBlock Text="Window size (last N sessions)"/>
-                                <NumericUpDown Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding AutoAdjustWindowSize}"
-                                               ToolTip.Tip="When auto-adjust is on, the average error rate of the last N sessions is compared to the error threshold: above it slows the average WPM by 1, at or below it speeds up by 1. The session you just finished also counts on its own — if it is above the threshold the speed drops even when the average still looks good. Once the average WPM reaches the character WPM, the character WPM is raised too. The configured WPM above is the starting point."/>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="Auto-adjust SNR"
+                                      IsChecked="{Binding AutoAdjustSnr}"
+                                      ToolTip.Tip="After each saved session, by the same decision as the WPM: a pass lowers the signal-to-noise ratio by the step (more noise), a failure raises it. Only while noise is on. Unlike the WPM, the new SNR is saved: it replaces the SNR on the Noise tab."/>
+                            <StackPanel Grid.Column="1" Spacing="8">
+                                <TextBlock Text="SNR step (dB)"/>
+                                <NumericUpDown Minimum="0.5" Maximum="{Binding MaxAutoAdjustStepDb}" Increment="0.5" FormatString="0.##"
+                                               Value="{Binding AutoAdjustSnrStepDb}" IsEnabled="{Binding AutoAdjustSnr}"
+                                               ToolTip.Tip="How many dB the signal-to-noise ratio drops after a passed session and rises after a failed one."/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <CheckBox Grid.Column="0" VerticalAlignment="Bottom" Content="Auto-adjust QSB depth"
+                                      IsChecked="{Binding AutoAdjustQsb}"
+                                      ToolTip.Tip="After each saved session, by the same decision as the WPM: a pass deepens the QSB fade by the step, a failure makes it shallower. Only while QSB is on. Unlike the WPM, the new depth is saved: it replaces the fade depth on the Noise tab."/>
+                            <StackPanel Grid.Column="1" Spacing="8">
+                                <TextBlock Text="QSB step (dB)"/>
+                                <NumericUpDown Minimum="0.5" Maximum="{Binding MaxAutoAdjustStepDb}" Increment="0.5" FormatString="0.##"
+                                               Value="{Binding AutoAdjustQsbStepDb}" IsEnabled="{Binding AutoAdjustQsb}"
+                                               ToolTip.Tip="How many dB the QSB fade deepens after a passed session and becomes shallower after a failed one."/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Topics">

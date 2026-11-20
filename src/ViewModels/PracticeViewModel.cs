@@ -74,6 +74,13 @@ public partial class PracticeViewModel : ViewModelBase
     [ObservableProperty]
     private int nextAverageWpm;
 
+    /// <summary>
+    /// The signal-to-noise ratio and QSB depth the next session will use, for the status bar
+    /// (" / SNR 12 dB / QSB 10 dB"); a part is left out while its noise or QSB is off.
+    /// </summary>
+    [ObservableProperty]
+    private string nextLevelsText = string.Empty;
+
     public PracticeViewModel(
         IPracticeController practiceController,
         IPracticeResultWindowService practiceResultWindowService,
@@ -205,11 +212,11 @@ public partial class PracticeViewModel : ViewModelBase
             _currentSessionId,
             _resultSavedForCurrentSession,
             settings.Practice.ErrorThreshold,
-            settings.Audio.Noise);
+            _practiceController.LastUsedNoise);
         if (saved && !_resultSavedForCurrentSession)
         {
             _resultSavedForCurrentSession = true;
-            // Saving is what moves the auto-adjusted WPM; refresh the status-bar readout.
+            // Saving is what moves the auto-adjusted speed and levels; refresh the status-bar readout.
             _practiceController.RecordSavedResult(result);
             RefreshNextWpm();
         }
@@ -223,6 +230,18 @@ public partial class PracticeViewModel : ViewModelBase
     {
         NextCharacterWpm = _practiceController.CurrentCharacterWpm;
         NextAverageWpm = _practiceController.CurrentAverageWpm;
+        var levels = new System.Text.StringBuilder();
+        if (_practiceController.CurrentSnrDb is { } snr)
+        {
+            levels.Append(System.Globalization.CultureInfo.InvariantCulture, $" / SNR {snr:0.#} dB");
+        }
+
+        if (_practiceController.CurrentQsbDepthDb is { } depth)
+        {
+            levels.Append(System.Globalization.CultureInfo.InvariantCulture, $" / QSB {depth:0.#} dB");
+        }
+
+        NextLevelsText = levels.ToString();
     }
 
     /// <summary>

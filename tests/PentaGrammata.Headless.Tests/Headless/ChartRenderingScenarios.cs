@@ -44,15 +44,15 @@ public sealed class ChartRenderingScenarios
     {
         app.Menu("C_orrelation");
         var dialog = await app.Dialog<PentaGrammata.Views.CorrelationDialog>();
-        var chart = ScenarioDesktop.Controls<CorrelationScatterChart>(dialog).Single();
+        var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(dialog);
         var today = new DateTimeOffset(DateTime.Today.AddHours(12));
-        chart.Correlation = new SpeedErrorCorrelation
+        chart.Correlation = new ErrorCorrelation
         {
             Points =
             [
-                new() { RecordedAt = today.AddDays(-2), AverageWpm = 10, ErrorRatePercent = 2 },
-                new() { RecordedAt = today.AddDays(-1), AverageWpm = 20, ErrorRatePercent = 4 },
-                new() { RecordedAt = today, AverageWpm = 30, ErrorRatePercent = 1 },
+                new() { RecordedAt = today.AddDays(-2), Value = 10, ErrorRatePercent = 2 },
+                new() { RecordedAt = today.AddDays(-1), Value = 20, ErrorRatePercent = 4 },
+                new() { RecordedAt = today, Value = 30, ErrorRatePercent = 1 },
             ],
         };
         chart.InvalidateVisual();
@@ -69,15 +69,15 @@ public sealed class ChartRenderingScenarios
     {
         app.Menu("C_orrelation");
         var dialog = await app.Dialog<PentaGrammata.Views.CorrelationDialog>();
-        var chart = ScenarioDesktop.Controls<CorrelationScatterChart>(dialog).Single();
+        var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(dialog);
         var today = new DateTimeOffset(DateTime.Today.AddHours(12));
-        var oldest = new SpeedErrorPoint { RecordedAt = today.AddDays(-3), AverageWpm = 10, ErrorRatePercent = 2 };
-        var newest = new SpeedErrorPoint { RecordedAt = today.AddDays(-1), AverageWpm = 20, ErrorRatePercent = 4 };
-        chart.Correlation = new SpeedErrorCorrelation { Points = [oldest, newest] };
+        var oldest = new ErrorCorrelationPoint { RecordedAt = today.AddDays(-3), Value = 10, ErrorRatePercent = 2 };
+        var newest = new ErrorCorrelationPoint { RecordedAt = today.AddDays(-1), Value = 20, ErrorRatePercent = 4 };
+        chart.Correlation = new ErrorCorrelation { Points = [oldest, newest] };
         chart.InvalidateVisual();
         using var single = dialog.CaptureRenderedFrame();
         Assert.IsNotNull(single);
-        chart.Correlation = new SpeedErrorCorrelation { Points = [oldest, oldest, newest] };
+        chart.Correlation = new ErrorCorrelation { Points = [oldest, oldest, newest] };
         chart.InvalidateVisual();
         using var overlapping = dialog.CaptureRenderedFrame();
         Assert.IsNotNull(overlapping);

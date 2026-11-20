@@ -60,26 +60,32 @@ public sealed record MorsePlaybackSettings
     /// <summary>
     /// Maps the audio configuration plus the speeds actually in use onto playback settings, so
     /// playback and the headroom analysis cannot drift apart on how a setting is carried over.
+    /// <paramref name="noise"/> replaces the configured receiver settings when given (the
+    /// auto-adjusted levels of a session).
     /// </summary>
-    public static MorsePlaybackSettings From(Audio audio, int characterWpm, int averageWpm) => new()
+    public static MorsePlaybackSettings From(Audio audio, int characterWpm, int averageWpm, NoiseSettings? noise = null)
     {
-        CharacterWpm = characterWpm,
-        AverageWpm = averageWpm,
-        SampleRate = audio.SampleRate,
-        Frequency = audio.Frequency,
-        VolumeDb = audio.VolumeDb,
-        BeepRampMs = audio.BeepRampMs,
-        NoiseType = audio.Noise.Type,
-        NoiseLevelDb = audio.Noise.LevelDb,
-        NoiseBandwidthHz = audio.Noise.BandwidthHz,
-        AgcEnabled = audio.Noise.AgcEnabled,
-        AgcDelaySeconds = audio.Noise.AgcDelaySeconds,
-        AgcMaxGainDb = audio.Noise.AgcMaxGainDb,
-        ApfEnabled = audio.Noise.ApfEnabled,
-        ApfBandwidthHz = audio.Noise.ApfBandwidthHz,
-        ApfPeakGainDb = audio.Noise.ApfPeakGainDb,
-        QsbEnabled = audio.Noise.QsbEnabled,
-        QsbDepthDb = audio.Noise.QsbDepthDb,
-        QsbPeriodSeconds = audio.Noise.QsbPeriodSeconds,
-    };
+        noise ??= audio.Noise;
+        return new()
+        {
+            CharacterWpm = characterWpm,
+            AverageWpm = averageWpm,
+            SampleRate = audio.SampleRate,
+            Frequency = audio.Frequency,
+            VolumeDb = audio.VolumeDb,
+            BeepRampMs = audio.BeepRampMs,
+            NoiseType = noise.Type,
+            NoiseLevelDb = noise.LevelDb,
+            NoiseBandwidthHz = noise.BandwidthHz,
+            AgcEnabled = noise.AgcEnabled,
+            AgcDelaySeconds = noise.AgcDelaySeconds,
+            AgcMaxGainDb = noise.AgcMaxGainDb,
+            ApfEnabled = noise.ApfEnabled,
+            ApfBandwidthHz = noise.ApfBandwidthHz,
+            ApfPeakGainDb = noise.ApfPeakGainDb,
+            QsbEnabled = noise.QsbEnabled,
+            QsbDepthDb = noise.QsbDepthDb,
+            QsbPeriodSeconds = noise.QsbPeriodSeconds,
+        };
+    }
 }

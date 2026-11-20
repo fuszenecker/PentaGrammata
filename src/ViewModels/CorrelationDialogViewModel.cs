@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,10 +26,9 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     private readonly ICorrelationAnalysisService _analysisService;
     private readonly IUiDispatcher _uiDispatcher;
     private CancellationTokenSource? _rebuildCancellation;
-    private string _summaryText = "Loading correlation data...";
+    private string _statusText = string.Empty;
     private double _windowDays = DefaultWindowDays;
     private bool _windowDaysDirty;
-    private SpeedErrorCorrelation _correlation = new();
 
     // Cached so changing the window recomputes the scatter without re-querying.
     private IReadOnlyList<PracticeResultStatisticsRecord> _records = [];
@@ -69,18 +68,32 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     /// </summary>
     public double ErrorThresholdPercent { get; }
 
-    /// <summary>The scatter and its fitted line, rendered by the correlation chart.</summary>
-    public SpeedErrorCorrelation Correlation
+    /// <summary>Error rate against average speed.</summary>
+    public CorrelationTabViewModel Speed { get; } = new(CorrelationAxis.AverageSpeed, "Speed");
+
+    /// <summary>Error rate against signal-to-noise ratio, over the sessions that had noise.</summary>
+    public CorrelationTabViewModel SignalToNoise { get; } = new(CorrelationAxis.SignalToNoise, "Signal-to-noise");
+
+    /// <summary>Error rate against QSB fade depth, over the sessions that had QSB.</summary>
+    public CorrelationTabViewModel QsbDepth { get; } = new(CorrelationAxis.QsbDepth, "QSB depth");
+
+    /// <summary>The tabs, in the order the dialog shows them.</summary>
+    public IReadOnlyList<CorrelationTabViewModel> Tabs => [Speed, SignalToNoise, QsbDepth];
+
+    /// <summary>A message about the dialog itself rather than a tab (a failed save); empty otherwise.</summary>
+    public string StatusText
     {
-        get => _correlation;
-        private set => SetProperty(ref _correlation, value);
+        get => _statusText;
+        private set
+        {
+            if (SetProperty(ref _statusText, value))
+            {
+                OnPropertyChanged(nameof(HasStatus));
+            }
+        }
     }
 
-    public string SummaryText
-    {
-        get => _summaryText;
-        private set => SetProperty(ref _summaryText, value);
-    }
+    public bool HasStatus => !string.IsNullOrEmpty(_statusText);
 
     public CorrelationDialogViewModel(
         IPracticeResultStatisticsService statisticsService,
@@ -125,80 +138,20 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
         var now = DateTimeOffset.UtcNow;
         try
         {
-            var correlation = await Task.Run(() => _analysisService.Analyze(records, windowDays, now), cts.Token);
-            var summary = BuildSummary(correlation, windowDays);
+            var tabs = Tabs;
+            var correlations = await Task.Run(
+                () => tabs.Select(tab => _analysisService.Analyze(records, tab.Axis, windowDays, now)).ToArray(),
+                cts.Token);
             await _uiDispatcher.InvokeAsync(() =>
             {
                 if (cts.IsCancellationRequested) return;
-                Correlation = correlation;
-                SummaryText = summary;
+                for (var i = 0; i < tabs.Count; i++)
+                {
+                    tabs[i].Show(correlations[i], windowDays);
+                }
             });
         }
         catch (OperationCanceledException) { }
-    }
-
-    /// <summary>
-    /// One line describing the window, the strength and direction of the correlation and the
-    /// slope of the fit. Falls back to an explanatory message when there is nothing to fit,
-    /// because an empty plot with no caption reads as a bug rather than as missing data.
-    /// </summary>
-    private static string BuildSummary(SpeedErrorCorrelation correlation, double windowDays)
-    {
-        var sessions = correlation.Points.Count;
-        var window = string.Format(
-            CultureInfo.InvariantCulture,
-            "{0} session(s) in the last {1:0} day(s)",
-            sessions,
-            windowDays);
-
-        if (sessions == 0)
-        {
-            return $"{window}. Nothing to correlate yet.";
-        }
-
-        if (!correlation.HasFit)
-        {
-            return sessions < 2
-                ? $"{window}. At least two sessions are needed for a correlation."
-                : $"{window}. No spread to correlate: every session ran at the same speed or scored the same error rate.";
-        }
-
-        var summary = string.Format(
-            CultureInfo.InvariantCulture,
-            "{0}. Correlation r = {1:0.00} ({2}), R² = {3:0.00}. Fit: error = {4:0.00} % {5} {6:0.000} %/WPM.",
-            window,
-            correlation.PearsonR,
-            DescribeStrength(correlation.PearsonR),
-            correlation.PearsonR * correlation.PearsonR,
-            correlation.Intercept,
-            correlation.Slope < 0 ? "-" : "+",
-            Math.Abs(correlation.Slope));
-
-        if (correlation.ResidualStandardDeviation <= 0)
-        {
-            return summary;
-        }
-
-        return summary + string.Format(
-            CultureInfo.InvariantCulture,
-            " Band: ±1 σ = {0:0.00} percentage points around the line.",
-            correlation.ResidualStandardDeviation);
-    }
-
-    private static string DescribeStrength(double r)
-    {
-        var direction = r < 0 ? "negative" : "positive";
-        var magnitude = Math.Abs(r);
-        var strength = magnitude switch
-        {
-            < 0.2 => "negligible",
-            < 0.4 => "weak",
-            < 0.6 => "moderate",
-            < 0.8 => "strong",
-            _ => "very strong",
-        };
-
-        return strength == "negligible" ? strength : $"{strength} {direction}";
     }
 
     public void OnDialogClosed()
@@ -223,7 +176,7 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
             catch (ConfigurationPersistenceException ex)
             {
                 _windowDaysDirty = true;
-                SummaryText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
+                StatusText = $"Could not save settings: {ex.InnerException?.Message ?? ex.Message}";
                 return;
             }
         }

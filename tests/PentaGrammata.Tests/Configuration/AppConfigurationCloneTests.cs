@@ -20,6 +20,10 @@ public sealed class AppConfigurationCloneTests
         Assert.AreEqual(original.Practice.CustomText, clone.Practice.CustomText);
         Assert.AreEqual(original.Practice.AutoAdjustWpm, clone.Practice.AutoAdjustWpm);
         Assert.AreEqual(original.Practice.AutoAdjustWindowSize, clone.Practice.AutoAdjustWindowSize);
+        Assert.AreEqual(original.Practice.AutoAdjustSnr, clone.Practice.AutoAdjustSnr);
+        Assert.AreEqual(original.Practice.AutoAdjustSnrStepDb, clone.Practice.AutoAdjustSnrStepDb);
+        Assert.AreEqual(original.Practice.AutoAdjustQsb, clone.Practice.AutoAdjustQsb);
+        Assert.AreEqual(original.Practice.AutoAdjustQsbStepDb, clone.Practice.AutoAdjustQsbStepDb);
         Assert.AreEqual(original.Analytics.ConfusionsHalfLifeDays, clone.Analytics.ConfusionsHalfLifeDays);
         Assert.AreEqual(original.Audio.SampleRate, clone.Audio.SampleRate);
         Assert.AreEqual(original.Audio.Frequency, clone.Audio.Frequency);
@@ -115,6 +119,10 @@ public sealed class AppConfigurationCloneTests
                 CustomText = "CQ CQ DE HA5XYZ",
                 AutoAdjustWpm = true,
                 AutoAdjustWindowSize = 7,
+                AutoAdjustSnr = true,
+                AutoAdjustSnrStepDb = 2.5,
+                AutoAdjustQsb = true,
+                AutoAdjustQsbStepDb = 3.5,
             },
             Analytics = new Analytics
             {

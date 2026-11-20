@@ -59,7 +59,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICharacterSetTextCodec, CharacterSetTextCodec>();
             services.AddSingleton<IAudioHeadroomAnalyzer, AudioHeadroomAnalyzer>();
             services.AddSingleton<IPracticeResultEvaluator, PracticeResultEvaluator>();
-            services.AddSingleton<IDynamicWpmAdjuster, DynamicWpmAdjuster>();
+            services.AddSingleton<IDynamicDifficultyAdjuster, DynamicDifficultyAdjuster>();
             services.AddSingleton<IPracticeResultStatisticsService, PracticeResultStatisticsService>();
             services.AddSingleton<IConfusionAnalysisService, ConfusionAnalysisService>();
             services.AddSingleton<IConfusionObservationExtractor, ConfusionObservationExtractor>();

@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 using PentaGrammata.Configuration;
 using PentaGrammata.Interfaces;
+using PentaGrammata.Models;
 using PentaGrammata.Services;
 using PentaGrammata.ViewModels;
 using PentaGrammata.Views;
@@ -286,7 +287,7 @@ public sealed partial class UserJourneyScenarios
     {
         var settings = await Settings(app);
         ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, "Auto-adjust WPM")).IsChecked = true;
-        ScenarioDesktop.Tip<NumericUpDown>(settings, "When auto-adjust is on").Value = 3;
+        ScenarioDesktop.Tip<NumericUpDown>(settings, "For every auto-adjustment").Value = 3;
         await ApplySettings(app, settings);
         await ScoreAndSave(app, "TEST");
         Assert.AreEqual(16, app.ViewModel.Practice.NextAverageWpm);
@@ -312,7 +313,7 @@ public sealed partial class UserJourneyScenarios
         ScenarioDesktop.Click(trends, "Close");
         app.Menu("C_orrelation");
         var correlation = await app.Dialog<CorrelationDialog>();
-        Assert.IsFalse(((CorrelationDialogViewModel)correlation.DataContext!).Correlation.HasFit);
+        Assert.IsFalse(((CorrelationDialogViewModel)correlation.DataContext!).Speed.Correlation.HasFit);
         ScenarioDesktop.Click(correlation, "Close");
         app.Menu("_Confusions");
         var confusions = await app.Dialog<ConfusionsDialog>();
@@ -357,6 +358,70 @@ public sealed partial class UserJourneyScenarios
     });
 
     [TestMethod]
+    public Task UserLetsNoiseAndFadingFollowTheirResultsAndCorrelatesThem() => Run(async app =>
+    {
+        var settings = await Settings(app);
+        ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, "Auto-adjust SNR")).IsChecked = true;
+        ScenarioDesktop.Tip<NumericUpDown>(settings, "How many dB the signal-to-noise").Value = 3;
+        ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, "Auto-adjust QSB depth")).IsChecked = true;
+        ScenarioDesktop.Tip<NumericUpDown>(settings, "How many dB the QSB fade").Value = 2;
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
+        ScenarioDesktop.Tip<ComboBox>(settings, "Background noise added").SelectedItem = NoiseType.Gaussian;
+        ScenarioDesktop.Tip<NumericUpDown>(settings, "How much louder").Value = 20;
+        ScenarioDesktop.Controls<CheckBox>(settings).Single(c => Equals(c.Content, "QSB enabled")).IsChecked = true;
+        ScenarioDesktop.Tip<NumericUpDown>(settings, "Deepest fade").Value = 10;
+        await ApplySettings(app, settings);
+        Assert.AreEqual(" / SNR 20 dB / QSB 10 dB", app.ViewModel.Practice.NextLevelsText);
+
+        // A clean copy makes the next session harder, and the settings keep the new levels.
+        await ScoreAndSave(app, "TEST");
+        Assert.AreEqual(" / SNR 17 dB / QSB 12 dB", app.ViewModel.Practice.NextLevelsText);
+        Assert.AreEqual(-17d, app.Configuration.Current.Audio.Noise.LevelDb);
+        Assert.AreEqual(12d, app.Configuration.Current.Audio.Noise.QsbDepthDb);
+        settings = await Settings(app);
+        ScenarioDesktop.Tab(settings, ScenarioDesktop.NoiseTab);
+        Assert.AreEqual(17m, ScenarioDesktop.Tip<NumericUpDown>(settings, "How much louder").Value);
+        Assert.AreEqual(12m, ScenarioDesktop.Tip<NumericUpDown>(settings, "Deepest fade").Value);
+        ScenarioDesktop.Click(settings, "Cancel");
+        await ScenarioDesktop.Until(() => !app.ViewModel.OpenSettingsCommand.IsRunning, "close settings");
+
+        // A failed copy takes it back the same way.
+        await ScoreAndSave(app, "TEXT");
+        Assert.AreEqual(" / SNR 20 dB / QSB 10 dB", app.ViewModel.Practice.NextLevelsText);
+
+        // Each saved session records the levels it was actually played with.
+        var saved = (await app.Services.GetRequiredService<IPracticeResultStatisticsService>().GetStatisticsRecordsAsync())
+            .OrderBy(r => r.RecordedAt).ToArray();
+        CollectionAssert.AreEqual(new[] { -20d, -17d }, saved.Select(r => r.NoiseLevelDb).ToArray());
+        CollectionAssert.AreEqual(new[] { 10d, 12d }, saved.Select(r => r.QsbDepthDb).ToArray());
+        Assert.AreEqual(-20d, app.Configuration.Current.Audio.Noise.LevelDb);
+        Assert.AreEqual(10d, app.Configuration.Current.Audio.Noise.QsbDepthDb);
+
+        app.Menu("C_orrelation");
+        var correlation = await app.Dialog<CorrelationDialog>();
+        var vm = (CorrelationDialogViewModel)correlation.DataContext!;
+        await ScenarioDesktop.Until(() => vm.SignalToNoise.Correlation.Points.Count == 2, "correlate the noisy sessions");
+        CollectionAssert.AreEquivalent(new[] { 20d, 17d }, vm.SignalToNoise.Correlation.Points.Select(p => p.Value).ToArray());
+        CollectionAssert.AreEquivalent(new[] { 10d, 12d }, vm.QsbDepth.Correlation.Points.Select(p => p.Value).ToArray());
+        Assert.IsTrue(vm.SignalToNoise.Correlation.HasFit);
+        StringAssert.Contains(vm.SignalToNoise.SummaryText, "with noise");
+        StringAssert.Contains(vm.QsbDepth.SummaryText, "%/dB");
+
+        // Only the selected tab's chart is on screen, and it plots the tab's quantity.
+        foreach (var (tab, axis) in new[] { (0, CorrelationAxis.AverageSpeed), (1, CorrelationAxis.SignalToNoise), (2, CorrelationAxis.QsbDepth) })
+        {
+            ScenarioDesktop.Tab(correlation, tab);
+            var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(correlation);
+            Assert.AreEqual(axis, chart.Correlation!.Axis);
+            using var frame = correlation.CaptureRenderedFrame();
+            Assert.IsNotNull(frame);
+        }
+
+        ScenarioDesktop.Click(correlation, "Close");
+        await ScenarioDesktop.Until(() => !app.ViewModel.OpenCorrelationCommand.IsRunning, "close correlation");
+    });
+
+    [TestMethod]
     public Task UserChangesCorrelationWindowAndPracticesTheirConfusions() => Run(async app =>
     {
         await ScoreAndSave(app, "TEST");
@@ -367,10 +432,10 @@ public sealed partial class UserJourneyScenarios
         app.Menu("C_orrelation");
         var correlation = await app.Dialog<CorrelationDialog>();
         var vm = (CorrelationDialogViewModel)correlation.DataContext!;
-        Assert.IsTrue(vm.Correlation.HasFit);
+        Assert.IsTrue(vm.Speed.Correlation.HasFit);
         Assert.AreEqual(5d, vm.ErrorThresholdPercent);
         ScenarioDesktop.Controls<NumericUpDown>(correlation).Single().Value = 20;
-        var scatter = ScenarioDesktop.Controls<CorrelationScatterChart>(correlation).Single();
+        var scatter = ScenarioDesktop.Shown<CorrelationScatterChart>(correlation);
         correlation.MouseMove(scatter.TranslatePoint(new Point(100, 80), correlation)!.Value);
         using var frame = correlation.CaptureRenderedFrame();
         Assert.IsNotNull(frame);

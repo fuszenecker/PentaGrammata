@@ -2,6 +2,11 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.4.0
+
+- **The correlation window has three tabs:** besides speed, your error rate is now also plotted against the signal-to-noise ratio (sessions with noise) and against the QSB fade depth (sessions with QSB), each with its own fitted line and summary.
+- **Auto-adjusting noise and fading:** next to the auto-adjusting WPM, Settings › Practice can also make the signal-to-noise ratio and the QSB depth follow your results. After a passed session the SNR drops and the fade deepens by the step you set (in dB); after a failed one they go back the same way. They use the same decision and window as the WPM, work only while noise or QSB is on, and, unlike the WPM, are kept: the new values are saved in place of the Noise tab's SNR and fade depth. The status bar shows the SNR and QSB depth the next session will use, and the saved statistics record the values actually played.
+
 ## 2.3.0
 
 - **Items repeated as in a real QSO:** every topic now sends each item a random number of times in a row, between a minimum and a maximum you set below its list on the Topics tab of Settings. By default callsigns, cities and names come twice (`LACI LACI`, `NOVI SAD NOVI SAD`), abbreviations and the lines of your own text once. Random groups are never repeated; the mixed topic repeats each item as its own topic would. You copy each item once: the repetitions are there to help you hear it, and the check, the revealed text and the result window show it once.

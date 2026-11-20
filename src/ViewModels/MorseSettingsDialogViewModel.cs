@@ -155,6 +155,25 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
     [ObservableProperty]
     private int autoAdjustWindowSize;
 
+    /// <summary>Whether the signal-to-noise ratio follows the same auto-adjust decision as the WPM.</summary>
+    [ObservableProperty]
+    private bool autoAdjustSnr;
+
+    /// <summary>The SNR auto-adjust step, in dB.</summary>
+    [ObservableProperty]
+    private double autoAdjustSnrStepDb;
+
+    /// <summary>Whether the QSB fade depth follows the same auto-adjust decision as the WPM.</summary>
+    [ObservableProperty]
+    private bool autoAdjustQsb;
+
+    /// <summary>The QSB depth auto-adjust step, in dB.</summary>
+    [ObservableProperty]
+    private double autoAdjustQsbStepDb;
+
+    /// <summary>The largest auto-adjust step the dialog offers, in dB.</summary>
+    public double MaxAutoAdjustStepDb => PracticeSettingsValidator.MaxAutoAdjustStepDb;
+
     /// <summary>
     /// User-supplied text to send instead of generated groups; blank means "generate as usual".
     /// </summary>
@@ -256,6 +275,10 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
         ErrorThreshold = config.Practice.ErrorThreshold;
         AutoAdjustWpm = config.Practice.AutoAdjustWpm;
         AutoAdjustWindowSize = config.Practice.AutoAdjustWindowSize;
+        AutoAdjustSnr = config.Practice.AutoAdjustSnr;
+        AutoAdjustSnrStepDb = config.Practice.AutoAdjustSnrStepDb;
+        AutoAdjustQsb = config.Practice.AutoAdjustQsb;
+        AutoAdjustQsbStepDb = config.Practice.AutoAdjustQsbStepDb;
         CustomText = config.Practice.CustomText ?? string.Empty;
         ShuffleCustomText = config.Practice.ShuffleCustomText;
         var topics = config.Topics ?? new Topics();
@@ -489,6 +512,10 @@ public partial class MorseSettingsDialogViewModel : ViewModelBase
                 ShuffleCustomText = ShuffleCustomText,
                 AutoAdjustWpm = AutoAdjustWpm,
                 AutoAdjustWindowSize = AutoAdjustWindowSize,
+                AutoAdjustSnr = AutoAdjustSnr,
+                AutoAdjustSnrStepDb = AutoAdjustSnrStepDb,
+                AutoAdjustQsb = AutoAdjustQsb,
+                AutoAdjustQsbStepDb = AutoAdjustQsbStepDb,
             },
             Audio = BuildAudio(),
             CharacterSets = characterSets,

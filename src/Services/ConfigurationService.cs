@@ -166,6 +166,10 @@ public sealed class ConfigurationService : IConfigurationService
         config.Topics = (settings.Topics ?? new Topics()).Clone();
         config.Practice.AutoAdjustWpm = settings.Practice.AutoAdjustWpm;
         config.Practice.AutoAdjustWindowSize = settings.Practice.AutoAdjustWindowSize;
+        config.Practice.AutoAdjustSnr = settings.Practice.AutoAdjustSnr;
+        config.Practice.AutoAdjustSnrStepDb = settings.Practice.AutoAdjustSnrStepDb;
+        config.Practice.AutoAdjustQsb = settings.Practice.AutoAdjustQsb;
+        config.Practice.AutoAdjustQsbStepDb = settings.Practice.AutoAdjustQsbStepDb;
 
         // Snapshot before clearing: when the caller passes the live config itself
         // (the backup-import path does), settings.CharacterSets IS
@@ -211,6 +215,28 @@ public sealed class ConfigurationService : IConfigurationService
 
         Current.Analytics.CorrelationWindowDays = days;
         RequestSave();
+    }
+
+    public void SetNoiseLevels(double? levelDb, double? qsbDepthDb)
+    {
+        var noise = Current.Audio.Noise;
+        var changed = false;
+        if (levelDb is { } level && noise.LevelDb != level)
+        {
+            noise.LevelDb = level;
+            changed = true;
+        }
+
+        if (qsbDepthDb is { } depth && noise.QsbDepthDb != depth)
+        {
+            noise.QsbDepthDb = depth;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            RequestSave();
+        }
     }
 
     public Task UpsertCharacterSetAndSelectAsync(string name, string characters)

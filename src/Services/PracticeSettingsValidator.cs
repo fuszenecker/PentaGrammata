@@ -9,6 +9,9 @@ namespace PentaGrammata.Services;
 
 public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
 {
+    /// <summary>The largest step, in dB, the SNR and QSB auto-adjustment may take at once.</summary>
+    public const double MaxAutoAdjustStepDb = 20;
+
     public bool TryValidate(AppConfig settings, out string error)
     {
         if (settings.Practice.DefaultDurationMins < 1)
@@ -32,6 +35,18 @@ public sealed class PracticeSettingsValidator : IPracticeSettingsValidator
         if (settings.Practice.AutoAdjustWindowSize < 1)
         {
             error = "Auto-adjust window size must be at least 1.";
+            return false;
+        }
+
+        if (settings.Practice.AutoAdjustSnrStepDb is not (> 0 and <= MaxAutoAdjustStepDb))
+        {
+            error = $"The auto-adjust SNR step must be greater than 0 and at most {MaxAutoAdjustStepDb} dB.";
+            return false;
+        }
+
+        if (settings.Practice.AutoAdjustQsbStepDb is not (> 0 and <= MaxAutoAdjustStepDb))
+        {
+            error = $"The auto-adjust QSB step must be greater than 0 and at most {MaxAutoAdjustStepDb} dB.";
             return false;
         }
 
