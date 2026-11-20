@@ -39,6 +39,29 @@ public sealed class ChartRenderingScenarios
         return false;
     }
 
+    /// <summary>
+    /// Whether the color appears inside the control's own area of the frame, so a legend swatch
+    /// of the same color elsewhere in the window cannot satisfy the check.
+    /// </summary>
+    private static bool ContainsColorIn(Bitmap frame, Control control, TopLevel window, byte r, byte g, byte b)
+    {
+        var pixels = Pixels(frame);
+        var origin = control.TranslatePoint(new Point(0, 0), window)!.Value;
+        var scale = frame.PixelSize.Width / window.Bounds.Width;
+        var width = frame.PixelSize.Width;
+        var left = (int)(origin.X * scale);
+        var top = (int)(origin.Y * scale);
+        var right = Math.Min(width, (int)((origin.X + control.Bounds.Width) * scale));
+        var bottom = Math.Min(frame.PixelSize.Height, (int)((origin.Y + control.Bounds.Height) * scale));
+        for (var y = top; y < bottom; y++)
+            for (var x = left; x < right; x++)
+            {
+                var i = (y * width + x) * 4;
+                if (pixels[i] == b && pixels[i + 1] == g && pixels[i + 2] == r && pixels[i + 3] == 255) return true;
+            }
+        return false;
+    }
+
     [TestMethod]
     public Task CorrelationDotsUseOpaqueAgeColorsAndTodayIsFullYellow() => ScenarioRunner.Run(async app =>
     {
@@ -59,7 +82,7 @@ public sealed class ChartRenderingScenarios
         using var frame = dialog.CaptureRenderedFrame();
         Assert.IsNotNull(frame);
         var pixels = Pixels(frame);
-        Assert.IsTrue(ContainsColor(pixels, 255, 210, 74), "Today's dots must be full yellow (#FFD24A).");
+        Assert.IsTrue(ContainsColorIn(frame, chart, dialog, 255, 210, 74), "Today's dots must be full yellow (#FFD24A).");
         Assert.IsTrue(ContainsColor(pixels, 28, 52, 87), "Oldest dots must retain 30 percent of session blue blended into the surface.");
         ScenarioDesktop.Click(dialog, "Close");
     });
@@ -92,6 +115,54 @@ public sealed class ChartRenderingScenarios
             compared++;
         }
         Assert.IsGreaterThan(0, compared, "The rendered oldest dot must have an opaque interior.");
+        ScenarioDesktop.Click(dialog, "Close");
+    });
+
+    [TestMethod]
+    public Task NegativeSignalToNoiseSessionsAreDrawnInsideTheChart() => ScenarioRunner.Run(async app =>
+    {
+        app.Menu("C_orrelation");
+        var dialog = await app.Dialog<PentaGrammata.Views.CorrelationDialog>();
+        ScenarioDesktop.Tab(dialog, 1);
+        var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(dialog);
+        Assert.AreEqual(CorrelationAxis.SignalToNoise, chart.Correlation!.Axis);
+        var today = new DateTimeOffset(DateTime.Today.AddHours(12));
+        chart.Correlation = new ErrorCorrelation
+        {
+            Axis = CorrelationAxis.SignalToNoise,
+            Points =
+            [
+                new() { RecordedAt = today.AddDays(-2), Value = 10, ErrorRatePercent = 1 },
+                new() { RecordedAt = today.AddDays(-1), Value = -5, ErrorRatePercent = 4 },
+                // The lowest value, today: the one drawn in yellow, at the left edge of the domain.
+                new() { RecordedAt = today, Value = -15, ErrorRatePercent = 8 },
+            ],
+        };
+        chart.InvalidateVisual();
+        using var frame = dialog.CaptureRenderedFrame();
+        Assert.IsNotNull(frame);
+        Assert.IsTrue(ContainsColorIn(frame, chart, dialog, 255, 210, 74), "A negative signal-to-noise session must be drawn inside the chart, not cut off at zero.");
+        ScenarioDesktop.Click(dialog, "Close");
+    });
+
+    [TestMethod]
+    public Task EmptyLevelTabsRenderTheirOwnAxis() => ScenarioRunner.Run(async app =>
+    {
+        app.Menu("C_orrelation");
+        var dialog = await app.Dialog<PentaGrammata.Views.CorrelationDialog>();
+        var vm = (PentaGrammata.ViewModels.CorrelationDialogViewModel)dialog.DataContext!;
+        await ScenarioDesktop.Until(() => !vm.QsbDepth.SummaryText.StartsWith("Loading", StringComparison.Ordinal), "analyze the empty history");
+        foreach (var (tab, axis, words) in new[] { (1, CorrelationAxis.SignalToNoise, "with noise"), (2, CorrelationAxis.QsbDepth, "with QSB") })
+        {
+            ScenarioDesktop.Tab(dialog, tab);
+            var chart = ScenarioDesktop.Shown<CorrelationScatterChart>(dialog);
+            Assert.AreEqual(axis, chart.Correlation!.Axis);
+            Assert.IsEmpty(chart.Correlation.Points);
+            Assert.IsTrue(ScenarioDesktop.Controls<TextBlock>(dialog).Any(t => t.IsEffectivelyVisible && (t.Text ?? "").Contains($"session(s) {words}", StringComparison.Ordinal)),
+                $"The {axis} tab must say which sessions it needs.");
+            using var frame = dialog.CaptureRenderedFrame();
+            Assert.IsNotNull(frame);
+        }
         ScenarioDesktop.Click(dialog, "Close");
     });
 }

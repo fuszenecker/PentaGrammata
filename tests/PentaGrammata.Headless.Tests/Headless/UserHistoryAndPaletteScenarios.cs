@@ -201,4 +201,45 @@ public sealed partial class UserJourneyScenarios
         await ScenarioDesktop.Until(() => vm.Speed.Correlation.Points.Count == 5, "include older sessions");
         ScenarioDesktop.Click(correlation, "Close");
     });
+
+    [TestMethod]
+    public Task ReturningUserNarrowsTheCorrelationToToday() => Run(async app =>
+    {
+        var statistics = app.Services.GetRequiredService<IPracticeResultStatisticsService>();
+        var now = DateTimeOffset.Now;
+        foreach (var (at, speed, error, snr) in new[]
+        {
+            (now.AddDays(-3), 12, 1d, 20d), (now.AddDays(-1), 14, 3d, 15d),
+            (now.AddSeconds(-2), 16, 4d, 10d), (now.AddSeconds(-1), 18, 7d, 5d),
+        })
+        {
+            await statistics.SaveAsync(new PracticeResultStatisticsRecord
+            {
+                SessionId = Guid.NewGuid(), RecordedAt = at,
+                CharacterWpm = 25, AverageWpm = speed, CharacterCount = 100, ErrorCount = (int)error,
+                ErrorRatePercent = error, ErrorThresholdPercent = 5,
+                NoiseType = NoiseType.Gaussian, NoiseLevelDb = -snr, QsbEnabled = true, QsbDepthDb = 30 - snr, QsbPeriodSeconds = 5,
+            });
+        }
+        // Both of today's sessions must still be today: skip the seconds around midnight.
+        if (now.AddSeconds(-2).Date != now.Date) return;
+
+        app.Menu("C_orrelation");
+        var correlation = await app.Dialog<CorrelationDialog>();
+        var vm = (CorrelationDialogViewModel)correlation.DataContext!;
+        await ScenarioDesktop.Until(() => vm.Speed.Correlation.Points.Count == 4, "load the history");
+        ScenarioDesktop.Controls<NumericUpDown>(correlation).Single().Value = 0;
+        await ScenarioDesktop.Until(() => vm.Speed.Correlation.Points.Count == 2, "narrow the correlation to today");
+        Assert.AreEqual(0d, vm.WindowDays);
+        CollectionAssert.AreEquivalent(new[] { 16d, 18d }, vm.Speed.Correlation.Points.Select(p => p.Value).ToArray());
+        CollectionAssert.AreEquivalent(new[] { 10d, 5d }, vm.SignalToNoise.Correlation.Points.Select(p => p.Value).ToArray());
+        CollectionAssert.AreEquivalent(new[] { 20d, 25d }, vm.QsbDepth.Correlation.Points.Select(p => p.Value).ToArray());
+        StringAssert.StartsWith(vm.Speed.SummaryText, "2 session(s) today.");
+        StringAssert.StartsWith(vm.SignalToNoise.SummaryText, "2 session(s) with noise today.");
+        StringAssert.StartsWith(vm.QsbDepth.SummaryText, "2 session(s) with QSB today.");
+        using (var frame = correlation.CaptureRenderedFrame()) Assert.IsNotNull(frame);
+        ScenarioDesktop.Click(correlation, "Close");
+        await ScenarioDesktop.Until(() => !app.ViewModel.OpenCorrelationCommand.IsRunning, "save the zero-day window");
+        Assert.AreEqual(0d, app.Configuration.Current.Analytics.CorrelationWindowDays);
+    });
 }

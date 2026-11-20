@@ -115,7 +115,7 @@ public sealed class CorrelationScatterChart : Control
             Math.Max(1, bounds.Height - TopPadding - AxisTitleHeight - TimeAxisHeight - BottomTitleHeight - BottomPadding));
 
         var threshold = ErrorThresholdPercent;
-        var speedScale = GetSpeedScale(points);
+        var speedScale = GetValueScale(points);
         var errorMax = GetErrorMax(points, threshold);
 
         DrawGrid(context, chartRect, speedScale, errorMax, correlation!.Axis);
@@ -165,7 +165,7 @@ public sealed class CorrelationScatterChart : Control
     /// of stacking it in one column. The domain stops at zero unless a value is negative (a
     /// signal-to-noise ratio can be).
     /// </summary>
-    private static (double Min, double Max) GetSpeedScale(IReadOnlyList<ErrorCorrelationPoint> points)
+    internal static (double Min, double Max) GetValueScale(IReadOnlyList<ErrorCorrelationPoint> points)
     {
         var lowest = points.Min(p => p.Value);
         var min = Math.Floor(lowest) - 1;
@@ -428,12 +428,7 @@ public sealed class CorrelationScatterChart : Control
             MarkerRadius + 3,
             MarkerRadius + 3);
 
-        var texts = new[]
-        {
-            nearest.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-            string.Format(CultureInfo.InvariantCulture, "{0}: {1:0.##} {2}", AxisName(axis), nearest.Value, AxisUnit(axis)),
-            $"Error rate: {nearest.ErrorRatePercent:0.##}%",
-        }.Select(line => CreateText(line, 11, "#F9FAFB")).ToArray();
+        var texts = TooltipLines(nearest, axis).Select(line => CreateText(line, 11, "#F9FAFB")).ToArray();
 
         var width = texts.Max(t => t.Width) + 14;
         var height = texts.Sum(t => t.Height) + 12;
@@ -499,15 +494,25 @@ public sealed class CorrelationScatterChart : Control
 
     private static string AxisUnit(CorrelationAxis axis) => axis == CorrelationAxis.AverageSpeed ? "WPM" : "dB";
 
+    /// <summary>The hover tooltip of a session: its time, its value with the axis unit, its error rate.</summary>
+    internal static string[] TooltipLines(ErrorCorrelationPoint point, CorrelationAxis axis) =>
+    [
+        point.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        string.Format(CultureInfo.InvariantCulture, "{0}: {1:0.##} {2}", AxisName(axis), point.Value, AxisUnit(axis)),
+        string.Format(CultureInfo.InvariantCulture, "Error rate: {0:0.##}%", point.ErrorRatePercent),
+    ];
+
+    /// <summary>What an empty chart says, naming the sessions the axis needs.</summary>
+    internal static string EmptyMessage(CorrelationAxis axis) => axis switch
+    {
+        CorrelationAxis.SignalToNoise => "No sessions with noise in the analysis window.",
+        CorrelationAxis.QsbDepth => "No sessions with QSB in the analysis window.",
+        _ => "No sessions in the analysis window.",
+    };
+
     private static void DrawEmptyMessage(DrawingContext context, Rect bounds, CorrelationAxis axis)
     {
-        var message = axis switch
-        {
-            CorrelationAxis.SignalToNoise => "No sessions with noise in the analysis window.",
-            CorrelationAxis.QsbDepth => "No sessions with QSB in the analysis window.",
-            _ => "No sessions in the analysis window.",
-        };
-        var text = CreateText(message, 13, "#D1D5DB");
+        var text = CreateText(EmptyMessage(axis), 13, "#D1D5DB");
         context.DrawText(
             text,
             new Point(

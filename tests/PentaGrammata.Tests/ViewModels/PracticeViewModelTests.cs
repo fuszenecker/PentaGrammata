@@ -328,6 +328,38 @@ public sealed class PracticeViewModelTests
         await resultWindowService.Received(2).ShowPracticeResultAsync(result, 20, 15, Arg.Any<Guid>(), false, 10, Arg.Any<NoiseSettings>());
     }
 
+    [TestMethod]
+    [DataRow(12.0, 10.0, " / SNR 12 dB / QSB 10 dB")]
+    [DataRow(12.5, null, " / SNR 12.5 dB")]
+    [DataRow(null, 7.0, " / QSB 7 dB")]
+    [DataRow(-3.0, null, " / SNR -3 dB")]
+    [DataRow(null, null, "")]
+    public void NextLevelsText_ShowsOnlyTheLevelsInUse(double? snr, double? qsb, string expected)
+    {
+        var practiceController = CreateController();
+        practiceController.CurrentSnrDb.Returns(snr);
+        practiceController.CurrentQsbDepthDb.Returns(qsb);
+
+        var sut = CreateSut(practiceController);
+
+        Assert.AreEqual(expected, sut.NextLevelsText);
+    }
+
+    [TestMethod]
+    public void RefreshFromAppliedSettings_ReReadsTheLevels()
+    {
+        var practiceController = CreateController();
+        practiceController.CurrentSnrDb.Returns(15.0);
+        practiceController.CurrentQsbDepthDb.Returns((double?)null);
+        var sut = CreateSut(practiceController);
+
+        practiceController.CurrentSnrDb.Returns((double?)null);
+        practiceController.CurrentQsbDepthDb.Returns(4.0);
+        sut.RefreshFromAppliedSettings();
+
+        Assert.AreEqual(" / QSB 4 dB", sut.NextLevelsText);
+    }
+
     private static IPracticeController CreateController()
     {
         var practiceController = Substitute.For<IPracticeController>();
