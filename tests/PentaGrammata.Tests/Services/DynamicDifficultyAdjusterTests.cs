@@ -62,7 +62,7 @@ public sealed class DynamicDifficultyAdjusterTests
     {
         var sut = CreateAdjuster();
         sut.Reset(20, 15, 12, 10);
-        var targets = new AutoAdjustTargets { Snr = true, Qsb = true };
+        var targets = new AutoAdjustTargets { Snr = true, SnrStepDb = 1, Qsb = true, QsbStepDb = 1 };
 
         sut.Adjust(0, Threshold, 3, targets);
         sut.Adjust(0, Threshold, 3, targets);

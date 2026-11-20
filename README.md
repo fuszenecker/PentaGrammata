@@ -86,9 +86,9 @@ The installers are built only by the `Create Installer` workflow (`.github/workf
 | `Practice` | `AutoAdjustWpm` | `false` | Dynamically adjust the practice WPM in memory after each scored session (slow down when the recent average error rate — or the session just finished — is above `ErrorThreshold`, speed up otherwise); the dynamic WPM is not persisted and restarts from the configured WPM on each app start |
 | `Practice` | `AutoAdjustWindowSize` | `1` | Number of recent sessions whose error rates are averaged to drive `AutoAdjustWpm`, `AutoAdjustSnr` and `AutoAdjustQsb` |
 | `Practice` | `AutoAdjustSnr` | `false` | Adjust the signal-to-noise ratio in memory after each saved session by the same decision as `AutoAdjustWpm` (a pass lowers it, a failure raises it); only while noise is on; in memory only, restarts from `Audio.Noise.LevelDb` |
-| `Practice` | `AutoAdjustSnrStepDb` | `1` | How many dB one SNR adjustment moves (greater than 0, at most 20) |
+| `Practice` | `AutoAdjustSnrStepDb` | `3` | How many dB one SNR adjustment moves (greater than 0, at most 20) |
 | `Practice` | `AutoAdjustQsb` | `false` | Adjust the QSB fade depth in memory after each saved session by the same decision (a pass deepens it, a failure makes it shallower); only while QSB is on; in memory only, restarts from `Audio.Noise.QsbDepthDb` |
-| `Practice` | `AutoAdjustQsbStepDb` | `1` | How many dB one QSB depth adjustment moves (greater than 0, at most 20) |
+| `Practice` | `AutoAdjustQsbStepDb` | `3` | How many dB one QSB depth adjustment moves (greater than 0, at most 20) |
 | `Topics` | `CallsignPatternsEmea` | ~180 patterns | Callsign patterns of the EMEA region (`#` digit, lowercase letter = random letter) |
 | `Topics` | `CallsignPatternsGlobal` | ~310 patterns | Callsign patterns of the whole world |
 | `Topics` | `Cities` | ~280 cities | Larger cities of the EMEA region and the capitals of the world |

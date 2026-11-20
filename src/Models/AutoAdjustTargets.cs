@@ -14,12 +14,12 @@ public sealed record AutoAdjustTargets
     public bool Snr { get; init; }
 
     /// <summary>How many dB the signal-to-noise ratio drops after a pass and rises after a failure.</summary>
-    public double SnrStepDb { get; init; } = 1.0;
+    public double SnrStepDb { get; init; } = 3.0;
 
     public bool Qsb { get; init; }
 
     /// <summary>How many dB the QSB fade deepens after a pass and becomes shallower after a failure.</summary>
-    public double QsbStepDb { get; init; } = 1.0;
+    public double QsbStepDb { get; init; } = 3.0;
 
     public bool Any => Wpm || Snr || Qsb;
 }

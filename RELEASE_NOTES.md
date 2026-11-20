@@ -5,7 +5,7 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.4.0
 
 - **The correlation window has three tabs:** besides speed, your error rate is now also plotted against the signal-to-noise ratio (sessions with noise) and against the QSB fade depth (sessions with QSB), each with its own fitted line and summary. An analysis window of 0 days shows only today's sessions.
-- **Auto-adjusting noise and fading:** in the new Auto-adjust group of Settings › Practice, next to the auto-adjusting WPM, you can also make the signal-to-noise ratio and the QSB depth follow your results. After a passed session the SNR drops and the fade deepens by the step you set (in dB); after a failed one they go back the same way. They use the same decision and window as the WPM, work only while noise or QSB is on, and, like the WPM, live in memory only: they restart from the Noise tab's SNR and fade depth. The status bar shows the SNR and QSB depth the next session will use, and the saved statistics record the values actually played.
+- **Auto-adjusting noise and fading:** in the new Auto-adjust group of Settings › Practice, next to the auto-adjusting WPM, you can also make the signal-to-noise ratio and the QSB depth follow your results. After a passed session the SNR drops and the fade deepens by the step you set (in dB, 3 dB by default); after a failed one they go back the same way. They use the same decision and window as the WPM, work only while noise or QSB is on, and, like the WPM, live in memory only: they restart from the Noise tab's SNR and fade depth. The status bar shows the SNR and QSB depth the next session will use, and the saved statistics record the values actually played.
 
 ## 2.3.0
 

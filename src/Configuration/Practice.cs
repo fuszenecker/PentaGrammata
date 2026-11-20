@@ -59,7 +59,7 @@ public sealed class Practice
 
 	/// <summary>How much the signal-to-noise ratio moves per adjustment, in dB.</summary>
 	[PromptuariumComment("How much the automatic adjustment lowers the signal-to-noise ratio after a passed session and raises it after a failed one, in dB")]
-	public double AutoAdjustSnrStepDb { get; set; } = 1.0;
+	public double AutoAdjustSnrStepDb { get; set; } = 3.0;
 
 	/// <summary>
 	/// When true, the QSB fade depth is adjusted in memory after each saved session, by the same
@@ -72,7 +72,7 @@ public sealed class Practice
 
 	/// <summary>How much the QSB fade depth moves per adjustment, in dB.</summary>
 	[PromptuariumComment("How much the automatic adjustment deepens the QSB fade after a passed session and makes it shallower after a failed one, in dB")]
-	public double AutoAdjustQsbStepDb { get; set; } = 1.0;
+	public double AutoAdjustQsbStepDb { get; set; } = 3.0;
 
 	public Practice Clone() => new()
 	{
