@@ -18,7 +18,7 @@ public sealed class CorrelationDialogViewModel : ViewModelBase
     // The analysis window is how many days back the scatter reaches. Default and bounds for
     // the user-facing control.
     private const double DefaultWindowDays = 10d;
-    private const double MinWindowDaysValue = 1d;
+    private const double MinWindowDaysValue = 0d;
     private const double MaxWindowDaysValue = 365d;
 
     private readonly IPracticeResultStatisticsService _statisticsService;
