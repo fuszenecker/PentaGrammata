@@ -54,7 +54,7 @@ dotnet test tests/PentaGrammata.Tests/PentaGrammata.Tests.csproj
 
 ## Installers and releases
 
-The installers are built only by the `Create Installer` workflow (`.github/workflows/create-installer.yml`), never by hand: pushing a version tag (`MAJOR.MINOR.PATCH.BUILD`, the version in `version.txt`) builds the Windows `.exe` (NSIS), the `.deb` and `.rpm` (directly on an Ubuntu runner, with AppStream metadata stating the MIT license), and the macOS `.dmg`, and publishes them as a stable GitHub release, marked latest, with the notes of the version from `RELEASE_NOTES.md`. A tag whose version differs from `version.txt`, or which has no notes, is refused; CI checks the notes of `version.txt` on every push. The workflow can be started by hand for an existing tag to rebuild its release. The scripts in `scripts/` are the ones the workflow runs.
+The installers are built only by the `Create Installer` workflow (`.github/workflows/create-installer.yml`), never by hand: pushing a version tag (`MAJOR.MINOR.PATCH.BUILD`, the version in `version.txt`) builds the Windows `.exe` (NSIS), the `.deb` (on an Ubuntu runner) and the `.rpm` (in a Rocky Linux 9 container, test-installed there), both with AppStream metadata stating the MIT license, and the macOS `.dmg`, and publishes them as a stable GitHub release, marked latest, with the notes of the version from `RELEASE_NOTES.md`. A tag whose version differs from `version.txt`, or which has no notes, is refused; CI checks the notes of `version.txt` on every push. The workflow can be started by hand for an existing tag to rebuild its release. The scripts in `scripts/` are the ones the workflow runs.
 
 ## Configuration
 

@@ -7,7 +7,8 @@ name: Create Installer
 #
 #   check          -> the tag is the version of version.txt, and RELEASE_NOTES.md has its notes
 #   test           -> the tests of the tagged code
-#   build-linux    -> .deb + .rpm, built directly on an Ubuntu runner (dpkg-deb, rpmbuild)
+#   build-deb      -> .deb, built directly on an Ubuntu runner (dpkg-deb)
+#   build-rpm      -> .rpm, built in a Rocky Linux 9 container (rpmbuild)
 #   build-windows  -> .exe (NSIS) on a Windows runner
 #   build-macos    -> .dmg (Apple Silicon) on a macOS runner
 #   release        -> a stable release, always marked latest, with the notes and all the installers
@@ -108,8 +109,8 @@ jobs:
       - name: Test
         run: dotnet test PentaGrammata.slnx --configuration Release
 
-  build-linux:
-    name: Build .deb and .rpm
+  build-deb:
+    name: Build .deb
     needs: check
     runs-on: ubuntu-latest
     env:
@@ -123,30 +124,59 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # dpkg-deb comes with the runner; rpmbuild is in Ubuntu's rpm package
-      - name: Install rpmbuild
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends rpm
-
-      # The self-contained publish is made once, by the .deb build, and reused by the .rpm build
+      # dpkg-deb comes with the runner
       - name: Build the .deb installer
         run: ./scripts/Build-Deb-Installer.sh --version "${VERSION}"
 
-      - name: Build the .rpm installer
-        run: ./scripts/Build-Rpm-Installer.sh --version "${VERSION}" --skip-publish
-
-      - name: Verify the installers
-        run: |
-          ls -lh installer/deb/pentagrammata_${VERSION}_*.deb
-          ls -lh installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
+      - name: Verify the installer
+        run: ls -lh installer/deb/pentagrammata_${VERSION}_*.deb
 
       - uses: actions/upload-artifact@v7
         with:
-          name: linux-installers
-          path: |
-            installer/deb/*.deb
-            installer/rpm/x86_64/*.rpm
+          name: deb-installer
+          path: installer/deb/*.deb
+          if-no-files-found: error
+
+  # The .rpm is built on the RHEL family it is meant for: Rocky Linux 9, with its own rpm-build and macros
+  # (redhat-rpm-config, the el9 dist tag). Built on 9, the package also installs on 10 and on Fedora.
+  build-rpm:
+    name: Build .rpm (Rocky Linux 9)
+    needs: check
+    runs-on: ubuntu-latest
+    container: quay.io/rockylinux/rockylinux:9
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      # git for actions/checkout, libicu for the .NET SDK, the rest for the packaging script
+      - name: Install the build tools
+        run: dnf install -y --nodocs --setopt=install_weak_deps=False git rpm-build tar gzip findutils libicu
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build the .rpm installer
+        run: ./scripts/Build-Rpm-Installer.sh --version "${VERSION}"
+
+      # Installing the package proves its dependencies resolve on a RHEL-family system
+      - name: Verify the installer
+        run: |
+          ls -lh installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
+          rpm -qpi installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
+          rpm -qpR installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
+          dnf install -y installer/rpm/x86_64/pentagrammata-${VERSION}-*.rpm
+          test -x /opt/pentagrammata/PentaGrammata
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rpm-installer
+          path: installer/rpm/x86_64/*.rpm
           if-no-files-found: error
 
   build-windows:
@@ -217,7 +247,7 @@ jobs:
 
   release:
     name: Release
-    needs: [check, test, build-linux, build-windows, build-macos]
+    needs: [check, test, build-deb, build-rpm, build-windows, build-macos]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.check.outputs.version }}
