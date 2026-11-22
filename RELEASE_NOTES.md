@@ -5,6 +5,7 @@ The notes of every release, the newest first. A section belongs to a version wit
 ## 2.4.2
 
 - **Settings unchanged under a newer serializer:** the settings are now read and written by Promptuarium.Serializer 8.4. Your `settings.prmt` and `windows.prmt` keep their format (`PRMT:CFG1-LE`), so settings and backups move freely between this and earlier 2.x versions.
+- **2.4.2.1:** the `.rpm` package is now built on Rocky Linux 9 and test-installed before release.
 
 ## 2.4.1
 
