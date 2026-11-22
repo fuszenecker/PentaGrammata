@@ -6,10 +6,13 @@ namespace PentaGrammata.Configuration;
 public sealed class Practice
 {
 	[PromptuariumComment("The length of a session, in minutes")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int DefaultDurationMins { get; set; } = 5;
 	[PromptuariumComment("The character speed, in words per minute (Farnsworth timing)")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int CharacterWpm { get; set; } = 20;
 	[PromptuariumComment("The overall speed including the spacing, in words per minute (Farnsworth timing)")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int AverageWpm { get; set; } = 15;
 	[PromptuariumComment("The name of the character set the groups are drawn from (see CharacterSets)")]
 	public string DefaultCharacterSet { get; set; } = "Default";
@@ -46,6 +49,7 @@ public sealed class Practice
 	/// <see cref="AutoAdjustWpm"/>. Must be at least 1.
 	/// </summary>
 	[PromptuariumComment("The number of recent sessions whose error rates drive the automatic speed adjustment")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int AutoAdjustWindowSize { get; set; } = 1;
 
 	/// <summary>

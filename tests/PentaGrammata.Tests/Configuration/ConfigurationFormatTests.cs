@@ -187,6 +187,35 @@ public sealed class ConfigurationFormatTests
     }
 
     [TestMethod]
+    public void Serialize_FullConfiguration_StaysVersion1()
+    {
+        // The serializer signs by content: one value of a version-2 type (an int without
+        // [PromptuariumType(Float64)], a DateTime, a Guid ...) would make the file PRMT:CFG2-LE,
+        // which PentaGrammata 2.4.1 and older can not read.
+        var paths = Substitute.For<IAppPaths>();
+        paths.UserConfigPaths.Returns(new List<string>());
+        var configuration = new ConfigurationStore(paths, Substitute.For<ILogger<ConfigurationStore>>()).Load();
+        configuration.AppMajorVersion = ConfigurationFormat.CurrentMajorVersion;
+
+        foreach (var bytes in new[]
+        {
+            PromptuariumSerializer.Serialize(configuration, ConfigurationFormat.Options),
+            PromptuariumSerializer.Serialize(new AppConfiguration(), ConfigurationFormat.Options),
+        })
+        {
+            Assert.AreEqual(ConfigurationFormat.Signature, Element.FromBytes(bytes).MetaData.AsAsciiString());
+        }
+    }
+
+    [TestMethod]
+    public void BundledSettings_AreVersion1()
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName));
+
+        Assert.AreEqual("PRMT:CFG1-LE", Element.FromBytes(bytes).MetaData.AsAsciiString());
+    }
+
+    [TestMethod]
     public void BundledSettings_CarryComments()
     {
         var root = Element.FromBytes(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, ConfigurationPaths.SettingsFileName)));

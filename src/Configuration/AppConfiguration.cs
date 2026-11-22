@@ -11,6 +11,7 @@ public sealed class AppConfiguration
     /// defaults are used instead (see <c>ConfigurationStore</c>).
     /// </summary>
     [PromptuariumComment("The major version of PentaGrammata that wrote this file; a file of another major version is moved to the backups folder and the defaults are used")]
+    [PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
     public int AppMajorVersion { get; set; }
     [PromptuariumComment("The tone, its envelope and the simulated band conditions")]
     public Audio Audio { get; set; } = new();

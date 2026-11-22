@@ -24,9 +24,11 @@ public sealed class Repetition
 	}
 
 	[PromptuariumComment("The fewest times an item is sent in a row (1 to 9)")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int Minimum { get; set; } = 1;
 
 	[PromptuariumComment("The most times an item is sent in a row (Minimum to 9)")]
+	[PromptuariumType(PromptuariumType.Float64)] // the form of version 1 (PRMT:CFG1-LE)
 	public int Maximum { get; set; } = 1;
 
 	public Repetition Clone() => new(Minimum, Maximum);

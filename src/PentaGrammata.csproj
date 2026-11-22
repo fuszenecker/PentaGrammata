@@ -8,8 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\pentagrammata-icon.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 Róbert Fuszenecker, HA8LHS</Copyright>
-    <!-- Promptuarium.Serializer is experimental (opt-in diagnostic PRMTSER000) -->
-    <NoWarn>$(NoWarn);PRMTSER000</NoWarn>
+    <!-- Promptuarium.Serializer is experimental (opt-in diagnostics PRMTSER000, and PRMTSER001 for [PromptuariumType]) -->
+    <NoWarn>$(NoWarn);PRMTSER000;PRMTSER001</NoWarn>
     <!-- version.txt is the single source of the version: the installer scripts pass it as
          -p:Version, and local builds read it here, so a developer build has the real major
          version (settings.prmt files of another major version are set aside on load). -->
