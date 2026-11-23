@@ -2,6 +2,10 @@
 
 The notes of every release, the newest first. A section belongs to a version without its BUILD number (`## 2.0.0`): the releases of the same code (2.0.0.0, 2.0.0.1, …) share it. The release workflow puts the section of the tag into the GitHub release, with the downloads, and refuses a tag that has no section. A paragraph or an item is one line: GitHub shows every line break of a release.
 
+## 2.4.3
+
+- **Updated components:** the user interface library (Avalonia 12.2), the .NET runtime libraries (10.0.15) and the settings serializer (Promptuarium.Serializer 8.4.1) are updated to their latest versions. Settings, statistics and backups are unchanged and compatible with earlier 2.x versions.
+
 ## 2.4.2
 
 - **Settings unchanged under a newer serializer:** the settings are now read and written by Promptuarium.Serializer 8.4. Your `settings.prmt` and `windows.prmt` keep their format (`PRMT:CFG1-LE`), so settings and backups move freely between this and earlier 2.x versions.
